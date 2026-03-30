@@ -83,6 +83,31 @@ export default function TramitesExternosAdminPage() {
     }
   }
 
+  async function handleAprobar(id: string) {
+    setSaving(id);
+    setError("");
+    try {
+      const res = await fetch("/api/solicitudes/aprobar", {
+        method:  "POST",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify({ id }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error ?? "Error al aprobar");
+
+      setSolicitudes((prev) =>
+        prev.map((s) => s.id === id
+          ? { ...s, estado: "aprobado", pdf_boleta_url: json.pdfUrl }
+          : s
+        )
+      );
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Error al aprobar");
+    } finally {
+      setSaving(null);
+    }
+  }
+
   async function handleRechazar() {
     if (!modalObs) return;
     setSaving(modalObs.id!);
@@ -264,7 +289,7 @@ export default function TramitesExternosAdminPage() {
                       ) : (
                         <div className="flex flex-col gap-1.5">
                           {s.estado !== "aprobado" && (
-                            <button onClick={() => handleCambiarEstado(s.id!, "aprobado")}
+                            <button onClick={() => handleAprobar(s.id!)}
                               className="flex items-center gap-1 text-xs text-green-600 hover:text-green-800 font-medium whitespace-nowrap">
                               <CheckCircle size={12} /> Aprobar
                             </button>

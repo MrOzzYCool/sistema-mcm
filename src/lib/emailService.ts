@@ -147,3 +147,59 @@ export async function enviarCorreoRechazo(params: {
     `,
   });
 }
+
+// ─── Email de aprobación con link a boleta ────────────────────────────────────
+
+export async function enviarCorreoAprobacion(params: {
+  email:       string;
+  nombres:     string;
+  apellidos:   string;
+  tipoTramite: string;
+  pdfUrl:      string;
+}): Promise<void> {
+  const nombre = `${params.nombres} ${params.apellidos}`;
+
+  await resend.emails.send({
+    from:    FROM,
+    to:      params.email,
+    subject: "¡Solicitud Aprobada! ✅ - I.E.S. MC",
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #1e293b;">
+        <div style="background: linear-gradient(135deg, #a93526, #8a2b1f); padding: 32px 24px; border-radius: 12px 12px 0 0; text-align: center;">
+          <h1 style="color: #ffffff; margin: 0; font-size: 22px;">I.E.S. Privada Margarita Cabrera</h1>
+          <p style="color: rgba(255,255,255,0.8); margin: 8px 0 0; font-size: 14px;">¡Tu solicitud fue aprobada!</p>
+        </div>
+
+        <div style="background: #ffffff; padding: 32px 24px; border: 1px solid #e2e8f0; border-top: none; border-radius: 0 0 12px 12px;">
+          <p style="font-size: 16px; margin: 0 0 16px;">Hola <strong>${nombre}</strong>,</p>
+
+          <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 16px; margin: 0 0 24px; text-align: center;">
+            <p style="margin: 0; font-size: 28px;">✅</p>
+            <p style="margin: 8px 0 0; font-weight: 700; color: #15803d; font-size: 16px;">¡Solicitud aprobada con éxito!</p>
+          </div>
+
+          <p style="color: #475569; line-height: 1.6; margin: 0 0 20px;">
+            Tu solicitud de <strong>${params.tipoTramite}</strong> ha sido aprobada.
+            Ya puedes descargar tu boleta electrónica haciendo clic en el botón de abajo.
+          </p>
+
+          <div style="text-align: center; margin: 0 0 24px;">
+            <a href="${params.pdfUrl}"
+               style="display: inline-block; background: #a93526; color: #ffffff; text-decoration: none;
+                      padding: 14px 32px; border-radius: 8px; font-weight: 600; font-size: 15px;">
+              📄 Descargar Boleta Electrónica
+            </a>
+          </div>
+
+          <p style="color: #94a3b8; font-size: 12px; margin: 0 0 8px;">O copia este enlace:</p>
+          <p style="color: #64748b; font-size: 12px; word-break: break-all; margin: 0 0 24px;">${params.pdfUrl}</p>
+
+          <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 24px 0;" />
+          <p style="font-size: 12px; color: #94a3b8; margin: 0; text-align: center;">
+            © 2026 I.E.S. Privada Margarita Cabrera · Este es un correo automático, no responder.
+          </p>
+        </div>
+      </div>
+    `,
+  });
+}
