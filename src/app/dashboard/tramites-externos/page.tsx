@@ -396,7 +396,7 @@ export default function TramitesExternosAdminPage() {
                 className="flex-1 text-sm text-white font-semibold px-4 py-2 rounded-lg bg-red-600 hover:bg-red-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
               >
                 {saving === modalObs.id && <Loader2 size={14} className="animate-spin" />}
-                Rechazar y enviar correo
+                Confirmar Rechazo y Enviar Correo
               </button>
             </div>
           </div>
