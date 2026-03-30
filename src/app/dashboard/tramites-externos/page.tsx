@@ -30,6 +30,7 @@ export default function TramitesExternosAdminPage() {
   const [lightbox, setLightbox]         = useState<{ url: string; titulo: string } | null>(null);
   const [modalObs, setModalObs]         = useState<SolicitudDB | null>(null);
   const [observacion, setObservacion]   = useState("");
+  const [obsFields, setObsFields]       = useState({ voucher: "", dni_anverso: "", dni_reverso: "" });
   const [saving, setSaving]             = useState<string | null>(null);
   const [showLimpiar, setShowLimpiar]   = useState(false);
   const [limpiando, setLimpiando]       = useState(false);
@@ -77,6 +78,31 @@ export default function TramitesExternosAdminPage() {
       setModalObs(null);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Error actualizando estado");
+    } finally {
+      setSaving(null);
+    }
+  }
+
+  async function handleRechazar() {
+    if (!modalObs) return;
+    setSaving(modalObs.id!);
+    try {
+      const res = await fetch("/api/solicitudes/rechazar", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: modalObs.id, observaciones: obsFields }),
+      });
+      if (!res.ok) throw new Error((await res.json()).error);
+      setSolicitudes((prev) =>
+        prev.map((s) => s.id === modalObs.id
+          ? { ...s, estado: "rechazado", observaciones: obsFields }
+          : s
+        )
+      );
+      setModalObs(null);
+      setObsFields({ voucher: "", dni_anverso: "", dni_reverso: "" });
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Error al rechazar");
     } finally {
       setSaving(null);
     }
@@ -244,13 +270,13 @@ export default function TramitesExternosAdminPage() {
                             </button>
                           )}
                           {s.estado !== "observado" && (
-                            <button onClick={() => { setModalObs(s); setObservacion(""); }}
+                            <button onClick={() => handleCambiarEstado(s.id!, "observado")}
                               className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 font-medium whitespace-nowrap">
                               <AlertTriangle size={12} /> Observar
                             </button>
                           )}
                           {s.estado !== "rechazado" && (
-                            <button onClick={() => handleCambiarEstado(s.id!, "rechazado")}
+                            <button onClick={() => { setModalObs(s); setObservacion(""); setObsFields({ voucher: "", dni_anverso: "", dni_reverso: "" }); }}
                               className="flex items-center gap-1 text-xs text-red-500 hover:text-red-700 font-medium whitespace-nowrap">
                               <XCircle size={12} /> Rechazar
                             </button>
@@ -318,30 +344,59 @@ export default function TramitesExternosAdminPage() {
         </div>
       )}
 
-      {/* Modal observación */}
+      {/* Modal rechazo con observaciones por campo */}
       {modalObs && (
         <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-md">
-            <h3 className="font-bold text-mcm-text text-lg mb-1">Agregar observación</h3>
-            <p className="text-mcm-muted text-sm mb-4">
-              Solicitud de <strong>{modalObs.nombres} {modalObs.apellidos}</strong>
+          <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-lg">
+            <h3 className="font-bold text-mcm-text text-lg mb-1">Rechazar solicitud</h3>
+            <p className="text-mcm-muted text-sm mb-5">
+              Indica qué documentos tienen problemas. Se enviará un correo automático a{" "}
+              <strong>{modalObs.nombres} {modalObs.apellidos}</strong> con las instrucciones para corregirlos.
             </p>
-            <textarea value={observacion} onChange={(e) => setObservacion(e.target.value)}
-              placeholder="Describe el motivo de la observación..."
-              rows={3}
-              className="w-full border border-mcm-border rounded-lg px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#a93526] resize-none mb-4"
-            />
-            <div className="flex gap-3">
+
+            <div className="space-y-4">
+              {([
+                { key: "voucher",     label: "Voucher de pago" },
+                { key: "dni_anverso", label: "DNI — Anverso" },
+                { key: "dni_reverso", label: "DNI — Reverso" },
+              ] as const).map(({ key, label }) => (
+                <div key={key}>
+                  <label className="flex items-center gap-2 mb-1.5 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={!!obsFields[key]}
+                      onChange={(e) => setObsFields((p) => ({
+                        ...p,
+                        [key]: e.target.checked ? "Documento no válido o ilegible" : "",
+                      }))}
+                      className="w-4 h-4 accent-[#a93526]"
+                    />
+                    <span className="text-sm font-medium text-mcm-text">{label}</span>
+                  </label>
+                  {obsFields[key] !== "" && (
+                    <input
+                      type="text"
+                      value={obsFields[key]}
+                      onChange={(e) => setObsFields((p) => ({ ...p, [key]: e.target.value }))}
+                      placeholder="Describe el problema específico..."
+                      className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#a93526] ml-6"
+                    />
+                  )}
+                </div>
+              ))}
+            </div>
+
+            <div className="flex gap-3 mt-6">
               <button onClick={() => setModalObs(null)} className="btn-secondary flex-1 text-sm">
                 Cancelar
               </button>
               <button
-                onClick={() => handleCambiarEstado(modalObs.id!, "observado", observacion)}
-                disabled={!observacion.trim() || saving === modalObs.id}
-                className="btn-primary flex-1 text-sm disabled:opacity-50 flex items-center justify-center gap-2"
+                onClick={handleRechazar}
+                disabled={!Object.values(obsFields).some(Boolean) || saving === modalObs.id}
+                className="flex-1 text-sm text-white font-semibold px-4 py-2 rounded-lg bg-red-600 hover:bg-red-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
               >
                 {saving === modalObs.id && <Loader2 size={14} className="animate-spin" />}
-                Guardar
+                Rechazar y enviar correo
               </button>
             </div>
           </div>
