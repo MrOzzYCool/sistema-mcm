@@ -24,14 +24,16 @@ export async function generarBoleta(datos: BoletaInput): Promise<BoletaResult> {
     throw new Error("Nubefact no está configurado. Verifica NUBEFACT_ENDPOINT y NUBEFACT_TOKEN.");
   }
 
-  // Operación INAFECTA: el monto es el total, sin IGV
   const monto = Math.round(datos.monto * 100) / 100;
+
+  // Número único basado en timestamp para evitar duplicados
+  const numeroUnico = Date.now().toString().slice(-6); // últimos 6 dígitos del timestamp
 
   const payload = {
     operacion:              "generar_comprobante",
-    tipo_de_comprobante:    2,          // 2 = Boleta de Venta
+    tipo_de_comprobante:    2,
     serie:                  "BBB2",
-    numero:                 "1",        // Nubefact autoincrementa
+    numero:                 numeroUnico,
     sunat_transaction:      1,
     cliente_tipo_de_documento: 1,       // 1 = DNI
     cliente_numero_de_documento: datos.dniCliente,
@@ -97,14 +99,15 @@ export async function generarBoleta(datos: BoletaInput): Promise<BoletaResult> {
     ],
   };
 
-  console.log("[nubefact] Enviando boleta inafecta:", JSON.stringify({
-    cliente: datos.nombreCliente,
-    dni:     datos.dniCliente,
-    monto,
-    tipo_de_igv: 9,
-    total_inafecta: monto,
-    total_igv: 0,
-  }));
+  // ── Logs de diagnóstico ──────────────────────────────────────────────────
+  const endpointSafe = ENDPOINT.replace(/\/[^/]+$/, "/***"); // oculta el RUC del endpoint
+  console.log("[nubefact] Endpoint:", ENDPOINT);             // URL completa para diagnóstico
+  console.log("[nubefact] Endpoint (safe):", endpointSafe);
+  console.log("[nubefact] Serie:", "BBB2", "| Número:", numeroUnico);
+  console.log("[nubefact] Payload completo:", JSON.stringify({
+    ...payload,
+    // El token va en el header, no en el payload — no hay nada que ocultar aquí
+  }, null, 2));
 
   const res = await fetch(ENDPOINT, {
     method:  "POST",
