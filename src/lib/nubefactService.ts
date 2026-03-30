@@ -30,7 +30,7 @@ export async function generarBoleta(datos: BoletaInput): Promise<BoletaResult> {
   const payload = {
     operacion:              "generar_comprobante",
     tipo_de_comprobante:    2,          // 2 = Boleta de Venta
-    serie:                  "B001",
+    serie:                  "BBB2",
     numero:                 "1",        // Nubefact autoincrementa
     sunat_transaction:      1,
     cliente_tipo_de_documento: 1,       // 1 = DNI
@@ -128,7 +128,7 @@ export async function generarBoleta(datos: BoletaInput): Promise<BoletaResult> {
 
   return {
     pdfUrl:   json.enlace_del_pdf ?? json.pdf_url ?? "",
-    serie:    json.serie          ?? "B001",
+    serie:    json.serie          ?? "BBB2",
     numero:   json.numero         ?? 0,
     enlaceQr: json.enlace_del_qr  ?? "",
   };
