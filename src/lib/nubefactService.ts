@@ -1,5 +1,6 @@
 // ─── Nubefact — Emisión de Boletas Electrónicas ───────────────────────────────
 // Documentación: https://www.nubefact.com/api-boleta-factura/
+// Los trámites del Instituto están INAFECTOS de IGV (tipo_de_igv = 9)
 
 const ENDPOINT = process.env.NUBEFACT_ENDPOINT!;
 const TOKEN    = process.env.NUBEFACT_TOKEN!;
@@ -7,15 +8,15 @@ const TOKEN    = process.env.NUBEFACT_TOKEN!;
 export interface BoletaInput {
   dniCliente:    string;
   nombreCliente: string;
-  monto:         number;
-  descripcion:   string;  // descripción del trámite
+  monto:         number;   // monto total inafecto (sin IGV)
+  descripcion:   string;
 }
 
 export interface BoletaResult {
-  pdfUrl:       string;
-  serie:        string;
-  numero:       number;
-  enlaceQr:     string;
+  pdfUrl:   string;
+  serie:    string;
+  numero:   number;
+  enlaceQr: string;
 }
 
 export async function generarBoleta(datos: BoletaInput): Promise<BoletaResult> {
@@ -23,14 +24,14 @@ export async function generarBoleta(datos: BoletaInput): Promise<BoletaResult> {
     throw new Error("Nubefact no está configurado. Verifica NUBEFACT_ENDPOINT y NUBEFACT_TOKEN.");
   }
 
-  const igv       = Math.round(datos.monto * 0.18 * 100) / 100;
-  const subtotal  = Math.round((datos.monto - igv) * 100) / 100;
+  // Operación INAFECTA: el monto es el total, sin IGV
+  const monto = Math.round(datos.monto * 100) / 100;
 
   const payload = {
     operacion:              "generar_comprobante",
     tipo_de_comprobante:    2,          // 2 = Boleta de Venta
     serie:                  "B001",
-    numero:                 "1",        // Nubefact lo autoincrementa
+    numero:                 "1",        // Nubefact autoincrementa
     sunat_transaction:      1,
     cliente_tipo_de_documento: 1,       // 1 = DNI
     cliente_numero_de_documento: datos.dniCliente,
@@ -39,29 +40,31 @@ export async function generarBoleta(datos: BoletaInput): Promise<BoletaResult> {
     cliente_email:          "",
     cliente_email_1:        "",
     cliente_email_2:        "",
-    fecha_de_emision:       new Date().toLocaleDateString("es-PE", { day: "2-digit", month: "2-digit", year: "numeric" }),
+    fecha_de_emision:       new Date().toLocaleDateString("es-PE", {
+      day: "2-digit", month: "2-digit", year: "numeric",
+    }),
     fecha_de_vencimiento:   "",
-    moneda:                 1,          // 1 = Soles
+    moneda:                 1,          // 1 = Soles (PEN)
     tipo_de_cambio:         "",
-    porcentaje_de_igv:      18.0,
+    porcentaje_de_igv:      0.00,       // Inafecto: sin IGV
     descuento_global:       0,
     total_descuento:        0,
     total_anticipo:         0,
-    total_gravada:          subtotal,
-    total_inafecta:         0,
+    total_gravada:          0,          // No hay base gravada
+    total_inafecta:         monto,      // Todo el monto es inafecto
     total_exonerada:        0,
-    total_igv:              igv,
+    total_igv:              0,          // IGV = 0
     total_gratuita:         0,
     total_otros_cargos:     0,
-    total:                  datos.monto,
+    total:                  monto,      // Total = monto inafecto
     percepcion_tipo:        "",
     percepcion_base_imponible: 0,
     total_percepcion:       0,
     total_incluido_percepcion: 0,
     detraccion:             false,
     observaciones:          "",
-    documento_que_se_modifica_tipo: "",
-    documento_que_se_modifica_serie: "",
+    documento_que_se_modifica_tipo:   "",
+    documento_que_se_modifica_serie:  "",
     documento_que_se_modifica_numero: "",
     tipo_de_nota_de_credito: "",
     tipo_de_nota_de_debito:  "",
@@ -80,19 +83,28 @@ export async function generarBoleta(datos: BoletaInput): Promise<BoletaResult> {
         codigo:             "TRAM001",
         descripcion:        datos.descripcion,
         cantidad:           1,
-        valor_unitario:     subtotal,
-        precio_unitario:    datos.monto,
+        valor_unitario:     monto,      // Inafecto: valor_unitario = precio_unitario
+        precio_unitario:    monto,
         descuento:          "",
-        subtotal:           subtotal,
-        tipo_de_igv:        1,
-        igv:                igv,
-        total:              datos.monto,
+        subtotal:           monto,
+        tipo_de_igv:        9,          // 9 = Inafecto - Operación Onerosa
+        igv:                0,          // IGV = 0
+        total:              monto,
         anticipo_regularizacion: false,
-        anticipo_documento_serie: "",
+        anticipo_documento_serie:  "",
         anticipo_documento_numero: "",
       },
     ],
   };
+
+  console.log("[nubefact] Enviando boleta inafecta:", JSON.stringify({
+    cliente: datos.nombreCliente,
+    dni:     datos.dniCliente,
+    monto,
+    tipo_de_igv: 9,
+    total_inafecta: monto,
+    total_igv: 0,
+  }));
 
   const res = await fetch(ENDPOINT, {
     method:  "POST",
@@ -100,16 +112,17 @@ export async function generarBoleta(datos: BoletaInput): Promise<BoletaResult> {
       "Content-Type":  "application/json",
       "Authorization": `Token token="${TOKEN}"`,
     },
-    body: JSON.stringify(payload),
+    body:  JSON.stringify(payload),
     cache: "no-store",
   });
 
   const json = await res.json();
+  console.log("[nubefact] Respuesta:", JSON.stringify(json));
 
   if (!res.ok || json.errors) {
     const msg = json.errors
       ? Object.values(json.errors).flat().join(", ")
-      : `Error Nubefact: ${res.status}`;
+      : `Error Nubefact HTTP ${res.status}: ${JSON.stringify(json)}`;
     throw new Error(msg);
   }
 
