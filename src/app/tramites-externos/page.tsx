@@ -89,29 +89,38 @@ export default function TramitesExternosPage() {
         const { voucherUrl: vu, dniAnversoUrl: dau, dniReversoUrl: dru, paths } =
           await uploadSolicitudFiles(form.dni, voucherFile!, dniAnversoFile!, dniReversoFile!);
 
-        // ── Insertar en tabla con las mismas URLs recién obtenidas ──
+        // ── Insertar via API route (genera token + envía email de confirmación) ──
         try {
-          await insertarSolicitud({
-            nombres:         form.nombres.trim(),
-            apellidos:       form.apellidos.trim(),
-            dni:             form.dni.trim(),
-            email:           form.email.trim().toLowerCase(),
-            celular:         form.celular.trim(),
-            anio_egreso:     form.anioEgreso,
-            tipo_tramite:    tramiteSeleccionado!.nombre,
-            costo_tramite:   tramiteSeleccionado!.costo ?? 0,
-            monto_pagado:    tieneCosto ? montoPagadoNum : 0,
-            voucher_url:     vu,
-            dni_anverso_url: dau,
-            dni_reverso_url: dru,
-            estado:          "pendiente",
+          const res = await fetch("/api/solicitudes", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              nombres:         form.nombres.trim(),
+              apellidos:       form.apellidos.trim(),
+              dni:             form.dni.trim(),
+              email:           form.email.trim().toLowerCase(),
+              celular:         form.celular.trim(),
+              anio_egreso:     form.anioEgreso,
+              tipo_tramite:    tramiteSeleccionado!.nombre,
+              costo_tramite:   tramiteSeleccionado!.costo ?? 0,
+              monto_pagado:    tieneCosto ? montoPagadoNum : 0,
+              voucher_url:     vu,
+              dni_anverso_url: dau,
+              dni_reverso_url: dru,
+            }),
           });
+
+          if (!res.ok) {
+            const { error: apiError } = await res.json();
+            const { supabase: sb } = await import("@/lib/supabase");
+            await sb.storage.from("tramites-mcm").remove(paths);
+            throw new Error(apiError ?? "Error al guardar la solicitud");
+          }
+
           voucherUrl    = vu;
           dniAnversoUrl = dau;
           dniReversoUrl = dru;
         } catch (dbErr) {
-          const { supabase: sb } = await import("@/lib/supabase");
-          await sb.storage.from("tramites-mcm").remove(paths);
           throw dbErr;
         }
       }

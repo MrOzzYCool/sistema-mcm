@@ -33,5 +33,9 @@ export interface SolicitudDB {
   dni_reverso_url: string;
   estado: "pendiente" | "aprobado" | "observado" | "rechazado";
   observacion?: string;
+  // Nuevos campos
+  token_subsanacion?: string;
+  observaciones?: Record<string, string> | null;
+  pdf_boleta_url?: string | null;
   created_at?: string;
 }
