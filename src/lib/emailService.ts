@@ -2,7 +2,7 @@ import { Resend } from "resend";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
-const FROM = "Instituto MCM <contabilidad@margaritacabrera.edu.pe>";
+const FROM = "I.E.S. MC <contabilidad@margaritacabrera.edu.pe>";
 
 // ─── Email de confirmación de recepción ───────────────────────────────────────
 
