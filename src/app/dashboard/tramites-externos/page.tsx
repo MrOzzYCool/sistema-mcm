@@ -84,20 +84,23 @@ export default function TramitesExternosAdminPage() {
   }
 
   async function handleAprobar(id: string) {
+    if (!id) { setError("ID de solicitud inválido"); return; }
     setSaving(id);
     setError("");
     try {
+      console.log("[handleAprobar] llamando a /api/solicitudes/aprobar con id:", id);
       const res = await fetch("/api/solicitudes/aprobar", {
         method:  "POST",
         headers: { "Content-Type": "application/json" },
         body:    JSON.stringify({ id }),
       });
       const json = await res.json();
+      console.log("[handleAprobar] respuesta:", res.status, json);
       if (!res.ok) throw new Error(json.error ?? "Error al aprobar");
 
       setSolicitudes((prev) =>
         prev.map((s) => s.id === id
-          ? { ...s, estado: "aprobado", pdf_boleta_url: json.pdfUrl }
+          ? { ...s, estado: "aprobado" as const, pdf_boleta_url: json.pdfUrl }
           : s
         )
       );
