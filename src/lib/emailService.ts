@@ -148,7 +148,7 @@ export async function enviarCorreoRechazo(params: {
   });
 }
 
-// ─── Email de aprobación con link a boleta ────────────────────────────────────
+// ─── Email de aprobación con adjunto PDF ─────────────────────────────────────
 
 export async function enviarCorreoAprobacion(params: {
   email:       string;
@@ -157,12 +157,28 @@ export async function enviarCorreoAprobacion(params: {
   tipoTramite: string;
   pdfUrl:      string;
 }): Promise<void> {
-  const nombre = `${params.nombres} ${params.apellidos}`;
+  const nombre        = `${params.nombres} ${params.apellidos}`;
+  const nombreArchivo = `Comprobante_${params.nombres}_${params.apellidos}.pdf`.replace(/\s+/g, "_");
+
+  // Intentar descargar el PDF para adjuntarlo
+  let attachments: { filename: string; content: Buffer }[] = [];
+  if (params.pdfUrl && params.pdfUrl !== "#") {
+    try {
+      const pdfRes = await fetch(params.pdfUrl);
+      if (pdfRes.ok) {
+        const arrayBuffer = await pdfRes.arrayBuffer();
+        attachments = [{ filename: nombreArchivo, content: Buffer.from(arrayBuffer) }];
+      }
+    } catch (err) {
+      console.error("[email] No se pudo adjuntar el PDF, se enviará solo el link:", err);
+    }
+  }
 
   await resend.emails.send({
-    from:    FROM,
-    to:      params.email,
-    subject: "¡Solicitud Aprobada! ✅ - I.E.S. MC",
+    from:        FROM,
+    to:          params.email,
+    subject:     "Tu trámite ha sido aprobado - Instituto MCM ✅",
+    attachments,
     html: `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #1e293b;">
         <div style="background: linear-gradient(135deg, #a93526, #8a2b1f); padding: 32px 24px; border-radius: 12px 12px 0 0; text-align: center;">
@@ -180,19 +196,22 @@ export async function enviarCorreoAprobacion(params: {
 
           <p style="color: #475569; line-height: 1.6; margin: 0 0 20px;">
             Tu solicitud de <strong>${params.tipoTramite}</strong> ha sido aprobada.
-            Ya puedes descargar tu boleta electrónica haciendo clic en el botón de abajo.
+            ${attachments.length > 0
+              ? "Tu comprobante electrónico está adjunto a este correo."
+              : "Puedes descargar tu comprobante electrónico en el siguiente enlace:"}
           </p>
 
+          ${params.pdfUrl && params.pdfUrl !== "#" ? `
           <div style="text-align: center; margin: 0 0 24px;">
             <a href="${params.pdfUrl}"
                style="display: inline-block; background: #a93526; color: #ffffff; text-decoration: none;
                       padding: 14px 32px; border-radius: 8px; font-weight: 600; font-size: 15px;">
-              📄 Descargar Boleta Electrónica
+              📄 Descargar Comprobante
             </a>
           </div>
-
           <p style="color: #94a3b8; font-size: 12px; margin: 0 0 8px;">O copia este enlace:</p>
           <p style="color: #64748b; font-size: 12px; word-break: break-all; margin: 0 0 24px;">${params.pdfUrl}</p>
+          ` : ""}
 
           <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 24px 0;" />
           <p style="font-size: 12px; color: #94a3b8; margin: 0; text-align: center;">

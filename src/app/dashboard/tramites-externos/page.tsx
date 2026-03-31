@@ -297,6 +297,12 @@ export default function TramitesExternosAdminPage() {
                               <CheckCircle size={12} /> Aprobar
                             </button>
                           )}
+                          {s.estado === "aprobado" && s.pdf_boleta_url && (
+                            <a href={s.pdf_boleta_url} target="_blank" rel="noreferrer"
+                              className="flex items-center gap-1 text-xs text-[#a93526] hover:underline font-medium whitespace-nowrap">
+                              <ExternalLink size={12} /> Comprobante
+                            </a>
+                          )}
                           {s.estado !== "observado" && (
                             <button onClick={() => handleCambiarEstado(s.id!, "observado")}
                               className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 font-medium whitespace-nowrap">

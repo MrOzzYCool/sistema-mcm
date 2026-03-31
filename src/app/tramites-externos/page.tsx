@@ -198,12 +198,14 @@ export default function TramitesExternosPage() {
           >
             Enviar otra solicitud
           </button>
-          <button
-            onClick={() => window.close()}
-            className="w-full py-2.5 text-sm font-semibold rounded-lg border-2 border-[#a93526] text-[#a93526] hover:bg-red-50 transition-colors"
-          >
-            Cerrar
-          </button>
+          <div className="flex justify-center mt-3">
+            <button
+              onClick={() => window.close()}
+              className="btn-primary px-8 py-2 text-sm"
+            >
+              Cerrar
+            </button>
+          </div>
         </div>
       </div>
     );
