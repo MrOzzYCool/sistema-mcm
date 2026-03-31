@@ -37,5 +37,8 @@ export interface SolicitudDB {
   token_subsanacion?: string;
   observaciones?: Record<string, string> | null;
   pdf_boleta_url?: string | null;
+  // Campos para Sílabo por Curso
+  carrera?: string | null;
+  cantidad_silabos?: number | null;
   created_at?: string;
 }

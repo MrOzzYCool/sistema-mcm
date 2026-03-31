@@ -190,17 +190,26 @@ export const MOCK_USERS_EXT: UserExtendido[] = [
 // ─── Trámites externos (exalumnas) ─────────────────────────────────────────────
 
 export const TRAMITES_EXTERNOS_CATALOGO = [
-  { id: "te1", nombre: "Certificado de Escuela Privada (Alumnas que estudiaron de 1966 a 1979)",                                                          costo: null  },
-  { id: "te2", nombre: "Certificado de CEO/CEPRO (Alumnas que estudiaron de 1980 a 2013)",                                                                costo: null  },
-  { id: "te3", nombre: "Constancia de Estudio (Alumnas que estudiaron de 1980 a 2013)",                                                                   costo: null  },
-  { id: "te4", nombre: "Certificado modular por módulo (Alumnas que estudiaron de 2013 a la actualidad) INSTITUTO",                                       costo: 200   },
-  { id: "te5", nombre: "Certificado Oficial de notas (Alumnas que estudiaron de 2013 a la actualidad) INSTITUTO",                                         costo: 200   },
-  { id: "te6", nombre: "Constancia de egresada (Alumnas que estudiaron de 2013 a la actualidad) INSTITUTO",                                               costo: 50    },
-  { id: "te7", nombre: "Constancia de Estudio (Alumnas que estudiaron de 2013 a la actualidad) INSTITUTO",                                                costo: 50    },
-  { id: "te8", nombre: "Tramite Grado de Bachiller (Alumnas que estudiaron de 2013 a la actualidad) INSTITUTO",                                           costo: 1500  },
-  { id: "te9", nombre: "Examen de Suficiencia Profesional / Sustentación (Alumnas que estudiaron de 2013 a la actualidad) INSTITUTO",                     costo: 1000  },
-  { id: "te10", nombre: "Trámite de Titulo a Nombre de la Nacion (Alumnas que estudiaron de 2013 a la actualidad) INSTITUTO",                             costo: 2000  },
+  { id: "te1",  nombre: "Certificado de Escuela Privada (Alumnas que estudiaron de 1966 a 1979)",                                                          costo: 50    },
+  { id: "te2",  nombre: "Certificado de CEO/CEPRO (Alumnas que estudiaron de 1980 a 2013)",                                                                costo: 350   },
+  { id: "te3",  nombre: "Constancia de Estudio (Alumnas que estudiaron de 1980 a 2013)",                                                                   costo: 50    },
+  { id: "te4",  nombre: "Certificado modular por módulo (Alumnas que estudiaron de 2013 a la actualidad) INSTITUTO",                                       costo: 200   },
+  { id: "te5",  nombre: "Certificado Oficial de notas (Alumnas que estudiaron de 2013 a la actualidad) INSTITUTO",                                         costo: 200   },
+  { id: "te6",  nombre: "Constancia de egresada (Alumnas que estudiaron de 2013 a la actualidad) INSTITUTO",                                               costo: 50    },
+  { id: "te7",  nombre: "Constancia de Estudio (Alumnas que estudiaron de 2013 a la actualidad) INSTITUTO",                                                costo: 50    },
+  { id: "te8",  nombre: "Tramite Grado de Bachiller (Alumnas que estudiaron de 2013 a la actualidad) INSTITUTO",                                           costo: 1500  },
+  { id: "te9",  nombre: "Examen de Suficiencia Profesional / Sustentación (Alumnas que estudiaron de 2013 a la actualidad) INSTITUTO",                     costo: 1000  },
+  { id: "te10", nombre: "Trámite de Titulo a Nombre de la Nacion (Alumnas que estudiaron de 2013 a la actualidad) INSTITUTO",                              costo: 2000  },
+  { id: "te11", nombre: "Sílabo por Curso",                                                                                                                costo: null  }, // monto calculado: cantidad × S/ 5
 ] as const;
+
+export const SILABO_CARRERAS = [
+  { id: "aa", nombre: "ASISTENCIA ADMINISTRATIVA",    maxSilabos: 51 },
+  { id: "ti", nombre: "TRADUCCIÓN E INTERPRETACIÓN",  maxSilabos: 54 },
+  { id: "se", nombre: "SECRETARIADO EJECUTIVO",       maxSilabos: 60 },
+] as const;
+
+export const PRECIO_SILABO = 5; // S/ 5.00 por sílabo
 
 export type TramiteExternoEstado = "pendiente" | "aprobado" | "observado" | "rechazado";
 

@@ -57,3 +57,8 @@ create policy "upload_public" on storage.objects
 
 create policy "read_public" on storage.objects
   for select using (bucket_id = 'tramites-mcm');
+
+-- Campos adicionales para Sílabo por Curso
+alter table public.solicitudes
+  add column if not exists carrera          text,
+  add column if not exists cantidad_silabos integer;
