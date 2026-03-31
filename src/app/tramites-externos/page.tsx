@@ -34,13 +34,17 @@ type FormState = {
   nombres: string; apellidos: string; dni: string;
   email: string; celular: string; anioEgreso: string;
   tipoTramiteId: string;
-  // Campos Sílabo
+  // Comprobante
+  tipoComprobante: "boleta" | "factura" | "";
+  ruc: string; razonSocial: string; direccionFiscal: string;
+  // Sílabo
   carrera: string; cantidadSilabos: string;
 };
 
 const INIT: FormState = {
   nombres: "", apellidos: "", dni: "", email: "",
   celular: "", anioEgreso: "", tipoTramiteId: "",
+  tipoComprobante: "", ruc: "", razonSocial: "", direccionFiscal: "",
   carrera: "", cantidadSilabos: "",
 };
 
@@ -71,7 +75,11 @@ export default function TramitesExternosPage() {
 
   const puedeEnviar = !!tramiteSeleccionado && !!voucherFile && !!dniAnversoFile && !!dniReversoFile &&
     !silaboSinCarrera && !silaboSinCantidad && !silaboExcedeLimite &&
-    (!esSilabo || cantidadNum > 0);
+    (!esSilabo || cantidadNum > 0) &&
+    !!form.tipoComprobante &&
+    (form.tipoComprobante === "boleta" || (
+      form.ruc.length === 11 && !!form.razonSocial.trim() && !!form.direccionFiscal.trim()
+    ));
 
   const [submitting, setSubmitting] = useState(false);
 
@@ -115,6 +123,12 @@ export default function TramitesExternosPage() {
               tipo_tramite:    tramiteSeleccionado!.nombre,
               costo_tramite:   montoFinal,
               monto_pagado:    montoFinal,
+              tipo_comprobante: form.tipoComprobante,
+              ...(form.tipoComprobante === "factura" && {
+                ruc:              form.ruc,
+                razon_social:     form.razonSocial.trim(),
+                direccion_fiscal: form.direccionFiscal.trim(),
+              }),
               ...(esSilabo && { carrera: carreraSeleccionada?.nombre, cantidad_silabos: cantidadNum }),
               voucher_url:     vu,
               dni_anverso_url: dau,
@@ -410,7 +424,74 @@ export default function TramitesExternosPage() {
               </div>
             </fieldset>
 
-            {/* Archivos */}
+            {/* Comprobante */}
+            <fieldset>
+              <legend className="text-xs font-semibold text-mcm-muted uppercase tracking-wide mb-3">
+                Tipo de comprobante
+              </legend>
+              <div className="space-y-3">
+                {/* Selector */}
+                <div className="grid grid-cols-2 gap-3">
+                  {(["boleta", "factura"] as const).map((tipo) => (
+                    <button
+                      key={tipo}
+                      type="button"
+                      onClick={() => set("tipoComprobante", tipo)}
+                      className={`py-3 rounded-xl border-2 text-sm font-semibold transition-all ${
+                        form.tipoComprobante === tipo
+                          ? "border-[#a93526] bg-red-50 text-[#a93526]"
+                          : "border-mcm-border text-mcm-muted hover:border-[#a93526]"
+                      }`}
+                    >
+                      {tipo === "boleta" ? "🧾 Boleta" : "📄 Factura"}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Campos Factura */}
+                {form.tipoComprobante === "factura" && (
+                  <div className="space-y-3 pt-1">
+                    <div>
+                      <label className="block text-sm font-medium text-mcm-text mb-1.5">
+                        RUC <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={form.ruc}
+                        onChange={(e) => set("ruc", e.target.value.replace(/\D/g, "").slice(0, 11))}
+                        placeholder="20123456789"
+                        inputMode="numeric"
+                        maxLength={11}
+                        required
+                        className={`w-full border rounded-lg px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#a93526] ${
+                          form.ruc.length > 0 && form.ruc.length !== 11 ? "border-red-400 bg-red-50" : "border-mcm-border"
+                        }`}
+                      />
+                      {form.ruc.length > 0 && form.ruc.length !== 11 && (
+                        <p className="text-red-600 text-xs mt-1 flex items-center gap-1">
+                          <AlertCircle size={12} /> El RUC debe tener exactamente 11 dígitos
+                        </p>
+                      )}
+                    </div>
+                    <Field
+                      label="Razón Social *"
+                      value={form.razonSocial}
+                      onChange={(v) => set("razonSocial", v.toUpperCase())}
+                      placeholder="EMPRESA S.A.C."
+                      required
+                      style={{ textTransform: "uppercase" }}
+                    />
+                    <Field
+                      label="Dirección Fiscal *"
+                      value={form.direccionFiscal}
+                      onChange={(v) => set("direccionFiscal", v)}
+                      placeholder="Av. Principal 123, Lima"
+                      required
+                    />
+                  </div>
+                )}
+              </div>
+            </fieldset>
             <fieldset>
               <legend className="text-xs font-semibold text-mcm-muted uppercase tracking-wide mb-3">Documentos adjuntos</legend>
               <div className="grid sm:grid-cols-3 gap-4">

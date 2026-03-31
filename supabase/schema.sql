@@ -62,3 +62,10 @@ create policy "read_public" on storage.objects
 alter table public.solicitudes
   add column if not exists carrera          text,
   add column if not exists cantidad_silabos integer;
+
+-- Campos de comprobante (Boleta / Factura)
+alter table public.solicitudes
+  add column if not exists tipo_comprobante text check (tipo_comprobante in ('boleta','factura')),
+  add column if not exists ruc              text,
+  add column if not exists razon_social     text,
+  add column if not exists direccion_fiscal text;

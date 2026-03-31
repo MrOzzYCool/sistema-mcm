@@ -14,7 +14,7 @@ export async function POST(req: NextRequest) {
     // ── 1. Obtener datos de la solicitud ──────────────────────────────────────
     const { data: sol, error: fetchErr } = await supabase
       .from("solicitudes")
-      .select("email, nombres, apellidos, dni, tipo_tramite, monto_pagado, costo_tramite, cantidad_silabos")
+      .select("email, nombres, apellidos, dni, tipo_tramite, monto_pagado, costo_tramite, cantidad_silabos, tipo_comprobante, ruc, razon_social, direccion_fiscal")
       .eq("id", id)
       .single();
 
@@ -48,13 +48,17 @@ export async function POST(req: NextRequest) {
     if (montoTotal > 0) {
       try {
         const boleta = await generarBoleta({
-          codigoProducto: nubefactItem.codigo,
-          descripcion:    nubefactItem.descripcion,
-          dniCliente:     sol.dni,
-          nombreCliente:  `${sol.nombres} ${sol.apellidos}`,
+          codigoProducto:  nubefactItem.codigo,
+          descripcion:     nubefactItem.descripcion,
+          dniCliente:      sol.dni,
+          nombreCliente:   `${sol.nombres} ${sol.apellidos}`,
           cantidad,
-          precioUnitario: precioUnit,
-          codigoUnico:    id,
+          precioUnitario:  precioUnit,
+          codigoUnico:     id,
+          tipoComprobante: (sol.tipo_comprobante as "boleta" | "factura") ?? "boleta",
+          ruc:             sol.ruc ?? undefined,
+          razonSocial:     sol.razon_social ?? undefined,
+          direccionFiscal: sol.direccion_fiscal ?? undefined,
         });
         pdfUrl = boleta.pdfUrl;
         console.log("Boleta generada:", pdfUrl);

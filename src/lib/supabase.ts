@@ -40,5 +40,10 @@ export interface SolicitudDB {
   // Campos para Sílabo por Curso
   carrera?: string | null;
   cantidad_silabos?: number | null;
+  // Campos de comprobante
+  tipo_comprobante?: "boleta" | "factura";
+  ruc?: string | null;
+  razon_social?: string | null;
+  direccion_fiscal?: string | null;
   created_at?: string;
 }
