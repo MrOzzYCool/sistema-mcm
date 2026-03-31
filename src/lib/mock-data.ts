@@ -190,17 +190,17 @@ export const MOCK_USERS_EXT: UserExtendido[] = [
 // ─── Trámites externos (exalumnas) ─────────────────────────────────────────────
 
 export const TRAMITES_EXTERNOS_CATALOGO = [
-  { id: "te1",  nombre: "Certificado de Escuela Privada (Alumnas que estudiaron de 1966 a 1979)",                                                          costo: 50    },
-  { id: "te2",  nombre: "Certificado de CEO/CEPRO (Alumnas que estudiaron de 1980 a 2013)",                                                                costo: 350   },
-  { id: "te3",  nombre: "Constancia de Estudio (Alumnas que estudiaron de 1980 a 2013)",                                                                   costo: 50    },
-  { id: "te4",  nombre: "Certificado modular por módulo (Alumnas que estudiaron de 2013 a la actualidad) INSTITUTO",                                       costo: 200   },
-  { id: "te5",  nombre: "Certificado Oficial de notas (Alumnas que estudiaron de 2013 a la actualidad) INSTITUTO",                                         costo: 200   },
-  { id: "te6",  nombre: "Constancia de egresada (Alumnas que estudiaron de 2013 a la actualidad) INSTITUTO",                                               costo: 50    },
-  { id: "te7",  nombre: "Constancia de Estudio (Alumnas que estudiaron de 2013 a la actualidad) INSTITUTO",                                                costo: 50    },
-  { id: "te8",  nombre: "Tramite Grado de Bachiller (Alumnas que estudiaron de 2013 a la actualidad) INSTITUTO",                                           costo: 1500  },
-  { id: "te9",  nombre: "Examen de Suficiencia Profesional / Sustentación (Alumnas que estudiaron de 2013 a la actualidad) INSTITUTO",                     costo: 1000  },
-  { id: "te10", nombre: "Trámite de Titulo a Nombre de la Nacion (Alumnas que estudiaron de 2013 a la actualidad) INSTITUTO",                              costo: 2000  },
-  { id: "te11", nombre: "Sílabo por Curso",                                                                                                                costo: null  }, // monto calculado: cantidad × S/ 5
+  { id: "te1",  label: "1. CERTIFICADO DE ESCUELA PRIVADA",                          nombre: "Certificado de Escuela Privada (Alumnas que estudiaron de 1966 a 1979)",                                                          costo: 50    },
+  { id: "te2",  label: "2. CERTIFICADO DE CEO/CEPRO",                                nombre: "Certificado de CEO/CEPRO (Alumnas que estudiaron de 1980 a 2013)",                                                                costo: 350   },
+  { id: "te3",  label: "3. CONSTANCIA DE ESTUDIO (1980-2013)",                       nombre: "Constancia de Estudio (Alumnas que estudiaron de 1980 a 2013)",                                                                   costo: 50    },
+  { id: "te4",  label: "4. CERTIFICADO MODULAR POR MÓDULO",                          nombre: "Certificado modular por módulo (Alumnas que estudiaron de 2013 a la actualidad) INSTITUTO",                                       costo: 200   },
+  { id: "te5",  label: "5. CERTIFICADO OFICIAL DE NOTAS",                            nombre: "Certificado Oficial de notas (Alumnas que estudiaron de 2013 a la actualidad) INSTITUTO",                                         costo: 200   },
+  { id: "te6",  label: "6. CONSTANCIA DE EGRESADA",                                  nombre: "Constancia de egresada (Alumnas que estudiaron de 2013 a la actualidad) INSTITUTO",                                               costo: 50    },
+  { id: "te7",  label: "7. CONSTANCIA DE ESTUDIO",                                   nombre: "Constancia de Estudio (Alumnas que estudiaron de 2013 a la actualidad) INSTITUTO",                                                costo: 50    },
+  { id: "te8",  label: "8. TRÁMITE GRADO DE BACHILLER",                              nombre: "Tramite Grado de Bachiller (Alumnas que estudiaron de 2013 a la actualidad) INSTITUTO",                                           costo: 1500  },
+  { id: "te9",  label: "9. EXAMEN DE SUFICIENCIA PROFESIONAL / SUSTENTACIÓN",        nombre: "Examen de Suficiencia Profesional / Sustentación (Alumnas que estudiaron de 2013 a la actualidad) INSTITUTO",                     costo: 1000  },
+  { id: "te10", label: "10. TRÁMITE DE TÍTULO A NOMBRE DE LA NACIÓN",                nombre: "Trámite de Titulo a Nombre de la Nacion (Alumnas que estudiaron de 2013 a la actualidad) INSTITUTO",                              costo: 2000  },
+  { id: "te11", label: "11. SÍLABO POR CURSO",                                       nombre: "Sílabo por Curso",                                                                                                                costo: null  },
 ] as const;
 
 export const SILABO_CARRERAS = [

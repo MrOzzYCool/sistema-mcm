@@ -324,7 +324,7 @@ export default function TramitesExternosPage() {
                     <option value="">Selecciona un trámite...</option>
                     {TRAMITES_EXTERNOS_CATALOGO.map((t) => (
                       <option key={t.id} value={t.id}>
-                        {t.nombre}{t.costo !== null ? ` — S/ ${t.costo.toLocaleString()}` : ""}
+                        {t.label}
                       </option>
                     ))}
                   </select>
