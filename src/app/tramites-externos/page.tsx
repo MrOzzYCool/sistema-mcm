@@ -73,9 +73,14 @@ export default function TramitesExternosPage() {
   const silaboSinCantidad  = esSilabo && cantidadNum <= 0;
   const silaboExcedeLimite = esSilabo && !!carreraSeleccionada && cantidadNum > carreraSeleccionada.maxSilabos;
 
+  const anioActual   = new Date().getFullYear();
+  const anioNum      = parseInt(form.anioEgreso) || 0;
+  const anioInvalido = form.anioEgreso.length === 4 && (anioNum < 1966 || anioNum > anioActual);
+
   const puedeEnviar = !!tramiteSeleccionado && !!voucherFile && !!dniAnversoFile && !!dniReversoFile &&
     !silaboSinCarrera && !silaboSinCantidad && !silaboExcedeLimite &&
     (!esSilabo || cantidadNum > 0) &&
+    !anioInvalido &&
     !!form.tipoComprobante &&
     (form.tipoComprobante === "boleta" || (
       form.ruc.length === 11 && !!form.razonSocial.trim() && !!form.direccionFiscal.trim()
@@ -313,7 +318,7 @@ export default function TramitesExternosPage() {
                   maxLength={8}
                   required
                 />
-                <Field label="Año de egreso" value={form.anioEgreso} onChange={(v) => set("anioEgreso", v)} placeholder="Ej: 2021" required />
+                <AnioEgresoField value={form.anioEgreso} onChange={(v) => set("anioEgreso", v)} />
                 <Field label="Correo electrónico" value={form.email} onChange={(v) => set("email", v)} type="email" placeholder="correo@gmail.com" required />
                 <Field label="Celular" value={form.celular} onChange={(v) => set("celular", v)} placeholder="987654321" required />
               </div>
@@ -543,6 +548,37 @@ export default function TramitesExternosPage() {
 }
 
 // ─── Sub-componentes ───────────────────────────────────────────────────────────
+
+function AnioEgresoField({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const anioActual = new Date().getFullYear();
+  const anioNum    = parseInt(value) || 0;
+  const invalido   = value.length === 4 && (anioNum < 1966 || anioNum > anioActual);
+
+  return (
+    <div>
+      <label className="block text-sm font-medium text-mcm-text mb-1.5">Año de egreso</label>
+      <input
+        type="number"
+        value={value}
+        onChange={(e) => onChange(e.target.value.slice(0, 4))}
+        placeholder={`Ej: ${anioActual - 3}`}
+        min={1966}
+        max={anioActual}
+        inputMode="numeric"
+        required
+        className={`w-full border rounded-lg px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 transition ${
+          invalido ? "border-red-400 bg-red-50 focus:ring-red-400" : "border-mcm-border focus:ring-[#a93526]"
+        }`}
+      />
+      {invalido && (
+        <p className="text-red-600 text-xs mt-1 flex items-center gap-1">
+          <AlertCircle size={12} />
+          Por favor, ingresa un año válido entre 1966 y {anioActual}
+        </p>
+      )}
+    </div>
+  );
+}
 
 function Field({ label, value, onChange, type = "text", placeholder, required, maxLength, style, inputMode }: {
   label: string; value: string; onChange: (v: string) => void;
