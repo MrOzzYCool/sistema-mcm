@@ -99,15 +99,24 @@ function ReportesContent() {
 
   const [pagina, setPagina]         = useState(1);
   const [porPagina, setPorPagina]   = useState<number | "todos">(10);
+  const [filtroEstado, setFiltroEstado] = useState<"todos"|"pendiente"|"aprobado"|"rechazado"|"observado">("todos");
 
-  const totalPaginas = porPagina === "todos" ? 1 : Math.ceil(solicitudes.length / porPagina);
-  const filas = porPagina === "todos"
+  const solicitudesFiltradas = filtroEstado === "todos"
     ? solicitudes
-    : solicitudes.slice((pagina - 1) * porPagina, pagina * porPagina);
+    : solicitudes.filter((s) => s.estado === filtroEstado);
 
-  // Reset página al cambiar filas por página
+  const totalPaginas = porPagina === "todos" ? 1 : Math.ceil(solicitudesFiltradas.length / porPagina);
+  const filas = porPagina === "todos"
+    ? solicitudesFiltradas
+    : solicitudesFiltradas.slice((pagina - 1) * porPagina, pagina * porPagina);
+
   function cambiarPorPagina(v: number | "todos") {
     setPorPagina(v);
+    setPagina(1);
+  }
+
+  function cambiarFiltro(f: typeof filtroEstado) {
+    setFiltroEstado(f);
     setPagina(1);
   }
   const datosPorTipo  = agruparPorTipo(solicitudes);
@@ -239,26 +248,47 @@ function ReportesContent() {
       {!loading && solicitudes.length > 0 && (
         <div className="card overflow-hidden p-0">
           {/* Header con contador y selector */}
-          <div className="px-6 py-4 border-b border-mcm-border flex items-center justify-between flex-wrap gap-3">
-            <h2 className="font-semibold text-mcm-text">
-              Solicitudes recientes
-              <span className="ml-2 text-mcm-muted font-normal text-sm">({solicitudes.length} registros)</span>
-            </h2>
-            <div className="flex items-center gap-2 text-sm">
-              <span className="text-mcm-muted text-xs">Mostrar:</span>
-              {([10, 20, 50, "todos"] as const).map((n) => (
-                <button
-                  key={n}
-                  onClick={() => cambiarPorPagina(n)}
-                  className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-colors ${
-                    porPagina === n
-                      ? "bg-[#a93526] text-white"
-                      : "bg-slate-100 text-mcm-muted hover:bg-slate-200"
-                  }`}
-                >
-                  {n === "todos" ? "Todos" : n}
-                </button>
-              ))}
+          <div className="px-6 py-4 border-b border-mcm-border space-y-3">
+            <div className="flex items-center justify-between flex-wrap gap-3">
+              <h2 className="font-semibold text-mcm-text">
+                Solicitudes recientes
+                <span className="ml-2 text-mcm-muted font-normal text-sm">
+                  ({solicitudesFiltradas.length}{filtroEstado !== "todos" ? ` de ${solicitudes.length}` : ""} registros)
+                </span>
+              </h2>
+              <div className="flex items-center gap-2 text-sm">
+                <span className="text-mcm-muted text-xs">Mostrar:</span>
+                {([10, 20, 50, "todos"] as const).map((n) => (
+                  <button key={n} onClick={() => cambiarPorPagina(n)}
+                    className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-colors ${
+                      porPagina === n ? "bg-[#a93526] text-white" : "bg-slate-100 text-mcm-muted hover:bg-slate-200"
+                    }`}>
+                    {n === "todos" ? "Todos" : n}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Filtros pill por estado */}
+            <div className="flex flex-wrap gap-2">
+              {([
+                { key: "todos",     label: "Todos",      cls: filtroEstado === "todos"     ? "bg-[#a93526] text-white" : "bg-slate-100 text-mcm-muted hover:bg-slate-200" },
+                { key: "pendiente", label: "Pendientes", cls: filtroEstado === "pendiente" ? "bg-yellow-400 text-white" : "bg-yellow-50 text-yellow-700 hover:bg-yellow-100" },
+                { key: "aprobado",  label: "Aprobadas",  cls: filtroEstado === "aprobado"  ? "bg-green-500 text-white"  : "bg-green-50 text-green-700 hover:bg-green-100"  },
+                { key: "rechazado", label: "Rechazadas", cls: filtroEstado === "rechazado" ? "bg-red-500 text-white"    : "bg-red-50 text-red-700 hover:bg-red-100"         },
+                { key: "observado", label: "Observadas", cls: filtroEstado === "observado" ? "bg-blue-500 text-white"   : "bg-blue-50 text-blue-700 hover:bg-blue-100"      },
+              ] as const).map(({ key, label, cls }) => {
+                const count = key === "todos" ? solicitudes.length : solicitudes.filter((s) => s.estado === key).length;
+                return (
+                  <button key={key} onClick={() => cambiarFiltro(key)}
+                    className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold transition-colors ${cls}`}>
+                    {label}
+                    <span className={`px-1.5 py-0.5 rounded-full text-xs font-bold ${
+                      filtroEstado === key ? "bg-white/30" : "bg-white/60 text-current"
+                    }`}>{count}</span>
+                  </button>
+                );
+              })}
             </div>
           </div>
 
@@ -304,7 +334,7 @@ function ReportesContent() {
           {porPagina !== "todos" && totalPaginas > 1 && (
             <div className="px-6 py-3 border-t border-mcm-border flex items-center justify-between">
               <p className="text-xs text-mcm-muted">
-                Página {pagina} de {totalPaginas} · mostrando {filas.length} de {solicitudes.length}
+                Página {pagina} de {totalPaginas} · mostrando {filas.length} de {solicitudesFiltradas.length}
               </p>
               <div className="flex items-center gap-1">
                 <button
