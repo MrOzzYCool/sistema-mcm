@@ -1,15 +1,17 @@
 // ─── Nubefact — Emisión de Boletas Electrónicas ───────────────────────────────
-// Documentación: https://www.nubefact.com/api-boleta-factura/
-// Los trámites del Instituto están INAFECTOS de IGV (tipo_de_igv = 9)
+// Todos los trámites son INAFECTOS de IGV (tipo_de_igv = 9)
 
 const ENDPOINT = process.env.NUBEFACT_ENDPOINT!;
 const TOKEN    = process.env.NUBEFACT_TOKEN!;
 
 export interface BoletaInput {
-  dniCliente:    string;
-  nombreCliente: string;
-  monto:         number;   // monto total inafecto (sin IGV)
-  descripcion:   string;
+  codigoProducto: number;   // código oficial del catálogo Nubefact
+  descripcion:    string;   // descripción oficial del catálogo
+  dniCliente:     string;
+  nombreCliente:  string;
+  cantidad:       number;   // 1 para trámites normales, N para sílabos
+  precioUnitario: number;   // precio por unidad (5 para sílabos, monto total para el resto)
+  codigoUnico:    string;   // ID de la solicitud en Supabase
 }
 
 export interface BoletaResult {
@@ -21,45 +23,47 @@ export interface BoletaResult {
 
 export async function generarBoleta(datos: BoletaInput): Promise<BoletaResult> {
   if (!ENDPOINT || !TOKEN) {
-    throw new Error("Nubefact no está configurado. Verifica NUBEFACT_ENDPOINT y NUBEFACT_TOKEN.");
+    throw new Error("Nubefact no configurado. Verifica NUBEFACT_ENDPOINT y NUBEFACT_TOKEN.");
   }
 
-  const monto = Math.round(datos.monto * 100) / 100;
+  const precioUnit = Math.round(datos.precioUnitario * 100) / 100;
+  const cantidad   = datos.cantidad;
+  const total      = Math.round(precioUnit * cantidad * 100) / 100;
 
   const payload = {
     operacion:              "generar_comprobante",
-    tipo_de_comprobante:    2,
+    tipo_de_comprobante:    2,        // 2 = Boleta de Venta
     serie:                  "BBB2",
-    // numero omitido — Nubefact asigna el siguiente correlativo automáticamente
+    // numero omitido — Nubefact asigna el correlativo automáticamente
     sunat_transaction:      1,
-    cliente_tipo_de_documento: 1,       // 1 = DNI
-    cliente_numero_de_documento: datos.dniCliente,
-    cliente_denominacion:   datos.nombreCliente,
-    cliente_direccion:      "",
-    cliente_email:          "",
-    cliente_email_1:        "",
-    cliente_email_2:        "",
+    cliente_tipo_de_documento:       1,   // 1 = DNI
+    cliente_numero_de_documento:     datos.dniCliente,
+    cliente_denominacion:            datos.nombreCliente,
+    cliente_direccion:               "",
+    cliente_email:                   "",
+    cliente_email_1:                 "",
+    cliente_email_2:                 "",
     fecha_de_emision:       new Date().toLocaleDateString("es-PE", {
       day: "2-digit", month: "2-digit", year: "numeric",
     }),
     fecha_de_vencimiento:   "",
-    moneda:                 1,          // 1 = Soles (PEN)
+    moneda:                 1,        // 1 = PEN (Soles)
     tipo_de_cambio:         "",
-    porcentaje_de_igv:      0.00,       // Inafecto: sin IGV
+    porcentaje_de_igv:      0.00,     // Inafecto
     descuento_global:       0,
     total_descuento:        0,
     total_anticipo:         0,
-    total_gravada:          0,          // No hay base gravada
-    total_inafecta:         monto,      // Todo el monto es inafecto
+    total_gravada:          0,
+    total_inafecta:         total,    // todo el monto es inafecto
     total_exonerada:        0,
-    total_igv:              0,          // IGV = 0
+    total_igv:              0,
     total_gratuita:         0,
     total_otros_cargos:     0,
-    total:                  monto,      // Total = monto inafecto
+    total:                  total,
     percepcion_tipo:        "",
-    percepcion_base_imponible: 0,
+    percepcion_base_imponible:       0,
     total_percepcion:       0,
-    total_incluido_percepcion: 0,
+    total_incluido_percepcion:       0,
     detraccion:             false,
     observaciones:          "",
     documento_que_se_modifica_tipo:   "",
@@ -69,7 +73,7 @@ export async function generarBoleta(datos: BoletaInput): Promise<BoletaResult> {
     tipo_de_nota_de_debito:  "",
     enviar_automaticamente_a_la_sunat: true,
     enviar_automaticamente_al_cliente: false,
-    codigo_unico:           "",
+    codigo_unico:           datos.codigoUnico,   // ID de la solicitud
     condiciones_de_pago:    "",
     medio_de_pago:          "Transferencia",
     placa_vehiculo:         "",
@@ -79,27 +83,28 @@ export async function generarBoleta(datos: BoletaInput): Promise<BoletaResult> {
     items: [
       {
         unidad_de_medida:   "ZZ",
-        codigo:             "TRAM001",
+        codigo:             String(datos.codigoProducto),
         descripcion:        datos.descripcion,
-        cantidad:           1,
-        valor_unitario:     monto,      // Inafecto: valor_unitario = precio_unitario
-        precio_unitario:    monto,
+        cantidad,
+        valor_unitario:     precioUnit,   // inafecto: valor = precio
+        precio_unitario:    precioUnit,
         descuento:          "",
-        subtotal:           monto,
-        tipo_de_igv:        9,          // 9 = Inafecto - Operación Onerosa
-        igv:                0,          // IGV = 0
-        total:              monto,
-        anticipo_regularizacion: false,
+        subtotal:           total,
+        tipo_de_igv:        9,            // 9 = Inafecto - Operación Onerosa
+        igv:                0,
+        total,
+        anticipo_regularizacion:  false,
         anticipo_documento_serie:  "",
         anticipo_documento_numero: "",
       },
     ],
   };
 
-  // ── Logs de diagnóstico ──────────────────────────────────────────────────
   console.log("[nubefact] Endpoint:", ENDPOINT);
-  console.log("[nubefact] Serie: BBB2 | Número: automático (correlativo Nubefact)");
-  console.log("[nubefact] Payload completo:", JSON.stringify(payload, null, 2));
+  console.log("[nubefact] Serie: BBB2 | Correlativo: automático");
+  console.log("[nubefact] Código producto:", datos.codigoProducto, "| Desc:", datos.descripcion);
+  console.log("[nubefact] Cantidad:", cantidad, "| Precio unit:", precioUnit, "| Total:", total);
+  console.log("[nubefact] codigo_unico:", datos.codigoUnico);
 
   const res = await fetch(ENDPOINT, {
     method:  "POST",

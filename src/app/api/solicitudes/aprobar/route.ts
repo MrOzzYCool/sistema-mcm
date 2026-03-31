@@ -2,22 +2,19 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
 import { generarBoleta } from "@/lib/nubefactService";
 import { enviarCorreoAprobacion } from "@/lib/emailService";
+import { NUBEFACT_MAP, TRAMITES_EXTERNOS_CATALOGO } from "@/lib/mock-data";
 
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json();
-    const { id } = body;
-
+    const { id } = await req.json();
     console.log("Iniciando aprobación para id:", id);
 
-    if (!id) {
-      return NextResponse.json({ error: "ID requerido" }, { status: 400 });
-    }
+    if (!id) return NextResponse.json({ error: "ID requerido" }, { status: 400 });
 
-    // ── 1. Obtener datos completos de la solicitud ──────────────────────────
+    // ── 1. Obtener datos de la solicitud ──────────────────────────────────────
     const { data: sol, error: fetchErr } = await supabase
       .from("solicitudes")
-      .select("email, nombres, apellidos, dni, tipo_tramite, monto_pagado, costo_tramite")
+      .select("email, nombres, apellidos, dni, tipo_tramite, monto_pagado, costo_tramite, cantidad_silabos")
       .eq("id", id)
       .single();
 
@@ -26,51 +23,52 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Solicitud no encontrada" }, { status: 404 });
     }
 
-    console.log("Solicitud encontrada:", sol.nombres, sol.apellidos, "monto:", sol.monto_pagado);
+    console.log("Solicitud:", sol.nombres, sol.apellidos, "| monto:", sol.monto_pagado);
 
-    // ── 2. Generar boleta en Nubefact ───────────────────────────────────────
-    // Usar costo_tramite si monto_pagado es 0 (trámites sin pago previo)
-    const montoFinal = Number(sol.monto_pagado) > 0
-      ? Number(sol.monto_pagado)
-      : Number(sol.costo_tramite);
+    // ── 2. Resolver código Nubefact por tipo de trámite ───────────────────────
+    const tramite = TRAMITES_EXTERNOS_CATALOGO.find((t) => t.nombre === sol.tipo_tramite);
+    const nubefactItem = tramite ? NUBEFACT_MAP[tramite.id] : null;
 
+    if (!nubefactItem) {
+      console.error("Trámite no encontrado en mapa Nubefact:", sol.tipo_tramite);
+      return NextResponse.json({ error: `Trámite no mapeado: ${sol.tipo_tramite}` }, { status: 400 });
+    }
+
+    const esSilabo    = tramite?.id === "te11";
+    const cantidad    = esSilabo ? (Number(sol.cantidad_silabos) || 1) : 1;
+    const precioUnit  = nubefactItem.monto;
+    const montoTotal  = Math.round(precioUnit * cantidad * 100) / 100;
+
+    console.log("Código Nubefact:", nubefactItem.codigo, "| Desc:", nubefactItem.descripcion);
+    console.log("Cantidad:", cantidad, "| Precio unit:", precioUnit, "| Total:", montoTotal);
+
+    // ── 3. Generar boleta en Nubefact ─────────────────────────────────────────
     let pdfUrl = "";
 
-    if (montoFinal > 0) {
-      console.log("Llamando a Nubefact con monto:", montoFinal);
-
-      let response;
+    if (montoTotal > 0) {
       try {
-        response = await generarBoleta({
-          dniCliente:    sol.dni,
-          nombreCliente: `${sol.nombres} ${sol.apellidos}`,
-          monto:         montoFinal,
-          descripcion:   sol.tipo_tramite,
+        const boleta = await generarBoleta({
+          codigoProducto: nubefactItem.codigo,
+          descripcion:    nubefactItem.descripcion,
+          dniCliente:     sol.dni,
+          nombreCliente:  `${sol.nombres} ${sol.apellidos}`,
+          cantidad,
+          precioUnitario: precioUnit,
+          codigoUnico:    id,
         });
-        console.log("Respuesta Nubefact:", response);
-        pdfUrl = response.pdfUrl;
+        pdfUrl = boleta.pdfUrl;
+        console.log("Boleta generada:", pdfUrl);
       } catch (nubefactErr) {
         const msg = nubefactErr instanceof Error ? nubefactErr.message : String(nubefactErr);
         console.error("Error Nubefact:", msg);
-        // NO aprobar si Nubefact falla
-        return NextResponse.json(
-          { error: `No se pudo generar la boleta: ${msg}` },
-          { status: 502 }
-        );
+        return NextResponse.json({ error: `No se pudo generar la boleta: ${msg}` }, { status: 502 });
       }
-    } else {
-      console.log("Trámite sin costo — omitiendo Nubefact");
     }
 
-    // ── 3. Guardar pdf_boleta_url y cambiar estado a 'aprobado' ────────────
-    console.log("Guardando en Supabase — estado: aprobado, pdfUrl:", pdfUrl);
-
+    // ── 4. Actualizar estado en Supabase ──────────────────────────────────────
     const { error: updateErr } = await supabase
       .from("solicitudes")
-      .update({
-        estado:        "aprobado",
-        pdf_boleta_url: pdfUrl || null,
-      })
+      .update({ estado: "aprobado", pdf_boleta_url: pdfUrl || null })
       .eq("id", id);
 
     if (updateErr) {
@@ -78,9 +76,9 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: updateErr.message }, { status: 500 });
     }
 
-    console.log("Estado actualizado a aprobado correctamente");
+    console.log("Estado actualizado a aprobado");
 
-    // ── 4. Enviar correo de aprobación ──────────────────────────────────────
+    // ── 5. Enviar correo de aprobación ────────────────────────────────────────
     try {
       await enviarCorreoAprobacion({
         email:       sol.email,
@@ -89,16 +87,15 @@ export async function POST(req: NextRequest) {
         tipoTramite: sol.tipo_tramite,
         pdfUrl:      pdfUrl || "",
       });
-      console.log("Correo de aprobación enviado a:", sol.email);
+      console.log("Correo enviado a:", sol.email);
     } catch (emailErr) {
-      // El correo falla silenciosamente — la aprobación ya está guardada
       console.error("Error enviando correo (no crítico):", emailErr);
     }
 
     return NextResponse.json({ success: true, pdfUrl });
 
   } catch (err) {
-    console.error("Error inesperado en /api/solicitudes/aprobar:", err);
+    console.error("Error inesperado:", err);
     return NextResponse.json(
       { error: err instanceof Error ? err.message : "Error interno" },
       { status: 500 }

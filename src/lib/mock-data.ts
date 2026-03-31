@@ -254,3 +254,25 @@ export const MOCK_TRAMITES_POR_TIPO = [
   { tipo: "Sustentación",   cantidad: 9  },
   { tipo: "Cert. Modular",  cantidad: 12 },
 ];
+
+// ─── Mapeador oficial Nubefact ─────────────────────────────────────────────────
+
+export interface NubefactItem {
+  codigo:      number;
+  descripcion: string;
+  monto:       number;  // monto base (para sílabo es por unidad)
+}
+
+export const NUBEFACT_MAP: Record<string, NubefactItem> = {
+  "te1":  { codigo: 31, descripcion: "CONSTANCIA DE ESTUDIO",                                    monto: 50   },
+  "te2":  { codigo:  9, descripcion: "CERTIFICADO DE ESTUDIO",                                   monto: 350  },
+  "te3":  { codigo: 31, descripcion: "CONSTANCIA DE ESTUDIO",                                    monto: 50   },
+  "te4":  { codigo:  6, descripcion: "CERTIFICADO MODULAR POR MODULO",                           monto: 200  },
+  "te5":  { codigo: 28, descripcion: "CERTIFICADO OFICIAL DE NOTAS",                             monto: 200  },
+  "te6":  { codigo: 21, descripcion: "CONSTANCIA DE EGRESADO",                                   monto: 50   },
+  "te7":  { codigo: 31, descripcion: "CONSTANCIA DE ESTUDIO",                                    monto: 50   },
+  "te8":  { codigo:  2, descripcion: "TRÁMITE GRADO DE BACHILLER",                               monto: 1500 },
+  "te9":  { codigo:  3, descripcion: "EXAMEN DE SUFICIENCIA PROFESIONAL / SUSTENTACIÓN",         monto: 1000 },
+  "te10": { codigo:  8, descripcion: "TRÁMITE DE TÍTULO A NOMBRE DE LA NACIÓN",                  monto: 2000 },
+  "te11": { codigo:  4, descripcion: "SILABO POR CURSO",                                         monto: 5    }, // × cantidad
+};
