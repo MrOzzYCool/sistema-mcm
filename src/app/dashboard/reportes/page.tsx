@@ -97,7 +97,19 @@ function ReportesContent() {
       .replace(/\s*\(.*?\)\s*/g, " ").replace(/\bINSTITUTO\b/gi, "").trim() ?? "—";
   })();
 
-  // ── Datos para gráficos ─────────────────────────────────────────────────────
+  const [pagina, setPagina]         = useState(1);
+  const [porPagina, setPorPagina]   = useState<number | "todos">(10);
+
+  const totalPaginas = porPagina === "todos" ? 1 : Math.ceil(solicitudes.length / porPagina);
+  const filas = porPagina === "todos"
+    ? solicitudes
+    : solicitudes.slice((pagina - 1) * porPagina, pagina * porPagina);
+
+  // Reset página al cambiar filas por página
+  function cambiarPorPagina(v: number | "todos") {
+    setPorPagina(v);
+    setPagina(1);
+  }
   const datosPorTipo  = agruparPorTipo(solicitudes);
   const datosIngresos = agruparIngresosPorMes(solicitudes);
 
@@ -223,28 +235,51 @@ function ReportesContent() {
         </div>
       )}
 
-      {/* Tabla recientes */}
+      {/* Tabla con paginación */}
       {!loading && solicitudes.length > 0 && (
         <div className="card overflow-hidden p-0">
-          <div className="px-6 py-4 border-b border-mcm-border flex items-center justify-between">
-            <h2 className="font-semibold text-mcm-text">Solicitudes recientes</h2>
-            <span className="text-xs text-mcm-muted">{solicitudes.length} registros</span>
+          {/* Header con contador y selector */}
+          <div className="px-6 py-4 border-b border-mcm-border flex items-center justify-between flex-wrap gap-3">
+            <h2 className="font-semibold text-mcm-text">
+              Solicitudes recientes
+              <span className="ml-2 text-mcm-muted font-normal text-sm">({solicitudes.length} registros)</span>
+            </h2>
+            <div className="flex items-center gap-2 text-sm">
+              <span className="text-mcm-muted text-xs">Mostrar:</span>
+              {([10, 20, 50, "todos"] as const).map((n) => (
+                <button
+                  key={n}
+                  onClick={() => cambiarPorPagina(n)}
+                  className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-colors ${
+                    porPagina === n
+                      ? "bg-[#a93526] text-white"
+                      : "bg-slate-100 text-mcm-muted hover:bg-slate-200"
+                  }`}
+                >
+                  {n === "todos" ? "Todos" : n}
+                </button>
+              ))}
+            </div>
           </div>
+
+          {/* Tabla */}
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="bg-slate-50">
                 <tr>
-                  {["Solicitante", "Trámite", "Monto", "Estado", "Fecha"].map((h) => (
+                  {["#", "Solicitante", "Trámite", "Monto", "Estado", "Fecha"].map((h) => (
                     <th key={h} className="text-left py-3 px-4 text-mcm-muted font-medium text-xs uppercase tracking-wide">{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
-                {solicitudes.slice(0, 10).map((s) => {
+                {filas.map((s, i) => {
                   const badge = { pendiente: "badge-yellow", aprobado: "badge-green", observado: "badge-blue", rechazado: "badge-red" } as Record<string, string>;
                   const label = { pendiente: "Pendiente", aprobado: "Aprobado", observado: "Observado", rechazado: "Rechazado" } as Record<string, string>;
+                  const num   = porPagina === "todos" ? i + 1 : (pagina - 1) * (porPagina as number) + i + 1;
                   return (
                     <tr key={s.id} className="border-t border-mcm-border hover:bg-slate-50">
+                      <td className="py-3 px-4 text-mcm-muted text-xs">{num}</td>
                       <td className="py-3 px-4 font-medium text-mcm-text">{s.nombres} {s.apellidos}</td>
                       <td className="py-3 px-4 text-mcm-muted text-xs max-w-[200px] truncate">{s.tipo_tramite}</td>
                       <td className="py-3 px-4 font-semibold text-mcm-text whitespace-nowrap">
@@ -264,6 +299,51 @@ function ReportesContent() {
               </tbody>
             </table>
           </div>
+
+          {/* Paginación */}
+          {porPagina !== "todos" && totalPaginas > 1 && (
+            <div className="px-6 py-3 border-t border-mcm-border flex items-center justify-between">
+              <p className="text-xs text-mcm-muted">
+                Página {pagina} de {totalPaginas} · mostrando {filas.length} de {solicitudes.length}
+              </p>
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => setPagina(1)}
+                  disabled={pagina === 1}
+                  className="px-2 py-1 text-xs rounded border border-mcm-border disabled:opacity-40 hover:bg-slate-50"
+                >«</button>
+                <button
+                  onClick={() => setPagina((p) => Math.max(1, p - 1))}
+                  disabled={pagina === 1}
+                  className="px-3 py-1 text-xs rounded border border-mcm-border disabled:opacity-40 hover:bg-slate-50"
+                >Anterior</button>
+                {/* Números de página */}
+                {Array.from({ length: Math.min(5, totalPaginas) }, (_, i) => {
+                  const start = Math.max(1, Math.min(pagina - 2, totalPaginas - 4));
+                  const p = start + i;
+                  return p <= totalPaginas ? (
+                    <button key={p} onClick={() => setPagina(p)}
+                      className={`px-3 py-1 text-xs rounded border transition-colors ${
+                        p === pagina
+                          ? "bg-[#a93526] text-white border-[#a93526]"
+                          : "border-mcm-border hover:bg-slate-50"
+                      }`}
+                    >{p}</button>
+                  ) : null;
+                })}
+                <button
+                  onClick={() => setPagina((p) => Math.min(totalPaginas, p + 1))}
+                  disabled={pagina === totalPaginas}
+                  className="px-3 py-1 text-xs rounded border border-mcm-border disabled:opacity-40 hover:bg-slate-50"
+                >Siguiente</button>
+                <button
+                  onClick={() => setPagina(totalPaginas)}
+                  disabled={pagina === totalPaginas}
+                  className="px-2 py-1 text-xs rounded border border-mcm-border disabled:opacity-40 hover:bg-slate-50"
+                >»</button>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>
