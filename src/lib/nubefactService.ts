@@ -67,6 +67,9 @@ export async function generarBoleta(datos: BoletaInput): Promise<BoletaResult> {
   const clienteNumDoc    = esBoleta ? datos.dniCliente : (datos.ruc ?? "");
   const clienteNombre    = esBoleta ? datos.nombreCliente : (datos.razonSocial ?? datos.nombreCliente);
 
+  // codigo_unico único por intento — evita rechazo por duplicado en Nubefact
+  const codigoUnico = `${datos.codigoUnico}_${Date.now()}`;
+
   // ── Payload mínimo obligatorio ─────────────────────────────────────────────
   const payload: Record<string, unknown> = {
     operacion:                         "generar_comprobante",
@@ -84,6 +87,7 @@ export async function generarBoleta(datos: BoletaInput): Promise<BoletaResult> {
     total_exonerada:                   0,
     total_igv:                         totalIgv,
     total,
+    codigo_unico:                      codigoUnico,
     items: [
       {
         unidad_de_medida: "ZZ",
