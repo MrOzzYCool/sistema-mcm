@@ -63,7 +63,7 @@ function ReportesContent() {
     setLoading(true);
     setError("");
     try {
-      const data = await getSolicitudes();
+      const data = await getSolicitudes("tramite");
       setSolicitudes(data);
       setLastUpdate(new Date());
     } catch (e) {

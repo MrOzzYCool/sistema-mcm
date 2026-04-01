@@ -103,12 +103,13 @@ export async function insertarSolicitud(
 
 // ─── Obtener solicitudes ──────────────────────────────────────────────────────
 
-export async function getSolicitudes(): Promise<SolicitudDB[]> {
+export async function getSolicitudes(tipoFormulario: "tramite" | "actualizacion" = "tramite"): Promise<SolicitudDB[]> {
   const { data, error } = await supabase
     .from("solicitudes")
     .select("*")
+    .eq("tipo_formulario", tipoFormulario)
     .order("created_at", { ascending: false })
-    .limit(500); // sin límite implícito de Supabase (default 1000)
+    .limit(500);
 
   if (error) throw new Error(`Error cargando solicitudes: ${error.message}`);
   return (data ?? []) as SolicitudDB[];

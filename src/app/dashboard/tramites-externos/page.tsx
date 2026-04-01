@@ -42,7 +42,7 @@ export default function TramitesExternosAdminPage() {
     setLoading(true);
     setError("");
     try {
-      const data = await getSolicitudes();
+      const data = await getSolicitudes("tramite");
       setSolicitudes(data);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Error cargando solicitudes");

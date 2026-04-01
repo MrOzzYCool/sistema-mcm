@@ -5,7 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import {
   LayoutDashboard, BookOpen, CreditCard, FileText,
-  Settings, LogOut, ChevronRight, Users, BarChart2,
+  Settings, LogOut, ChevronRight, Users, BarChart2, RefreshCw,
 } from "lucide-react";
 import clsx from "clsx";
 
@@ -15,6 +15,7 @@ const NAV_ITEMS = [
   { href: "/dashboard/pagos",             label: "Pagos",            icon: CreditCard,      roles: ["super_admin", "alumno"] },
   { href: "/dashboard/tramites",          label: "Trámites",         icon: FileText,        roles: ["super_admin", "alumno"] },
   { href: "/dashboard/tramites-externos", label: "Trám. Externos",   icon: Users,           roles: ["super_admin", "staff_tramites", "gestor"] },
+  { href: "/dashboard/actualizacion",     label: "Actualización",    icon: RefreshCw,       roles: ["super_admin", "actualizacion"] },
   { href: "/dashboard/reportes",          label: "Reportes",         icon: BarChart2,       roles: ["super_admin", "gestor"] },
   { href: "/dashboard/config",            label: "Configuración",    icon: Settings,        roles: ["super_admin", "alumno"] },
 ];

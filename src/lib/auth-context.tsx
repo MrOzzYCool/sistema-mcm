@@ -6,10 +6,11 @@ import { supabase } from "./supabase";
 
 // ─── Roles por email (hasta conectar tabla de perfiles) ───────────────────────
 
-const ROLE_MAP: Record<string, "super_admin" | "staff_tramites" | "gestor" | "alumno"> = {
+const ROLE_MAP: Record<string, "super_admin" | "staff_tramites" | "gestor" | "actualizacion" | "alumno"> = {
   "admin@margaritacabrera.edu.pe":    "super_admin",
   "staff@margaritacabrera.edu.pe":    "staff_tramites",
   "nvasquez@margaritacabrera.edu.pe": "gestor",
+  "milnarvaez@margaritacabrera.edu.pe": "actualizacion",
 };
 
 function getRol(email: string) {
@@ -22,7 +23,7 @@ export interface AppUser {
   id: string;
   email: string;
   name: string;
-  role: "super_admin" | "staff_tramites" | "gestor" | "alumno";
+  role: "super_admin" | "staff_tramites" | "gestor" | "actualizacion" | "alumno";
   avatar: string;
 }
 
