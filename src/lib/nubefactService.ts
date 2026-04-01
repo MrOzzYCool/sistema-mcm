@@ -1,7 +1,4 @@
 // ─── Nubefact — Boletas y Facturas Electrónicas ───────────────────────────────
-// Todas las operaciones son INAFECTAS - Operación Onerosa (tipo_de_igv = 9)
-// BOLETA  → tipo_de_comprobante=2, serie=BBB2, cliente_tipo_doc=1 (DNI)
-// FACTURA → tipo_de_comprobante=1, serie=FFF2, cliente_tipo_doc=6 (RUC)
 
 const ENDPOINT = process.env.NUBEFACT_ENDPOINT!;
 const TOKEN    = process.env.NUBEFACT_TOKEN!;
@@ -10,17 +7,16 @@ export interface BoletaInput {
   codigoProducto:  number;
   descripcion:     string;
   cantidad:        number;
-  precioUnitario:  number;  // monto total que paga el alumno
-  codigoUnico:     string;  // ID de la solicitud en Supabase
+  precioUnitario:  number;   // precio con IGV (o total si inafecto)
+  valorUnitario?:  number;   // precio sin IGV — solo para tipo_de_igv=10
+  tipoIgv?:        number;   // 9=Inafecto (default), 10=Gravado
+  codigoUnico:     string;
   tipoComprobante: "boleta" | "factura";
   dniCliente:      string;
   nombreCliente:   string;
   ruc?:            string;
   razonSocial?:    string;
   direccionFiscal?: string;
-  // Ignorados — mantenidos por compatibilidad pero no se usan
-  valorUnitario?:  number;
-  tipoIgv?:        number;
 }
 
 export interface BoletaResult {
@@ -39,23 +35,28 @@ export async function generarBoleta(datos: BoletaInput): Promise<BoletaResult> {
     throw new Error("Nubefact no configurado. Verifica NUBEFACT_ENDPOINT y NUBEFACT_TOKEN.");
   }
 
-  const esBoleta = datos.tipoComprobante === "boleta";
+  // ── Detección automática por longitud del documento ────────────────────────
+  // Si el documento tiene 11 dígitos → FACTURA, si tiene 8 → BOLETA
+  // Esto evita el error "Serie debe iniciar con F" por inconsistencia
+  const docNumero  = datos.ruc ?? datos.dniCliente;
+  const esFactura  = docNumero.length === 11;
+  const esBoleta   = !esFactura;
 
-  // ── Tipo y serie ───────────────────────────────────────────────────────────
-  // BOLETA  → tipo_de_comprobante=1, serie=BBB2, cliente_tipo_doc=1 (DNI)
-  // FACTURA → tipo_de_comprobante=2, serie=FFF2, cliente_tipo_doc=6 (RUC)
+  // ── Tipo, serie y cliente ──────────────────────────────────────────────────
+  // BOLETA  → tipo=1, serie=BBB2, cliente_tipo_doc=1 (DNI, 8 dígitos)
+  // FACTURA → tipo=2, serie=FFF2, cliente_tipo_doc=6 (RUC, 11 dígitos)
   const tipoComprobante = esBoleta ? 1 : 2;
   const serie           = esBoleta ? "BBB2" : "FFF2";
+  const clienteTipoDoc  = esBoleta ? 1 : 6;
+  const clienteNumDoc   = esBoleta ? datos.dniCliente : (datos.ruc ?? "");
+  const clienteNombre   = esBoleta
+    ? datos.nombreCliente
+    : (datos.razonSocial ?? datos.nombreCliente);
+  const clienteDireccion = (!esBoleta && datos.direccionFiscal)
+    ? datos.direccionFiscal
+    : "";
 
-  // ── Cliente ────────────────────────────────────────────────────────────────
-  const clienteTipoDoc   = esBoleta ? 1 : 6;
-  const clienteNumDoc    = esBoleta ? datos.dniCliente : (datos.ruc ?? "");
-  const clienteNombre    = esBoleta ? datos.nombreCliente : (datos.razonSocial ?? datos.nombreCliente);
-  const clienteDireccion = (!esBoleta && datos.direccionFiscal) ? datos.direccionFiscal : "";
-
-  // ── Debug y validación de consistencia ────────────────────────────────────
-  console.log("DEBUG NUBEFACT:", { tipo_de_comprobante: tipoComprobante, serie, cliente_tipo_de_documento: clienteTipoDoc, tipoComprobante: datos.tipoComprobante });
-
+  // ── Validación de consistencia ─────────────────────────────────────────────
   if (tipoComprobante === 1 && !serie.startsWith("B")) {
     throw new Error(`Serie inválida para boleta: ${serie}`);
   }
@@ -63,14 +64,42 @@ export async function generarBoleta(datos: BoletaInput): Promise<BoletaResult> {
     throw new Error(`Serie inválida para factura: ${serie}`);
   }
 
-  // ── Montos — INAFECTO, sin IGV ─────────────────────────────────────────────
-  const cantidad    = datos.cantidad;
-  const precioUnit  = r2(datos.precioUnitario);
-  const totalItem   = r2(precioUnit * cantidad);
-  const monto       = totalItem;  // total_inafecta = total
+  // ── IGV ────────────────────────────────────────────────────────────────────
+  const tipoIgv   = datos.tipoIgv ?? 9;
+  const esGravado = tipoIgv === 10;
+  const cantidad  = datos.cantidad;
 
-  // codigo_unico único por intento
-  const codigoUnico = Date.now().toString();
+  const precioUnit = r2(datos.precioUnitario);
+  const valorUnit  = esGravado
+    ? r2(datos.valorUnitario ?? precioUnit / 1.18)
+    : precioUnit;
+
+  const subtotal  = r2(valorUnit  * cantidad);
+  const totalItem = r2(precioUnit * cantidad);
+  const igvItem   = esGravado ? r2(totalItem - subtotal) : 0;
+
+  const totalGravada  = esGravado ? subtotal  : 0;
+  const totalInafecta = esGravado ? 0         : totalItem;
+  const totalIgv      = igvItem;
+  const total         = r2(totalGravada + totalInafecta + totalIgv);
+
+  // ── Debug ──────────────────────────────────────────────────────────────────
+  console.log("DEBUG NUBEFACT:", {
+    tipo_de_comprobante:      tipoComprobante,
+    serie,
+    cliente_tipo_de_documento: clienteTipoDoc,
+    cliente_numero:           clienteNumDoc,
+    tipoIgv,
+    esGravado,
+    valorUnit,
+    precioUnit,
+    subtotal,
+    igvItem,
+    totalGravada,
+    totalInafecta,
+    totalIgv,
+    total,
+  });
 
   // ── Payload ────────────────────────────────────────────────────────────────
   const payload = {
@@ -79,32 +108,33 @@ export async function generarBoleta(datos: BoletaInput): Promise<BoletaResult> {
     serie,
     numero:                            "",
     sunat_transaction:                 1,
+    tipo_de_operacion:                 1,   // 1 = Venta Interna
     cliente_tipo_de_documento:         clienteTipoDoc,
     cliente_numero_de_documento:       clienteNumDoc,
     cliente_denominacion:              clienteNombre,
     cliente_direccion:                 clienteDireccion,
     moneda:                            1,
     fecha_de_emision:                  new Date().toISOString().split("T")[0],
-    porcentaje_de_igv:                 0,
-    total_gravada:                     0,
+    porcentaje_de_igv:                 esGravado ? 18.00 : 0,
+    total_gravada:                     totalGravada,
     total_exonerada:                   0,
-    total_inafecta:                    monto,
+    total_inafecta:                    totalInafecta,
     total_gratuita:                    0,
-    total_igv:                         0,
-    total:                             monto,
-    codigo_unico:                      codigoUnico,
+    total_igv:                         totalIgv,
+    total,
+    codigo_unico:                      Date.now().toString(),
     items: [
       {
         unidad_de_medida: "ZZ",
         codigo:           String(datos.codigoProducto),
         descripcion:      datos.descripcion,
         cantidad,
-        valor_unitario:   precioUnit,
+        valor_unitario:   valorUnit,
         precio_unitario:  precioUnit,
         descuento:        0,
-        subtotal:         totalItem,
-        tipo_de_igv:      9,
-        igv:              0,
+        subtotal,
+        tipo_de_igv:      tipoIgv,
+        igv:              igvItem,
         total:            totalItem,
       },
     ],
