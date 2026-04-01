@@ -8,7 +8,7 @@ export interface BoletaInput {
   descripcion:     string;
   cantidad:        number;
   precioUnitario:  number;   // precio con IGV (o total si inafecto)
-  valorUnitario?:  number;   // precio sin IGV — solo para gravados
+  valorUnitario?:  number;   // precio sin IGV — solo para gravados (tipo_de_igv=10)
   tipoIgv?:        number;   // 9=Inafecto (default), 10=Gravado
   codigoUnico:     string;
   tipoComprobante: "boleta" | "factura";
@@ -26,7 +26,6 @@ export interface BoletaResult {
   enlaceQr: string;
 }
 
-// ─── Helper: redondear a 2 decimales ─────────────────────────────────────────
 function r2(n: number): number {
   return Math.round(n * 100) / 100;
 }
@@ -42,114 +41,70 @@ export async function generarBoleta(datos: BoletaInput): Promise<BoletaResult> {
   const cantidad  = datos.cantidad;
 
   // ── Valores unitarios ──────────────────────────────────────────────────────
-  // precio_unitario = precio con IGV (lo que paga el cliente)
-  // valor_unitario  = precio sin IGV (base imponible)
   const precioUnit = r2(datos.precioUnitario);
   const valorUnit  = esGravado
     ? r2(datos.valorUnitario ?? precioUnit / 1.18)
-    : precioUnit;  // inafecto: valor = precio
+    : precioUnit;
 
-  // ── Totales del ítem ───────────────────────────────────────────────────────
-  // subtotal = valor_unitario × cantidad  (base imponible total)
-  // total    = precio_unitario × cantidad (total con IGV)
-  // igv      = total - subtotal
+  // ── Totales ────────────────────────────────────────────────────────────────
+  // subtotal = valor_unitario × cantidad  (base imponible)
+  // totalItem = precio_unitario × cantidad (con IGV)
+  // igv = totalItem - subtotal
   const subtotal   = r2(valorUnit  * cantidad);
   const totalItem  = r2(precioUnit * cantidad);
   const igvItem    = esGravado ? r2(totalItem - subtotal) : 0;
 
-  // ── Totales del comprobante ────────────────────────────────────────────────
   const totalGravada  = esGravado ? subtotal  : 0;
   const totalInafecta = esGravado ? 0         : totalItem;
-  const totalIgv      = esGravado ? igvItem   : 0;
+  const totalIgv      = igvItem;
   const total         = r2(totalGravada + totalInafecta + totalIgv);
 
-  // ── Cliente ────────────────────────────────────────────────────────────────
-  const tipoComprobante  = esBoleta ? 2 : 1;
+  // ── Comprobante ────────────────────────────────────────────────────────────
+  // Nubefact: 1=Boleta, 2=Factura
+  const tipoComprobante  = esBoleta ? 1 : 2;
   const serie            = esBoleta ? "BBB2" : "FFF2";
-  const clienteTipoDoc   = esBoleta ? 1 : 6;
+  const clienteTipoDoc   = esBoleta ? 1 : 6;   // 1=DNI, 6=RUC
   const clienteNumDoc    = esBoleta ? datos.dniCliente : (datos.ruc ?? "");
   const clienteNombre    = esBoleta ? datos.nombreCliente : (datos.razonSocial ?? datos.nombreCliente);
-  const clienteDireccion = esBoleta ? "" : (datos.direccionFiscal ?? "");
 
-  // ── Log de diagnóstico ─────────────────────────────────────────────────────
-  console.log("[nubefact] Tipo:", esBoleta ? "BOLETA" : "FACTURA", "| Serie:", serie);
-  console.log("[nubefact] tipoIgv:", tipoIgv, "| esGravado:", esGravado);
-  console.log("[nubefact] valorUnit:", valorUnit, "| precioUnit:", precioUnit);
-  console.log("[nubefact] subtotal:", subtotal, "| igvItem:", igvItem, "| totalItem:", totalItem);
-  console.log("[nubefact] total_gravada:", totalGravada, "| total_inafecta:", totalInafecta, "| total_igv:", totalIgv, "| total:", total);
-
-  // ── Payload ────────────────────────────────────────────────────────────────
-  const payload = {
+  // ── Payload mínimo obligatorio ─────────────────────────────────────────────
+  const payload: Record<string, unknown> = {
     operacion:                         "generar_comprobante",
     tipo_de_comprobante:               tipoComprobante,
     serie,
-    // numero omitido — Nubefact asigna correlativo automáticamente
+    numero:                            "",
     sunat_transaction:                 1,
     cliente_tipo_de_documento:         clienteTipoDoc,
     cliente_numero_de_documento:       clienteNumDoc,
     cliente_denominacion:              clienteNombre,
-    cliente_direccion:                 clienteDireccion,
-    cliente_email:                     "",
-    cliente_email_1:                   "",
-    cliente_email_2:                   "",
-    fecha_de_emision:                  new Date().toLocaleDateString("es-PE", {
-      day: "2-digit", month: "2-digit", year: "numeric",
-    }),
-    fecha_de_vencimiento:              "",
     moneda:                            1,
-    tipo_de_cambio:                    "",
-    porcentaje_de_igv:                 esGravado ? 18.00 : 0.00,
-    descuento_global:                  0,
-    total_descuento:                   0,
-    total_anticipo:                    0,
     total_gravada:                     totalGravada,
     total_inafecta:                    totalInafecta,
     total_exonerada:                   0,
     total_igv:                         totalIgv,
-    total_gratuita:                    0,
-    total_otros_cargos:                0,
     total,
-    percepcion_tipo:                   "",
-    percepcion_base_imponible:         0,
-    total_percepcion:                  0,
-    total_incluido_percepcion:         0,
-    detraccion:                        false,
-    observaciones:                     "",
-    documento_que_se_modifica_tipo:    "",
-    documento_que_se_modifica_serie:   "",
-    documento_que_se_modifica_numero:  "",
-    tipo_de_nota_de_credito:           "",
-    tipo_de_nota_de_debito:            "",
-    enviar_automaticamente_a_la_sunat: true,
-    enviar_automaticamente_al_cliente: false,
-    codigo_unico:                      datos.codigoUnico,
-    condiciones_de_pago:               "",
-    medio_de_pago:                     "Transferencia",
-    placa_vehiculo:                    "",
-    orden_compra_servicio:             "",
-    tabla_personalizada_codigo:        "",
-    formato_de_pdf:                    "",
     items: [
       {
-        unidad_de_medida:          "ZZ",
-        codigo:                    String(datos.codigoProducto),
-        descripcion:               datos.descripcion,
+        unidad_de_medida: "ZZ",
+        codigo:           String(datos.codigoProducto),
+        descripcion:      datos.descripcion,
         cantidad,
-        valor_unitario:            valorUnit,
-        precio_unitario:           precioUnit,
-        descuento:                 "",
+        valor_unitario:   valorUnit,
+        precio_unitario:  precioUnit,
         subtotal,
-        tipo_de_igv:               tipoIgv,
-        igv:                       igvItem,
-        total:                     totalItem,
-        anticipo_regularizacion:   false,
-        anticipo_documento_serie:  "",
-        anticipo_documento_numero: "",
+        tipo_de_igv:      tipoIgv,
+        igv:              igvItem,
+        total:            totalItem,
       },
     ],
   };
 
-  console.log("[nubefact] Payload JSON:", JSON.stringify(payload, null, 2));
+  // Campos opcionales solo si tienen valor
+  if (!esBoleta && datos.direccionFiscal) {
+    payload.cliente_direccion = datos.direccionFiscal;
+  }
+
+  console.log("[nubefact] Payload:", JSON.stringify(payload, null, 2));
 
   const res = await fetch(ENDPOINT, {
     method:  "POST",
