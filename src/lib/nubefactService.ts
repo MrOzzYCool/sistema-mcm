@@ -78,6 +78,7 @@ export async function generarBoleta(datos: BoletaInput): Promise<BoletaResult> {
     cliente_numero_de_documento:       clienteNumDoc,
     cliente_denominacion:              clienteNombre,
     moneda:                            1,
+    fecha_de_emision:                  new Date().toISOString().split("T")[0],
     total_gravada:                     totalGravada,
     total_inafecta:                    totalInafecta,
     total_exonerada:                   0,
