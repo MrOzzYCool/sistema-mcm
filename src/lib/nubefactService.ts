@@ -35,16 +35,15 @@ export async function generarBoleta(datos: BoletaInput): Promise<BoletaResult> {
     throw new Error("Nubefact no configurado. Verifica NUBEFACT_ENDPOINT y NUBEFACT_TOKEN.");
   }
 
-  // ── Detección automática por longitud del documento ────────────────────────
-  // Si el documento tiene 11 dígitos → FACTURA, si tiene 8 → BOLETA
-  // Esto evita el error "Serie debe iniciar con F" por inconsistencia
-  const docNumero  = datos.ruc ?? datos.dniCliente;
-  const esFactura  = docNumero.length === 11;
-  const esBoleta   = !esFactura;
+  // ── Tipo de comprobante ────────────────────────────────────────────────────
+  // Prioridad: campo tipoComprobante del formulario
+  // Fallback: longitud del documento (11=RUC→factura, 8=DNI→boleta)
+  const docNumero = (datos.tipoComprobante === "factura" ? datos.ruc : datos.dniCliente) ?? datos.dniCliente;
+  const esBoleta  = datos.tipoComprobante === "boleta"
+    || (datos.tipoComprobante !== "factura" && docNumero.length !== 11);
 
-  // ── Tipo, serie y cliente ──────────────────────────────────────────────────
-  // BOLETA  → tipo=1, serie=BBB2, cliente_tipo_doc=1 (DNI, 8 dígitos)
-  // FACTURA → tipo=2, serie=FFF2, cliente_tipo_doc=6 (RUC, 11 dígitos)
+  // BOLETA  → tipo=1, serie=BBB2, cliente_tipo_doc=1 (DNI)
+  // FACTURA → tipo=2, serie=FFF2, cliente_tipo_doc=6 (RUC)
   const tipoComprobante = esBoleta ? 1 : 2;
   const serie           = esBoleta ? "BBB2" : "FFF2";
   const clienteTipoDoc  = esBoleta ? 1 : 6;
