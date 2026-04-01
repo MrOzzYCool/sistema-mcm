@@ -5,6 +5,7 @@ import { useTramitesExternos } from "@/lib/tramites-externos-context";
 import { TRAMITES_EXTERNOS_CATALOGO, SILABO_CARRERAS, PRECIO_SILABO } from "@/lib/mock-data";
 import { AlertCircle, CheckCircle, Upload, CreditCard, Smartphone, Copy, Check, Info, Loader2, X } from "lucide-react";
 import { uploadSolicitudFiles } from "@/lib/solicitudes-service";
+import { EmailField, EmailConfirmField } from "@/components/EmailConfirmField";
 
 // ─── Botón copiar ──────────────────────────────────────────────────────────────
 
@@ -306,25 +307,12 @@ export default function TramitesExternosPage() {
                   required
                 />
                 <AnioEgresoField value={form.anioEgreso} onChange={(v) => set("anioEgreso", v)} />
-                <Field label="Correo electrónico" value={form.email} onChange={(v) => set("email", v)} type="email" placeholder="correo@gmail.com" required />
-                <div>
-                  <label className="block text-sm font-medium text-mcm-text mb-1.5">Confirmar correo electrónico</label>
-                  <input
-                    type="email"
-                    value={form.emailConfirm}
-                    onChange={(e) => set("emailConfirm", e.target.value)}
-                    placeholder="correo@gmail.com"
-                    required
-                    className={`w-full border rounded-lg px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 transition ${
-                      emailNoCoincide ? "border-red-400 bg-red-50 focus:ring-red-400" : "border-mcm-border focus:ring-[#a93526]"
-                    }`}
-                  />
-                  {emailNoCoincide && (
-                    <p className="text-red-600 text-xs mt-1 flex items-center gap-1">
-                      <AlertCircle size={12} /> Los correos electrónicos no coinciden
-                    </p>
-                  )}
-                </div>
+                <EmailField value={form.email} onChange={(v) => set("email", v)} />
+                <EmailConfirmField
+                  value={form.emailConfirm}
+                  onChange={(v) => set("emailConfirm", v)}
+                  emailOriginal={form.email}
+                />
                 <Field label="Celular" value={form.celular} onChange={(v) => set("celular", v)} placeholder="987654321" required />
               </div>
             </fieldset>
