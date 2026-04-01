@@ -35,16 +35,30 @@ export async function generarBoleta(datos: BoletaInput): Promise<BoletaResult> {
   }
 
   const esBoleta    = datos.tipoComprobante === "boleta";
-  const tipoIgv     = datos.tipoIgv ?? 9;                          // 9=Inafecto, 10=Gravado
+  const tipoIgv     = datos.tipoIgv ?? 9;
   const esGravado   = tipoIgv === 10;
-  const precioUnit  = Math.round(datos.precioUnitario * 100) / 100; // precio con IGV
-  const valorUnit   = esGravado
-    ? Math.round((datos.valorUnitario ?? datos.precioUnitario / 1.18) * 100) / 100
-    : precioUnit;                                                    // sin IGV
   const cantidad    = datos.cantidad;
-  const subtotal    = Math.round(valorUnit * cantidad * 100) / 100;
-  const igv         = esGravado ? Math.round((precioUnit - valorUnit) * cantidad * 100) / 100 : 0;
+
+  // Para gravados: usar los valores exactos del catálogo sin recalcular
+  // Para inafectos: valor = precio (sin IGV)
+  const precioUnit  = Math.round(datos.precioUnitario * 100) / 100;
+  const valorUnit   = esGravado
+    ? Math.round((datos.valorUnitario ?? precioUnit / 1.18) * 100) / 100
+    : precioUnit;
+
+  // Calcular totales con los valores exactos
+  const subtotal    = Math.round(valorUnit  * cantidad * 100) / 100;
   const total       = Math.round(precioUnit * cantidad * 100) / 100;
+  // IGV = total - subtotal (evita errores de redondeo acumulado)
+  const igv         = esGravado ? Math.round((total - subtotal) * 100) / 100 : 0;
+
+  console.log("[nubefact] Cálculos:", {
+    tipoIgv, esGravado, cantidad,
+    precioUnit, valorUnit, subtotal, igv, total,
+    total_gravada: esGravado ? subtotal : 0,
+    total_inafecta: esGravado ? 0 : total,
+    total_igv: igv,
+  });
 
   // ── Configuración según tipo de comprobante ──────────────────────────────
   const tipoComprobante = esBoleta ? 2 : 1;
@@ -126,8 +140,8 @@ export async function generarBoleta(datos: BoletaInput): Promise<BoletaResult> {
 
   console.log("[nubefact] Tipo:", esBoleta ? "BOLETA" : "FACTURA", "| Serie:", serie);
   console.log("[nubefact] Cliente:", clienteNombre, "| Doc:", clienteNumDoc);
-  console.log("[nubefact] Código:", datos.codigoProducto, "| Cant:", datos.cantidad, "| Total:", total);
-  console.log("[nubefact] codigo_unico:", datos.codigoUnico);
+  console.log("[nubefact] Payload items[0]:", JSON.stringify(payload.items[0]));
+  console.log("[nubefact] Totales payload:", { total_gravada: payload.total_gravada, total_inafecta: payload.total_inafecta, total_igv: payload.total_igv, total: payload.total });
 
   const res = await fetch(ENDPOINT, {
     method:  "POST",
