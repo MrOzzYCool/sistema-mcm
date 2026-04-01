@@ -35,8 +35,8 @@ export async function POST(req: NextRequest) {
     }
 
     const esSilabo    = tramite?.id === "te11";
-    const cantidad    = esSilabo ? (Number(sol.cantidad_silabos) || 1) : 1;
-    const precioUnit  = nubefactItem.monto;
+    const cantidad    = esSilabo ? 70 : 1;          // 70 × S/ 5 = S/ 350
+    const precioUnit  = esSilabo ? 5 : nubefactItem.monto;
     const montoTotal  = Math.round(precioUnit * cantidad * 100) / 100;
 
     console.log("Código Nubefact:", nubefactItem.codigo, "| Desc:", nubefactItem.descripcion);

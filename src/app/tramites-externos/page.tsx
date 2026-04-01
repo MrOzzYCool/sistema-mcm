@@ -34,18 +34,14 @@ type FormState = {
   nombres: string; apellidos: string; dni: string;
   email: string; celular: string; anioEgreso: string;
   tipoTramiteId: string;
-  // Comprobante
   tipoComprobante: "boleta" | "factura" | "";
   ruc: string; razonSocial: string; direccionFiscal: string;
-  // Sílabo
-  carrera: string; cantidadSilabos: string;
 };
 
 const INIT: FormState = {
   nombres: "", apellidos: "", dni: "", email: "",
   celular: "", anioEgreso: "", tipoTramiteId: "",
   tipoComprobante: "", ruc: "", razonSocial: "", direccionFiscal: "",
-  carrera: "", cantidadSilabos: "",
 };
 
 // ─── Página principal ──────────────────────────────────────────────────────────
@@ -62,24 +58,13 @@ export default function TramitesExternosPage() {
   const dniReversoRef = useRef<HTMLInputElement>(null);
 
   const tramiteSeleccionado = TRAMITES_EXTERNOS_CATALOGO.find((t) => t.id === form.tipoTramiteId);
-  const esSilabo            = tramiteSeleccionado?.id === "te11";
-  const carreraSeleccionada = SILABO_CARRERAS.find((c) => c.id === form.carrera);
-  const cantidadNum         = parseInt(form.cantidadSilabos) || 0;
-  const montoSilabo         = esSilabo ? cantidadNum * PRECIO_SILABO : 0;
-  const montoFinal          = esSilabo ? montoSilabo : (tramiteSeleccionado?.costo ?? 0);
-
-  // Validaciones Sílabo
-  const silaboSinCarrera   = esSilabo && !form.carrera;
-  const silaboSinCantidad  = esSilabo && cantidadNum <= 0;
-  const silaboExcedeLimite = esSilabo && !!carreraSeleccionada && cantidadNum > carreraSeleccionada.maxSilabos;
+  const montoFinal          = tramiteSeleccionado?.costo ?? 0;
 
   const anioActual   = new Date().getFullYear();
   const anioNum      = parseInt(form.anioEgreso) || 0;
   const anioInvalido = form.anioEgreso.length === 4 && (anioNum < 1966 || anioNum > anioActual);
 
   const puedeEnviar = !!tramiteSeleccionado && !!voucherFile && !!dniAnversoFile && !!dniReversoFile &&
-    !silaboSinCarrera && !silaboSinCantidad && !silaboExcedeLimite &&
-    (!esSilabo || cantidadNum > 0) &&
     !anioInvalido &&
     !!form.tipoComprobante &&
     (form.tipoComprobante === "boleta" || (
@@ -134,7 +119,6 @@ export default function TramitesExternosPage() {
                 razon_social:     form.razonSocial.trim(),
                 direccion_fiscal: form.direccionFiscal.trim(),
               }),
-              ...(esSilabo && { carrera: carreraSeleccionada?.nombre, cantidad_silabos: cantidadNum }),
               voucher_url:     vu,
               dni_anverso_url: dau,
               dni_reverso_url: dru,
@@ -336,8 +320,6 @@ export default function TramitesExternosPage() {
                     value={form.tipoTramiteId}
                     onChange={(e) => {
                       set("tipoTramiteId", e.target.value);
-                      set("carrera", "");
-                      set("cantidadSilabos", "");
                     }}
                     required
                     className="w-full border border-mcm-border rounded-lg px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#a93526]"
@@ -351,88 +333,14 @@ export default function TramitesExternosPage() {
                   </select>
                 </div>
 
-                {/* Cascada Sílabo */}
-                {esSilabo && (
-                  <>
-                    {/* Paso A: Carrera */}
-                    <div>
-                      <label className="block text-sm font-medium text-mcm-text mb-1.5">
-                        Carrera <span className="text-red-500">*</span>
-                      </label>
-                      <select
-                        value={form.carrera}
-                        onChange={(e) => { set("carrera", e.target.value); set("cantidadSilabos", ""); }}
-                        required
-                        className="w-full border border-mcm-border rounded-lg px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#a93526]"
-                      >
-                        <option value="">Selecciona tu carrera...</option>
-                        {SILABO_CARRERAS.map((c) => (
-                          <option key={c.id} value={c.id}>{c.nombre}</option>
-                        ))}
-                      </select>
-                    </div>
-
-                    {/* Paso B: Cantidad */}
-                    {form.carrera && (
-                      <div>
-                        <label className="block text-sm font-medium text-mcm-text mb-1.5">
-                          Cantidad de Sílabos
-                          <span className="ml-2 text-mcm-muted font-normal text-xs">
-                            (máx. {carreraSeleccionada?.maxSilabos})
-                          </span>
-                        </label>
-                        <input
-                          type="number"
-                          min={1}
-                          max={carreraSeleccionada?.maxSilabos}
-                          value={form.cantidadSilabos}
-                          onChange={(e) => set("cantidadSilabos", e.target.value)}
-                          placeholder="Ej: 10"
-                          required
-                          className={`w-full border rounded-lg px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 transition ${
-                            silaboExcedeLimite
-                              ? "border-red-400 bg-red-50 focus:ring-red-400"
-                              : "border-mcm-border focus:ring-[#a93526]"
-                          }`}
-                        />
-                        {silaboExcedeLimite && (
-                          <p className="text-red-600 text-xs mt-1 flex items-center gap-1">
-                            <AlertCircle size={12} />
-                            Máximo {carreraSeleccionada?.maxSilabos} sílabos para esta carrera
-                          </p>
-                        )}
-
-                        {/* Paso C: Monto calculado */}
-                        {cantidadNum > 0 && !silaboExcedeLimite && (
-                          <div className="mt-3 bg-green-50 border border-green-200 rounded-xl px-4 py-3 flex items-center justify-between">
-                            <span className="text-sm text-green-700 font-medium">
-                              {cantidadNum} sílabo{cantidadNum !== 1 ? "s" : ""} × S/ {PRECIO_SILABO}.00
-                            </span>
-                            <span className="text-lg font-bold text-green-700">
-                              S/ {montoSilabo.toLocaleString()}.00
-                            </span>
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </>
-                )}
-
-                {/* Monto para trámites normales con costo */}
-                {!esSilabo && tramiteSeleccionado && (
-                  tramiteSeleccionado.costo !== null ? (
-                    <div className="flex items-center justify-between bg-[#a93526] rounded-xl px-5 py-4">
-                      <span className="text-white font-medium text-sm">Monto a pagar:</span>
-                      <span className="text-white font-bold text-2xl">
-                        S/ {(tramiteSeleccionado.costo as number).toLocaleString("es-PE", { minimumFractionDigits: 2 })}
-                      </span>
-                    </div>
-                  ) : (
-                    <div className="flex items-start gap-2 bg-blue-50 border border-blue-200 text-blue-700 rounded-lg p-3 text-sm">
-                      <Info size={16} className="mt-0.5 shrink-0" />
-                      <span>El costo se coordinará con secretaría. Adjunta tu DNI y nos contactaremos contigo.</span>
-                    </div>
-                  )
+                {/* Monto automático para todos los trámites */}
+                {tramiteSeleccionado && tramiteSeleccionado.costo !== null && (
+                  <div className="flex items-center justify-between bg-[#a93526] rounded-xl px-5 py-4">
+                    <span className="text-white font-medium text-sm">Monto a pagar:</span>
+                    <span className="text-white font-bold text-2xl">
+                      S/ {(tramiteSeleccionado.costo as number).toLocaleString("es-PE", { minimumFractionDigits: 2 })}
+                    </span>
+                  </div>
                 )}
               </div>
             </fieldset>

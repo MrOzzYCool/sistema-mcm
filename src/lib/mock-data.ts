@@ -200,16 +200,11 @@ export const TRAMITES_EXTERNOS_CATALOGO = [
   { id: "te8",  label: "8. TRÁMITE GRADO DE BACHILLER (2013 A LA ACTUALIDAD)",                     nombre: "Tramite Grado de Bachiller (Alumnas que estudiaron de 2013 a la actualidad) INSTITUTO",                                           costo: 1500  },
   { id: "te9",  label: "9. EXAMEN DE SUFICIENCIA PROFESIONAL / SUSTENTACIÓN (2013 A LA ACTUALIDAD)", nombre: "Examen de Suficiencia Profesional / Sustentación (Alumnas que estudiaron de 2013 a la actualidad) INSTITUTO",                   costo: 1000  },
   { id: "te10", label: "10. TRÁMITE DE TÍTULO A NOMBRE DE LA NACIÓN (2013 A LA ACTUALIDAD)",       nombre: "Trámite de Titulo a Nombre de la Nacion (Alumnas que estudiaron de 2013 a la actualidad) INSTITUTO",                              costo: 2000  },
-  { id: "te11", label: "11. SÍLABO POR CURSO",                                                     nombre: "Sílabo por Curso",                                                                                                                costo: null  },
+  { id: "te11", label: "11. SÍLABO POR CURSO",                                                     nombre: "Sílabo por Curso",                                                                                                                costo: 350   },
 ] as const;
 
-export const SILABO_CARRERAS = [
-  { id: "aa", nombre: "ASISTENCIA ADMINISTRATIVA",    maxSilabos: 51 },
-  { id: "ti", nombre: "TRADUCCIÓN E INTERPRETACIÓN",  maxSilabos: 54 },
-  { id: "se", nombre: "SECRETARIADO EJECUTIVO",       maxSilabos: 60 },
-] as const;
-
-export const PRECIO_SILABO = 5; // S/ 5.00 por sílabo
+export const SILABO_CARRERAS = [] as const; // ya no se usa
+export const PRECIO_SILABO   = 5;           // precio unitario interno para Nubefact (70 × 5 = 350)
 
 export type TramiteExternoEstado = "pendiente" | "aprobado" | "observado" | "rechazado";
 
