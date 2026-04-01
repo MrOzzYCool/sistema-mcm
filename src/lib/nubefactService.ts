@@ -7,10 +7,10 @@ export interface BoletaInput {
   codigoProducto:  number;
   descripcion:     string;
   cantidad:        number;
-  precioUnitario:  number;   // precio con IGV (o total si inafecto)
-  valorUnitario?:  number;   // precio sin IGV — solo para gravados (tipo_de_igv=10)
-  tipoIgv?:        number;   // 9=Inafecto (default), 10=Gravado
-  codigoUnico:     string;
+  precioUnitario:  number;  // precio con IGV (o total si inafecto)
+  valorUnitario?:  number;  // precio sin IGV — solo para tipo_de_igv=10
+  tipoIgv?:        number;  // 9=Inafecto (default), 10=Gravado
+  codigoUnico:     string;  // ID de la solicitud en Supabase
   tipoComprobante: "boleta" | "factura";
   dniCliente:      string;
   nombreCliente:   string;
@@ -35,43 +35,44 @@ export async function generarBoleta(datos: BoletaInput): Promise<BoletaResult> {
     throw new Error("Nubefact no configurado. Verifica NUBEFACT_ENDPOINT y NUBEFACT_TOKEN.");
   }
 
-  const esBoleta  = datos.tipoComprobante === "boleta";
+  // ── Tipo de comprobante ────────────────────────────────────────────────────
+  // BOLETA  → tipo_de_comprobante=1, serie=BBB2, cliente_tipo_doc=1 (DNI)
+  // FACTURA → tipo_de_comprobante=2, serie=FFF2, cliente_tipo_doc=6 (RUC)
+  const esBoleta         = datos.tipoComprobante === "boleta";
+  const tipoComprobante  = esBoleta ? 1 : 2;
+  const serie            = esBoleta ? "BBB2" : "FFF2";
+  const clienteTipoDoc   = esBoleta ? 1 : 6;
+  const clienteNumDoc    = esBoleta ? datos.dniCliente : (datos.ruc ?? "");
+  const clienteNombre    = esBoleta ? datos.nombreCliente : (datos.razonSocial ?? datos.nombreCliente);
+  const clienteDireccion = (!esBoleta && datos.direccionFiscal) ? datos.direccionFiscal : "";
+
+  // ── IGV ────────────────────────────────────────────────────────────────────
   const tipoIgv   = datos.tipoIgv ?? 9;
   const esGravado = tipoIgv === 10;
   const cantidad  = datos.cantidad;
 
-  // ── Valores unitarios ──────────────────────────────────────────────────────
-  const precioUnit = r2(datos.precioUnitario);
+  // Valores unitarios
+  const precioUnit = r2(datos.precioUnitario);                          // con IGV
   const valorUnit  = esGravado
-    ? r2(datos.valorUnitario ?? precioUnit / 1.18)
-    : precioUnit;
+    ? r2(datos.valorUnitario ?? precioUnit / 1.18)                      // sin IGV
+    : precioUnit;                                                        // inafecto: igual
 
-  // ── Totales ────────────────────────────────────────────────────────────────
-  // subtotal = valor_unitario × cantidad  (base imponible)
-  // totalItem = precio_unitario × cantidad (con IGV)
-  // igv = totalItem - subtotal
-  const subtotal   = r2(valorUnit  * cantidad);
-  const totalItem  = r2(precioUnit * cantidad);
-  const igvItem    = esGravado ? r2(totalItem - subtotal) : 0;
+  // Totales del ítem
+  const subtotal  = r2(valorUnit  * cantidad);   // base imponible
+  const totalItem = r2(precioUnit * cantidad);   // total con IGV
+  const igvItem   = esGravado ? r2(totalItem - subtotal) : 0;
 
+  // Totales del comprobante
   const totalGravada  = esGravado ? subtotal  : 0;
   const totalInafecta = esGravado ? 0         : totalItem;
   const totalIgv      = igvItem;
   const total         = r2(totalGravada + totalInafecta + totalIgv);
 
-  // ── Comprobante ────────────────────────────────────────────────────────────
-  // Nubefact: 1=Boleta, 2=Factura
-  const tipoComprobante  = esBoleta ? 1 : 2;
-  const serie            = esBoleta ? "BBB2" : "FFF2";
-  const clienteTipoDoc   = esBoleta ? 1 : 6;   // 1=DNI, 6=RUC
-  const clienteNumDoc    = esBoleta ? datos.dniCliente : (datos.ruc ?? "");
-  const clienteNombre    = esBoleta ? datos.nombreCliente : (datos.razonSocial ?? datos.nombreCliente);
+  // codigo_unico único por intento — evita rechazo por duplicado
+  const codigoUnico = Date.now().toString();
 
-  // codigo_unico único por intento — evita rechazo por duplicado en Nubefact
-  const codigoUnico = `${datos.codigoUnico}_${Date.now()}`;
-
-  // ── Payload mínimo obligatorio ─────────────────────────────────────────────
-  const payload: Record<string, unknown> = {
+  // ── Payload ────────────────────────────────────────────────────────────────
+  const payload = {
     operacion:                         "generar_comprobante",
     tipo_de_comprobante:               tipoComprobante,
     serie,
@@ -80,12 +81,15 @@ export async function generarBoleta(datos: BoletaInput): Promise<BoletaResult> {
     cliente_tipo_de_documento:         clienteTipoDoc,
     cliente_numero_de_documento:       clienteNumDoc,
     cliente_denominacion:              clienteNombre,
+    cliente_direccion:                 clienteDireccion,
     moneda:                            1,
     fecha_de_emision:                  new Date().toISOString().split("T")[0],
+    porcentaje_de_igv:                 esGravado ? 18.00 : 0.00,
     total_gravada:                     totalGravada,
     total_inafecta:                    totalInafecta,
     total_exonerada:                   0,
     total_igv:                         totalIgv,
+    total_gratuita:                    0,
     total,
     codigo_unico:                      codigoUnico,
     items: [
@@ -96,6 +100,7 @@ export async function generarBoleta(datos: BoletaInput): Promise<BoletaResult> {
         cantidad,
         valor_unitario:   valorUnit,
         precio_unitario:  precioUnit,
+        descuento:        0,
         subtotal,
         tipo_de_igv:      tipoIgv,
         igv:              igvItem,
@@ -103,11 +108,6 @@ export async function generarBoleta(datos: BoletaInput): Promise<BoletaResult> {
       },
     ],
   };
-
-  // Campos opcionales solo si tienen valor
-  if (!esBoleta && datos.direccionFiscal) {
-    payload.cliente_direccion = datos.direccionFiscal;
-  }
 
   console.log("[nubefact] Payload:", JSON.stringify(payload, null, 2));
 
