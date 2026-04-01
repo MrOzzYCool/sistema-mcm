@@ -21,7 +21,14 @@ export default function LoginPage() {
     setLoading(true);
     try {
       await login(email, password);
-      router.push("/dashboard/tramites-externos");
+      // Redirigir según rol
+      const { supabase } = await import("@/lib/supabase");
+      const { data: { user } } = await supabase.auth.getUser();
+      const rolMap: Record<string, string> = {
+        "milnarvaez@margaritacabrera.edu.pe": "/dashboard/actualizacion",
+      };
+      const dest = rolMap[user?.email?.toLowerCase() ?? ""] ?? "/dashboard/tramites-externos";
+      router.push(dest);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Credenciales incorrectas. Verifica tu correo y contraseña.");
     } finally {

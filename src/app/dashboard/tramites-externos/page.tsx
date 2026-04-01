@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { getSolicitudes, actualizarEstado, getPublicUrl, borrarTodasLasSolicitudes } from "@/lib/solicitudes-service";
 import { SolicitudDB } from "@/lib/supabase";
 import { useAuth } from "@/lib/auth-context";
+import RouteGuard from "@/components/RouteGuard";
 import { CheckCircle, XCircle, AlertTriangle, Eye, X, ExternalLink, RefreshCw, Loader2 } from "lucide-react";
 import clsx from "clsx";
 
@@ -21,6 +22,14 @@ const ESTADO_LABEL: Record<NonNullable<Estado>, string> = {
 };
 
 export default function TramitesExternosAdminPage() {
+  return (
+    <RouteGuard allowedRoles={["super_admin", "staff_tramites", "gestor"]}>
+      <TramitesExternosContent />
+    </RouteGuard>
+  );
+}
+
+function TramitesExternosContent() {
   const { user } = useAuth();
   const esSuperAdmin = user?.role === "super_admin";
   const [solicitudes, setSolicitudes]   = useState<SolicitudDB[]>([]);
