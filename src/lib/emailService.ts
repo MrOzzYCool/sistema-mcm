@@ -2,7 +2,11 @@ import { Resend } from "resend";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
-const FROM = "I.E.S. MC <contabilidad@margaritacabrera.edu.pe>";
+const FROM_TRAMITES    = "I.E.S. Privada Margarita Cabrera <tramites@margaritacabrera.edu.pe>";
+const FROM_CONTABILIDAD = "I.E.S. Privada Margarita Cabrera <contabilidad@margaritacabrera.edu.pe>";
+
+// alias para compatibilidad con código existente
+const FROM = FROM_CONTABILIDAD;
 
 // ─── Email de confirmación de recepción ───────────────────────────────────────
 
@@ -16,7 +20,7 @@ export async function enviarConfirmacionRecepcion(params: {
   const nombre = `${params.nombres} ${params.apellidos}`;
 
   await resend.emails.send({
-    from: FROM,
+    from: FROM_TRAMITES,
     to:   params.email,
     subject: "✅ Solicitud de trámite recibida — I.E.S. Privada Margarita Cabrera",
     html: `
@@ -96,9 +100,9 @@ export async function enviarCorreoRechazo(params: {
     }).join("");
 
   await resend.emails.send({
-    from:    FROM,
+    from:    FROM_TRAMITES,
     to:      params.email,
-    subject: "Solicitud observada - I.E.S. MC ⚠️",
+    subject: "Solicitud observada - I.E.S. Privada Margarita Cabrera ⚠️",
     html: `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #1e293b;">
         <div style="background: linear-gradient(135deg, #a93526, #8a2b1f); padding: 32px 24px; border-radius: 12px 12px 0 0; text-align: center;">
