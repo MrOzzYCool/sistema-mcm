@@ -32,14 +32,14 @@ function CopyButton({ text }: { text: string }) {
 
 type FormState = {
   nombres: string; apellidos: string; dni: string;
-  email: string; celular: string; anioEgreso: string;
+  email: string; emailConfirm: string; celular: string; anioEgreso: string;
   tipoTramiteId: string;
   tipoComprobante: "boleta" | "factura" | "";
   ruc: string; razonSocial: string; direccionFiscal: string;
 };
 
 const INIT: FormState = {
-  nombres: "", apellidos: "", dni: "", email: "",
+  nombres: "", apellidos: "", dni: "", email: "", emailConfirm: "",
   celular: "", anioEgreso: "", tipoTramiteId: "",
   tipoComprobante: "", ruc: "", razonSocial: "", direccionFiscal: "",
 };
@@ -65,8 +65,10 @@ export default function TramitesExternosPage() {
   const anioNum      = parseInt(form.anioEgreso) || 0;
   const anioInvalido = form.anioEgreso.length === 4 && (anioNum < 1966 || anioNum > anioActual);
 
+  const emailNoCoincide = form.emailConfirm.length > 0 && form.email !== form.emailConfirm;
+
   const puedeEnviar = !!tramiteSeleccionado && voucherFiles.length > 0 && !!dniAnversoFile && !!dniReversoFile &&
-    !anioInvalido &&
+    !anioInvalido && !emailNoCoincide && !!form.email && !!form.emailConfirm &&
     !!form.tipoComprobante &&
     (form.tipoComprobante === "boleta" || (
       form.ruc.length === 11 && !!form.razonSocial.trim() && !!form.direccionFiscal.trim()
@@ -305,6 +307,24 @@ export default function TramitesExternosPage() {
                 />
                 <AnioEgresoField value={form.anioEgreso} onChange={(v) => set("anioEgreso", v)} />
                 <Field label="Correo electrónico" value={form.email} onChange={(v) => set("email", v)} type="email" placeholder="correo@gmail.com" required />
+                <div>
+                  <label className="block text-sm font-medium text-mcm-text mb-1.5">Confirmar correo electrónico</label>
+                  <input
+                    type="email"
+                    value={form.emailConfirm}
+                    onChange={(e) => set("emailConfirm", e.target.value)}
+                    placeholder="correo@gmail.com"
+                    required
+                    className={`w-full border rounded-lg px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 transition ${
+                      emailNoCoincide ? "border-red-400 bg-red-50 focus:ring-red-400" : "border-mcm-border focus:ring-[#a93526]"
+                    }`}
+                  />
+                  {emailNoCoincide && (
+                    <p className="text-red-600 text-xs mt-1 flex items-center gap-1">
+                      <AlertCircle size={12} /> Los correos electrónicos no coinciden
+                    </p>
+                  )}
+                </div>
                 <Field label="Celular" value={form.celular} onChange={(v) => set("celular", v)} placeholder="987654321" required />
               </div>
             </fieldset>
