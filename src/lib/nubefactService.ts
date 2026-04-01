@@ -9,11 +9,12 @@ export interface BoletaInput {
   codigoProducto:  number;
   descripcion:     string;
   cantidad:        number;
-  precioUnitario:  number;
-  codigoUnico:     string;   // ID solicitud Supabase
+  precioUnitario:  number;   // precio con IGV (o total si inafecto)
+  valorUnitario?:  number;   // precio sin IGV — omitir si inafecto (se asume = precioUnitario)
+  tipoIgv?:        number;   // 9=Inafecto (default), 10=Gravado
+  codigoUnico:     string;
   // Comprobante
   tipoComprobante: "boleta" | "factura";
-  // Datos cliente — boleta usa DNI+nombre, factura usa RUC+razón social
   dniCliente:      string;
   nombreCliente:   string;
   ruc?:            string;
@@ -33,25 +34,31 @@ export async function generarBoleta(datos: BoletaInput): Promise<BoletaResult> {
     throw new Error("Nubefact no configurado. Verifica NUBEFACT_ENDPOINT y NUBEFACT_TOKEN.");
   }
 
-  const esBoleta   = datos.tipoComprobante === "boleta";
-  const precioUnit = Math.round(datos.precioUnitario * 100) / 100;
-  const total      = Math.round(precioUnit * datos.cantidad * 100) / 100;
+  const esBoleta    = datos.tipoComprobante === "boleta";
+  const tipoIgv     = datos.tipoIgv ?? 9;                          // 9=Inafecto, 10=Gravado
+  const esGravado   = tipoIgv === 10;
+  const precioUnit  = Math.round(datos.precioUnitario * 100) / 100; // precio con IGV
+  const valorUnit   = esGravado
+    ? Math.round((datos.valorUnitario ?? datos.precioUnitario / 1.18) * 100) / 100
+    : precioUnit;                                                    // sin IGV
+  const cantidad    = datos.cantidad;
+  const subtotal    = Math.round(valorUnit * cantidad * 100) / 100;
+  const igv         = esGravado ? Math.round((precioUnit - valorUnit) * cantidad * 100) / 100 : 0;
+  const total       = Math.round(precioUnit * cantidad * 100) / 100;
 
   // ── Configuración según tipo de comprobante ──────────────────────────────
-  const tipoComprobante = esBoleta ? 2 : 1;          // 2=Boleta, 1=Factura
+  const tipoComprobante = esBoleta ? 2 : 1;
   const serie           = esBoleta ? "BBB2" : "FFF2";
 
-  // Cliente: boleta → DNI (tipo 1), factura → RUC (tipo 6)
-  const clienteTipoDoc  = esBoleta ? 1 : 6;
-  const clienteNumDoc   = esBoleta ? datos.dniCliente : (datos.ruc ?? "");
-  const clienteNombre   = esBoleta ? datos.nombreCliente : (datos.razonSocial ?? datos.nombreCliente);
+  const clienteTipoDoc   = esBoleta ? 1 : 6;
+  const clienteNumDoc    = esBoleta ? datos.dniCliente : (datos.ruc ?? "");
+  const clienteNombre    = esBoleta ? datos.nombreCliente : (datos.razonSocial ?? datos.nombreCliente);
   const clienteDireccion = esBoleta ? "" : (datos.direccionFiscal ?? "");
 
   const payload = {
     operacion:              "generar_comprobante",
     tipo_de_comprobante:    tipoComprobante,
     serie,
-    // numero omitido — Nubefact asigna correlativo automáticamente
     sunat_transaction:      1,
     cliente_tipo_de_documento:       clienteTipoDoc,
     cliente_numero_de_documento:     clienteNumDoc,
@@ -64,16 +71,16 @@ export async function generarBoleta(datos: BoletaInput): Promise<BoletaResult> {
       day: "2-digit", month: "2-digit", year: "numeric",
     }),
     fecha_de_vencimiento:   "",
-    moneda:                 1,        // 1 = PEN
+    moneda:                 1,
     tipo_de_cambio:         "",
-    porcentaje_de_igv:      0.00,
+    porcentaje_de_igv:      esGravado ? 18.00 : 0.00,
     descuento_global:       0,
     total_descuento:        0,
     total_anticipo:         0,
-    total_gravada:          0,
-    total_inafecta:         total,
+    total_gravada:          esGravado ? subtotal : 0,
+    total_inafecta:         esGravado ? 0 : total,
     total_exonerada:        0,
-    total_igv:              0,
+    total_igv:              igv,
     total_gratuita:         0,
     total_otros_cargos:     0,
     total,
@@ -102,13 +109,13 @@ export async function generarBoleta(datos: BoletaInput): Promise<BoletaResult> {
         unidad_de_medida:   "ZZ",
         codigo:             String(datos.codigoProducto),
         descripcion:        datos.descripcion,
-        cantidad:           datos.cantidad,
-        valor_unitario:     precioUnit,
+        cantidad,
+        valor_unitario:     valorUnit,
         precio_unitario:    precioUnit,
         descuento:          "",
-        subtotal:           total,
-        tipo_de_igv:        9,          // Inafecto - Operación Onerosa
-        igv:                0,
+        subtotal,
+        tipo_de_igv:        tipoIgv,
+        igv,
         total,
         anticipo_regularizacion:   false,
         anticipo_documento_serie:  "",

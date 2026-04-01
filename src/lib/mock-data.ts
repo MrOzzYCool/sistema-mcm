@@ -275,6 +275,24 @@ export const NUBEFACT_MAP: Record<string, NubefactItem> = {
 // ─── Catálogo de Actualizaciones ──────────────────────────────────────────────
 
 export const ACTUALIZACIONES_CATALOGO = [
-  { id: "ac1", label: "IA PRÁCTICA PARA LA GESTIÓN ADMINISTRATIVA MODERNA",  costo: 100, codigoNubefact: 12 },
-  { id: "ac2", label: "GESTIÓN SECRETARIAL EJECUTIVA",                        costo: 100, codigoNubefact: 12 },
+  {
+    id:             "ac1",
+    label:          "IA PRÁCTICA PARA LA GESTIÓN ADMINISTRATIVA MODERNA",
+    costo:          400,          // precio con IGV (lo que paga el alumno)
+    codigoNubefact: 38,
+    descripcionNubefact: "ACTUALIZACIÓN: IA PRÁCTICA PARA LA GESTIÓN ADMINISTRATIVA MODERNA",
+    valorUnitario:  338.98,       // sin IGV
+    precioUnitario: 400.00,       // con IGV
+    tipoIgv:        10,           // 10 = Gravado
+  },
+  {
+    id:             "ac2",
+    label:          "GESTIÓN SECRETARIAL EJECUTIVA",
+    costo:          350,
+    codigoNubefact: 34,
+    descripcionNubefact: "ACTUALIZACIÓN: GESTIÓN SECRETARIAL EJECUTIVA",
+    valorUnitario:  296.61,
+    precioUnitario: 350.00,
+    tipoIgv:        10,
+  },
 ] as const;

@@ -39,8 +39,8 @@ export async function POST(req: NextRequest) {
     } else if (actualizacion) {
       nubefactItem = {
         codigo:      actualizacion.codigoNubefact,
-        descripcion: actualizacion.label,
-        monto:       actualizacion.costo,
+        descripcion: actualizacion.descripcionNubefact,
+        monto:       actualizacion.precioUnitario,
       };
     }
 
@@ -69,6 +69,11 @@ export async function POST(req: NextRequest) {
           nombreCliente:   `${sol.nombres} ${sol.apellidos}`,
           cantidad,
           precioUnitario:  precioUnit,
+          // Actualizaciones llevan IGV — pasar valorUnitario y tipoIgv específicos
+          ...(actualizacion && {
+            valorUnitario: actualizacion.valorUnitario,
+            tipoIgv:       actualizacion.tipoIgv,
+          }),
           codigoUnico:     id,
           tipoComprobante: (sol.tipo_comprobante as "boleta" | "factura") ?? "boleta",
           ruc:             sol.ruc ?? undefined,
