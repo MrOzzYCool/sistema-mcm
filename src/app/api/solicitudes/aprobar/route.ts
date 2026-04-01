@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
 import { generarBoleta } from "@/lib/nubefactService";
 import { enviarCorreoAprobacion } from "@/lib/emailService";
-import { NUBEFACT_MAP, TRAMITES_EXTERNOS_CATALOGO } from "@/lib/mock-data";
+import { NUBEFACT_MAP, TRAMITES_EXTERNOS_CATALOGO, ACTUALIZACIONES_CATALOGO } from "@/lib/mock-data";
 
 export async function POST(req: NextRequest) {
   try {
@@ -27,7 +27,22 @@ export async function POST(req: NextRequest) {
 
     // ── 2. Resolver código Nubefact por tipo de trámite ───────────────────────
     const tramite = TRAMITES_EXTERNOS_CATALOGO.find((t) => t.nombre === sol.tipo_tramite);
-    const nubefactItem = tramite ? NUBEFACT_MAP[tramite.id] : null;
+    // Verificar también en catálogo de actualizaciones
+    const actualizacion = !tramite
+      ? ACTUALIZACIONES_CATALOGO.find((a) => a.label === sol.tipo_tramite)
+      : null;
+
+    let nubefactItem: { codigo: number; descripcion: string; monto: number } | null = null;
+
+    if (tramite) {
+      nubefactItem = NUBEFACT_MAP[tramite.id] ?? null;
+    } else if (actualizacion) {
+      nubefactItem = {
+        codigo:      actualizacion.codigoNubefact,
+        descripcion: actualizacion.label,
+        monto:       actualizacion.costo,
+      };
+    }
 
     if (!nubefactItem) {
       console.error("Trámite no encontrado en mapa Nubefact:", sol.tipo_tramite);
@@ -35,8 +50,8 @@ export async function POST(req: NextRequest) {
     }
 
     const esSilabo    = tramite?.id === "te11";
-    const cantidad    = esSilabo ? 70 : 1;          // 70 × S/ 5 = S/ 350
-    const precioUnit  = esSilabo ? 5 : nubefactItem.monto;
+    const cantidad    = esSilabo ? 70 : 1;
+    const precioUnit  = esSilabo ? 5 : nubefactItem!.monto;
     const montoTotal  = Math.round(precioUnit * cantidad * 100) / 100;
 
     console.log("Código Nubefact:", nubefactItem.codigo, "| Desc:", nubefactItem.descripcion);

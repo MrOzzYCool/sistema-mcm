@@ -271,3 +271,10 @@ export const NUBEFACT_MAP: Record<string, NubefactItem> = {
   "te10": { codigo:  8, descripcion: "TRÁMITE DE TÍTULO A NOMBRE DE LA NACIÓN",                  monto: 2000 },
   "te11": { codigo:  4, descripcion: "SILABO POR CURSO",                                         monto: 5    }, // × cantidad
 };
+
+// ─── Catálogo de Actualizaciones ──────────────────────────────────────────────
+
+export const ACTUALIZACIONES_CATALOGO = [
+  { id: "ac1", label: "IA PRÁCTICA PARA LA GESTIÓN ADMINISTRATIVA MODERNA",  costo: 100, codigoNubefact: 12 },
+  { id: "ac2", label: "GESTIÓN SECRETARIAL EJECUTIVA",                        costo: 100, codigoNubefact: 12 },
+] as const;

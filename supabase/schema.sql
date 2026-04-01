@@ -69,3 +69,8 @@ alter table public.solicitudes
   add column if not exists ruc              text,
   add column if not exists razon_social     text,
   add column if not exists direccion_fiscal text;
+
+-- Campo para distinguir trámites de actualizaciones
+alter table public.solicitudes
+  add column if not exists tipo_formulario text default 'tramite'
+    check (tipo_formulario in ('tramite','actualizacion'));

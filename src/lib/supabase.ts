@@ -45,5 +45,6 @@ export interface SolicitudDB {
   ruc?: string | null;
   razon_social?: string | null;
   direccion_fiscal?: string | null;
+  tipo_formulario?: "tramite" | "actualizacion";
   created_at?: string;
 }
