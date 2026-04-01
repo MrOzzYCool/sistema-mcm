@@ -66,7 +66,7 @@ export default function SubsanarPage() {
       if (voucherFile || dniAnversoFile || dniReversoFile) {
         const { voucherUrl, dniAnversoUrl, dniReversoUrl } = await uploadSolicitudFiles(
           dni,
-          voucherFile    ?? new File([], ""),
+          voucherFile    ? [voucherFile]    : [],
           dniAnversoFile ?? new File([], ""),
           dniReversoFile ?? new File([], ""),
         );

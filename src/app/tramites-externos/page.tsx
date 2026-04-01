@@ -48,11 +48,12 @@ const INIT: FormState = {
 
 export default function TramitesExternosPage() {
   const { agregar } = useTramitesExternos();
-  const [form, setForm]                     = useState<FormState>(INIT);
-  const [voucherFile, setVoucherFile]       = useState<File | null>(null);
-  const [dniAnversoFile, setDniAnversoFile] = useState<File | null>(null);
-  const [dniReversoFile, setDniReversoFile] = useState<File | null>(null);  const [enviado, setEnviado]               = useState(false);
-  const [error, setError]                   = useState("");
+  const [form, setForm]                         = useState<FormState>(INIT);
+  const [voucherFiles, setVoucherFiles]         = useState<File[]>([]);
+  const [dniAnversoFile, setDniAnversoFile]     = useState<File | null>(null);
+  const [dniReversoFile, setDniReversoFile]     = useState<File | null>(null);
+  const [enviado, setEnviado]                   = useState(false);
+  const [error, setError]                       = useState("");
   const voucherRef    = useRef<HTMLInputElement>(null);
   const dniAnversoRef = useRef<HTMLInputElement>(null);
   const dniReversoRef = useRef<HTMLInputElement>(null);
@@ -64,7 +65,7 @@ export default function TramitesExternosPage() {
   const anioNum      = parseInt(form.anioEgreso) || 0;
   const anioInvalido = form.anioEgreso.length === 4 && (anioNum < 1966 || anioNum > anioActual);
 
-  const puedeEnviar = !!tramiteSeleccionado && !!voucherFile && !!dniAnversoFile && !!dniReversoFile &&
+  const puedeEnviar = !!tramiteSeleccionado && voucherFiles.length > 0 && !!dniAnversoFile && !!dniReversoFile &&
     !anioInvalido &&
     !!form.tipoComprobante &&
     (form.tipoComprobante === "boleta" || (
@@ -89,14 +90,14 @@ export default function TramitesExternosPage() {
         process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY &&
         !process.env.NEXT_PUBLIC_SUPABASE_URL.includes("TU_PROYECTO");
 
-      let voucherUrl    = URL.createObjectURL(voucherFile!);
+      let voucherUrl    = voucherFiles.map((f) => URL.createObjectURL(f)).join(",");
       let dniAnversoUrl = URL.createObjectURL(dniAnversoFile!);
       let dniReversoUrl = URL.createObjectURL(dniReversoFile!);
 
       if (supabaseConfigurado) {
         // ── Subir archivos — retorna URLs públicas directas del SDK ──
         const { voucherUrl: vu, dniAnversoUrl: dau, dniReversoUrl: dru, paths } =
-          await uploadSolicitudFiles(form.dni, voucherFile!, dniAnversoFile!, dniReversoFile!);
+          await uploadSolicitudFiles(form.dni, voucherFiles, dniAnversoFile!, dniReversoFile!);
 
         // ── Insertar via API route (genera token + envía email de confirmación) ──
         try {
@@ -183,7 +184,7 @@ export default function TramitesExternosPage() {
             <strong>{form.email}</strong> cuando sea procesado.
           </p>
           <button
-            onClick={() => { setForm(INIT); setVoucherFile(null); setDniAnversoFile(null); setDniReversoFile(null); setEnviado(false); }}            className="btn-primary w-full py-2.5 text-sm"
+            onClick={() => { setForm(INIT); setVoucherFiles([]); setDniAnversoFile(null); setDniReversoFile(null); setEnviado(false); }}            className="btn-primary w-full py-2.5 text-sm"
           >
             Enviar otra solicitud
           </button>
@@ -415,27 +416,30 @@ export default function TramitesExternosPage() {
             </fieldset>
             <fieldset>
               <legend className="text-xs font-semibold text-mcm-muted uppercase tracking-wide mb-3">Documentos adjuntos</legend>
-              <div className="grid sm:grid-cols-3 gap-4">
-                <FileUpload
-                  label="Voucher de pago"
-                  sublabel="Foto del comprobante"
-                  file={voucherFile}
+              <div className="space-y-4">
+                {/* Voucher — múltiples archivos */}
+                <MultiFileUpload
+                  label="Voucher(s) de pago"
+                  sublabel="Puedes subir varios comprobantes"
+                  files={voucherFiles}
                   inputRef={voucherRef}
-                  onChange={(f) => setVoucherFile(f)}
+                  onChange={setVoucherFiles}
                 />
-                <FileUpload
+                {/* DNI Anverso — con opción de cámara */}
+                <DniFileUpload
                   label="DNI — Anverso"
                   sublabel="Parte delantera"
                   file={dniAnversoFile}
                   inputRef={dniAnversoRef}
-                  onChange={(f) => setDniAnversoFile(f)}
+                  onChange={setDniAnversoFile}
                 />
-                <FileUpload
+                {/* DNI Reverso — con opción de cámara */}
+                <DniFileUpload
                   label="DNI — Reverso"
                   sublabel="Parte trasera"
                   file={dniReversoFile}
                   inputRef={dniReversoRef}
-                  onChange={(f) => setDniReversoFile(f)}
+                  onChange={setDniReversoFile}
                 />
               </div>
             </fieldset>
@@ -504,6 +508,118 @@ function Field({ label, value, onChange, type = "text", placeholder, required, m
         maxLength={maxLength} style={style} inputMode={inputMode}
         className="w-full border border-mcm-border rounded-lg px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#a93526]"
       />
+    </div>
+  );
+}
+
+// ─── Voucher múltiple ─────────────────────────────────────────────────────────
+
+function MultiFileUpload({ label, sublabel, files, inputRef, onChange }: {
+  label: string; sublabel?: string; files: File[];
+  inputRef: React.RefObject<HTMLInputElement>;
+  onChange: (files: File[]) => void;
+}) {
+  function addFiles(newFiles: FileList | null) {
+    if (!newFiles) return;
+    onChange([...files, ...Array.from(newFiles)]);
+    if (inputRef.current) inputRef.current.value = "";
+  }
+  function removeFile(idx: number) {
+    onChange(files.filter((_, i) => i !== idx));
+  }
+
+  return (
+    <div>
+      <label className="block text-sm font-medium text-mcm-text mb-0.5">{label}</label>
+      {sublabel && <p className="text-xs text-mcm-muted mb-2">{sublabel}</p>}
+
+      {/* Lista de archivos seleccionados */}
+      {files.length > 0 && (
+        <div className="space-y-2 mb-3">
+          {files.map((f, i) => (
+            <div key={i} className="flex items-center gap-2 bg-green-50 border border-green-300 rounded-xl overflow-hidden">
+              <div className="w-14 h-14 shrink-0 bg-slate-100">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={URL.createObjectURL(f)} alt="" className="w-full h-full object-contain" />
+              </div>
+              <p className="flex-1 text-xs text-green-700 font-medium truncate">{f.name}</p>
+              <button type="button" onClick={() => removeFile(i)}
+                className="mr-2 w-6 h-6 rounded-full bg-red-100 hover:bg-red-200 text-red-600 flex items-center justify-center shrink-0">
+                <X size={12} />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Zona de subida */}
+      <div onClick={() => inputRef.current?.click()}
+        className="border-2 border-dashed border-mcm-border hover:border-[#a93526] hover:bg-red-50 rounded-xl p-4 text-center cursor-pointer transition-colors">
+        <div className="flex flex-col items-center gap-1">
+          <Upload size={20} className="text-mcm-muted" />
+          <p className="text-xs text-mcm-muted font-medium">
+            {files.length > 0 ? "Agregar más vouchers" : "Haz clic para subir"}
+          </p>
+          <p className="text-xs text-mcm-muted">JPG, PNG — puedes seleccionar varios</p>
+        </div>
+      </div>
+      <input ref={inputRef} type="file" accept="image/*" multiple className="hidden"
+        onChange={(e) => addFiles(e.target.files)} />
+    </div>
+  );
+}
+
+// ─── DNI con opción de cámara ─────────────────────────────────────────────────
+
+function DniFileUpload({ label, sublabel, file, inputRef, onChange }: {
+  label: string; sublabel?: string; file: File | null;
+  inputRef: React.RefObject<HTMLInputElement>;
+  onChange: (f: File | null) => void;
+}) {
+  const cameraRef = useRef<HTMLInputElement>(null);
+
+  return (
+    <div>
+      <label className="block text-sm font-medium text-mcm-text mb-0.5">{label}</label>
+      {sublabel && <p className="text-xs text-mcm-muted mb-2">{sublabel}</p>}
+
+      {file ? (
+        <div className="border-2 border-green-400 bg-green-50 rounded-xl overflow-hidden">
+          <div className="w-full h-28 bg-slate-100">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={URL.createObjectURL(file)} alt="Preview" className="w-full h-full object-contain" />
+          </div>
+          <div className="flex items-center justify-between px-3 py-2">
+            <p className="text-green-700 text-xs font-medium truncate flex-1">{file.name}</p>
+            <button type="button" onClick={() => { onChange(null); if (inputRef.current) inputRef.current.value = ""; if (cameraRef.current) cameraRef.current.value = ""; }}
+              className="w-6 h-6 rounded-full bg-red-100 hover:bg-red-200 text-red-600 flex items-center justify-center shrink-0">
+              <X size={12} />
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 gap-2">
+          {/* Subir archivo */}
+          <div onClick={() => inputRef.current?.click()}
+            className="border-2 border-dashed border-mcm-border hover:border-[#a93526] hover:bg-red-50 rounded-xl p-3 text-center cursor-pointer transition-colors">
+            <Upload size={18} className="text-mcm-muted mx-auto mb-1" />
+            <p className="text-xs text-mcm-muted">Subir archivo</p>
+          </div>
+          {/* Tomar foto */}
+          <div onClick={() => cameraRef.current?.click()}
+            className="border-2 border-dashed border-mcm-border hover:border-[#a93526] hover:bg-red-50 rounded-xl p-3 text-center cursor-pointer transition-colors">
+            <span className="text-lg block mb-0.5">📷</span>
+            <p className="text-xs text-mcm-muted">Tomar foto</p>
+          </div>
+        </div>
+      )}
+
+      {/* Input normal */}
+      <input ref={inputRef} type="file" accept="image/*" className="hidden"
+        onChange={(e) => { if (e.target.files?.[0]) onChange(e.target.files[0]); }} />
+      {/* Input cámara trasera */}
+      <input ref={cameraRef} type="file" accept="image/*" capture="environment" className="hidden"
+        onChange={(e) => { if (e.target.files?.[0]) onChange(e.target.files[0]); }} />
     </div>
   );
 }

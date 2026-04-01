@@ -42,31 +42,44 @@ async function deleteFiles(paths: string[]) {
   await supabase.storage.from(BUCKET).remove(paths);
 }
 
-// ─── Subir los 3 archivos — mismo timestamp para los 3 ───────────────────────
+// ─── Subir múltiples vouchers y los 2 DNI ────────────────────────────────────
 
 export async function uploadSolicitudFiles(
   dni: string,
-  voucher: File,
+  vouchers: File[],       // array de vouchers
   dniAnverso: File,
   dniReverso: File
 ): Promise<{
-  voucherUrl: string;
+  voucherUrl: string;     // URLs separadas por coma si hay varios
   dniAnversoUrl: string;
   dniReversoUrl: string;
   paths: string[];
 }> {
-  const ts = Math.floor(Date.now() / 1000); // Unix timestamp en segundos
-  const pathVoucher = buildPath(dni, "voucher",     ts);
-  const pathAnverso = buildPath(dni, "dni-anverso", ts);
-  const pathReverso = buildPath(dni, "dni-reverso", ts);
+  const ts       = Math.floor(Date.now() / 1000);
   const uploaded: string[] = [];
 
   try {
-    const voucherUrl    = await uploadFile(voucher,    pathVoucher); uploaded.push(pathVoucher);
+    // Subir todos los vouchers
+    const voucherUrls: string[] = [];
+    for (let i = 0; i < vouchers.length; i++) {
+      const path = `${dni}/voucher-${ts}-${i + 1}.jpg`;
+      const url  = await uploadFile(vouchers[i], path);
+      uploaded.push(path);
+      voucherUrls.push(url);
+    }
+
+    const pathAnverso = buildPath(dni, "dni-anverso", ts);
+    const pathReverso = buildPath(dni, "dni-reverso", ts);
+
     const dniAnversoUrl = await uploadFile(dniAnverso, pathAnverso); uploaded.push(pathAnverso);
     const dniReversoUrl = await uploadFile(dniReverso, pathReverso); uploaded.push(pathReverso);
 
-    return { voucherUrl, dniAnversoUrl, dniReversoUrl, paths: uploaded };
+    return {
+      voucherUrl:    voucherUrls.join(","),   // guardamos todas las URLs separadas por coma
+      dniAnversoUrl,
+      dniReversoUrl,
+      paths: uploaded,
+    };
   } catch (err) {
     if (uploaded.length > 0) await deleteFiles(uploaded);
     throw err;
