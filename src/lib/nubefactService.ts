@@ -133,6 +133,7 @@ export async function generarBoleta(datos: BoletaInput): Promise<BoletaResult> {
         descuento:        0,
         subtotal,
         tipo_de_igv:      tipoIgv,
+        porcentaje_de_igv: esGravado ? 18 : 0,
         igv:              igvItem,
         total:            totalItem,
       },
