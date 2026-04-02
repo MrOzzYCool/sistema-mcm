@@ -65,7 +65,8 @@ export async function generarBoleta(datos: BoletaInput): Promise<BoletaResult> {
     ? datos.ruc
     : datos.dniCliente;
   const esBoleta         = clienteNumDoc.length !== 11;
-  const tipoComprobante  = esBoleta ? 1 : 2;
+  // Nubefact: 1=FACTURA, 2=BOLETA (al revés de lo intuitivo)
+  const tipoComprobante  = esBoleta ? 2 : 1;
   const clienteTipoDoc   = esBoleta ? 1 : 6;
   const clienteNombre    = esBoleta
     ? datos.nombreCliente
