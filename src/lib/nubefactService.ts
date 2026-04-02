@@ -1,5 +1,5 @@
 // ─── Nubefact — Boletas y Facturas Electrónicas ───────────────────────────────
-// Series:
+// Series activas:
 //   Inafecto  (tipo_de_igv=9)  → Boleta: BBB2 | Factura: FFF2
 //   Gravado   (tipo_de_igv=10) → Boleta: BBB3 | Factura: FFF3
 // Tipo de comprobante por longitud de documento:
@@ -61,32 +61,31 @@ export async function generarBoleta(datos: BoletaInput): Promise<BoletaResult> {
   const total         = r2(totalGravada + totalInafecta + totalIgv);
 
   // ── Tipo de comprobante — por longitud del documento ───────────────────────
-  // 8 dígitos (DNI) → Boleta (tipo=1) | 11 dígitos (RUC) → Factura (tipo=2)
-  const clienteNumDoc    = datos.tipoComprobante === "factura" && datos.ruc
+  const clienteNumDoc   = (datos.tipoComprobante === "factura" && datos.ruc)
     ? datos.ruc
     : datos.dniCliente;
-  const esBoleta         = clienteNumDoc.length !== 11;
-  const tipoComprobante  = esBoleta ? 1 : 2;
-  const clienteTipoDoc   = esBoleta ? 1 : 6;
-  const clienteNombre    = esBoleta
+  const esBoleta        = clienteNumDoc.length !== 11;
+  const tipoComprobante = esBoleta ? 1 : 2;
+  const clienteTipoDoc  = esBoleta ? 1 : 6;
+  const clienteNombre   = esBoleta
     ? datos.nombreCliente
     : (datos.razonSocial ?? datos.nombreCliente);
   const clienteDireccion = (!esBoleta && datos.direccionFiscal)
     ? datos.direccionFiscal
     : "";
 
-  // ── Serie según tipo de IGV y tipo de comprobante ─────────────────────────
-  // Inafecto  (9):  BBB2 / FFF2
-  // Gravado  (10):  BBB3 / FFF3
+  // ── Serie según tipo de IGV ────────────────────────────────────────────────
+  // Inafecto (9):  BBB2 / FFF2
+  // Gravado  (10): BBB3 / FFF3
   const serie = esGravado
     ? (esBoleta ? "BBB3" : "FFF3")
     : (esBoleta ? "BBB2" : "FFF2");
 
   // ── Fecha en zona horaria Perú (UTC-5) ─────────────────────────────────────
-  const fechaPeru       = new Date(new Date().toLocaleString("en-US", { timeZone: "America/Lima" }));
+  const fechaPeru        = new Date(new Date().toLocaleString("en-US", { timeZone: "America/Lima" }));
   const fecha_de_emision = fechaPeru.toISOString().split("T")[0];
 
-  // ── Log final ──────────────────────────────────────────────────────────────
+  // ── Log diagnóstico ────────────────────────────────────────────────────────
   console.log("FINAL NUBEFACT:", {
     tipo_de_comprobante: tipoComprobante,
     serie,
@@ -94,13 +93,13 @@ export async function generarBoleta(datos: BoletaInput): Promise<BoletaResult> {
     documento: clienteNumDoc,
     longitud: clienteNumDoc.length,
     tipoIgv, esGravado,
-    valorUnit, precioUnit, subtotal, igvItem, total,
+    valorUnit, precioUnit, subtotal, igvItem,
+    totalGravada, totalInafecta, totalIgv, total,
     fecha_de_emision,
   });
 
   // ── Payload ────────────────────────────────────────────────────────────────
-  // Para gravados: payload limpio sin campos en 0 que Nubefact no necesita
-  const payloadBase = {
+  const payload = {
     operacion:                         "generar_comprobante",
     tipo_de_comprobante:               tipoComprobante,
     serie,
@@ -115,6 +114,9 @@ export async function generarBoleta(datos: BoletaInput): Promise<BoletaResult> {
     fecha_de_emision,
     porcentaje_de_igv:                 esGravado ? 18 : 0,
     total_gravada:                     totalGravada,
+    total_exonerada:                   0,
+    total_inafecta:                    totalInafecta,
+    total_gratuita:                    0,
     total_igv:                         totalIgv,
     total,
     codigo_unico:                      Date.now().toString(),
@@ -136,11 +138,6 @@ export async function generarBoleta(datos: BoletaInput): Promise<BoletaResult> {
       },
     ],
   };
-
-  // Para inafectos: agregar total_inafecta; para gravados: no enviar si es 0
-  const payload = esGravado
-    ? payloadBase
-    : { ...payloadBase, total_inafecta: totalInafecta, total_exonerada: 0, total_gratuita: 0 };
 
   console.log(">>> PAYLOAD ENVIADO A NUBEFACT:", JSON.stringify(payload, null, 2));
 
