@@ -112,27 +112,6 @@ export default function LoginPage() {
               {loading ? "Ingresando..." : "Ingresar al portal"}
             </button>
           </form>
-
-          {/* Cuentas demo */}
-          <div className="mt-6 pt-5 border-t border-mcm-border">
-            <p className="text-xs text-mcm-muted font-medium mb-2">Cuentas de demostración:</p>
-            <div className="space-y-1.5">
-              <button
-                onClick={() => { setEmail("ana.garcia@margaritacabrera.edu.pe"); setPassword("demo123"); }}
-                className="w-full text-left text-xs bg-slate-50 hover:bg-slate-100 rounded-lg px-3 py-2 transition-colors"
-              >
-                <span className="font-medium text-mcm-text">Alumno:</span>
-                <span className="text-mcm-muted ml-1">ana.garcia@margaritacabrera.edu.pe</span>
-              </button>
-              <button
-                onClick={() => { setEmail("admin@margaritacabrera.edu.pe"); setPassword("demo123"); }}
-                className="w-full text-left text-xs bg-slate-50 hover:bg-slate-100 rounded-lg px-3 py-2 transition-colors"
-              >
-                <span className="font-medium text-mcm-text">Admin:</span>
-                <span className="text-mcm-muted ml-1">admin@margaritacabrera.edu.pe</span>
-              </button>
-            </div>
-          </div>
         </div>
 
         <p className="text-center text-white/50 text-xs mt-6">
