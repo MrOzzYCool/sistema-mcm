@@ -35,12 +35,13 @@ export async function generarBoleta(datos: BoletaInput): Promise<BoletaResult> {
     throw new Error("Nubefact no configurado. Verifica NUBEFACT_ENDPOINT y NUBEFACT_TOKEN.");
   }
 
-  // ── IGV — GRAVADO para URL genérica ──────────────────────────────────────
+  // ── IGV ────────────────────────────────────────────────────────────────────
   const montoTotal  = r2(datos.precioUnitario * datos.cantidad);
   const tipoIgvBase = datos.tipoIgv ?? 9;
-  // Forzar tipo 10 si monto es 400 o 350 (actualizaciones con IGV)
-  const tipoIgv   = (montoTotal === 400 || montoTotal === 350) ? 10 : tipoIgvBase;
-  const esGravado = tipoIgv === 10;
+  // Actualizaciones (400 o 350): tipo_de_igv=1 (Gravado - Operación Onerosa)
+  // Trámites normales: tipo_de_igv=9 (Inafecto - Operación Onerosa)
+  const tipoIgv   = (montoTotal === 400 || montoTotal === 350) ? 1 : tipoIgvBase;
+  const esGravado = tipoIgv === 1;
   const cantidad  = datos.cantidad;
 
   const precioUnit    = r2(datos.precioUnitario);
@@ -69,7 +70,7 @@ export async function generarBoleta(datos: BoletaInput): Promise<BoletaResult> {
   const clienteDireccion = (!esBoleta && datos.direccionFiscal)
     ? datos.direccionFiscal : "";
 
-  // Series: Gravado(10)→BBB3/FFF3 | Inafecto(9)→BBB2/FFF2
+  // Series: Gravado(1)→BBB3/FFF3 | Inafecto(9)→BBB2/FFF2
   const serie = esGravado
     ? (esBoleta ? "BBB3" : "FFF3")
     : (esBoleta ? "BBB2" : "FFF2");
