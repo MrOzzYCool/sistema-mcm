@@ -77,13 +77,13 @@ export async function generarBoleta(datos: BoletaInput): Promise<BoletaResult> {
   // ── Serie según tipo de IGV — FORZADO con variable explícita ─────────────
   // Inafecto (9):  BBB2 / FFF2
   // Gravado  (10): BBB3 / FFF3
-  let serieFinal: string;
+  let serie: string;
   if (tipoIgv === 10) {
-    serieFinal = esBoleta ? "BBB3" : "FFF3";
+    serie = esBoleta ? "BBB3" : "FFF3";
   } else {
-    serieFinal = esBoleta ? "BBB2" : "FFF2";
+    serie = esBoleta ? "BBB2" : "FFF2";
   }
-  console.log("SERIE FINAL USADA:", serieFinal, "| tipoIgv:", tipoIgv, "| esGravado:", esGravado, "| esBoleta:", esBoleta);
+  console.log("SERIE FINAL REAL:", serie, "| tipoIgv:", tipoIgv, "| esBoleta:", esBoleta);
 
   // ── Fecha en zona horaria Perú (UTC-5) ─────────────────────────────────────
   const fechaPeru        = new Date(new Date().toLocaleString("en-US", { timeZone: "America/Lima" }));
@@ -92,7 +92,7 @@ export async function generarBoleta(datos: BoletaInput): Promise<BoletaResult> {
   // ── Log diagnóstico ────────────────────────────────────────────────────────
   console.log("FINAL NUBEFACT:", {
     tipo_de_comprobante: tipoComprobante,
-    serie: serieFinal,
+    serie,
     cliente_tipo_de_documento: clienteTipoDoc,
     documento: clienteNumDoc,
     longitud: clienteNumDoc.length,
@@ -106,7 +106,7 @@ export async function generarBoleta(datos: BoletaInput): Promise<BoletaResult> {
   const payload = {
     operacion:                         "generar_comprobante",
     tipo_de_comprobante:               tipoComprobante,
-    serie:                             serieFinal,
+    serie,
     numero:                            "",
     sunat_transaction:                 1,
     tipo_de_operacion:                 1,
@@ -167,7 +167,7 @@ export async function generarBoleta(datos: BoletaInput): Promise<BoletaResult> {
 
   return {
     pdfUrl:   json.enlace_del_pdf ?? json.pdf_url ?? "",
-    serie:    json.serie ?? serieFinal,
+    serie:    json.serie ?? serie,
     numero:   json.numero         ?? 0,
     enlaceQr: json.enlace_del_qr  ?? "",
   };
