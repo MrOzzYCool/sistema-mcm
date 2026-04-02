@@ -42,7 +42,10 @@ export async function generarBoleta(datos: BoletaInput): Promise<BoletaResult> {
   }
 
   // ── IGV ────────────────────────────────────────────────────────────────────
-  const tipoIgv   = datos.tipoIgv ?? 9;
+  // Forzar tipo 10 si el monto corresponde a una actualización con IGV
+  const montoTotal = r2(datos.precioUnitario * datos.cantidad);
+  const tipoIgvBase = datos.tipoIgv ?? 9;
+  const tipoIgv   = (montoTotal === 400 || montoTotal === 350) ? 10 : tipoIgvBase;
   const esGravado = tipoIgv === 10;
   const cantidad  = datos.cantidad;
 
@@ -60,30 +63,15 @@ export async function generarBoleta(datos: BoletaInput): Promise<BoletaResult> {
   const totalIgv      = igvItem;
   const total         = r2(totalGravada + totalInafecta + totalIgv);
 
-  // ── Tipo de comprobante — por longitud del documento ───────────────────────
-  const clienteNumDoc   = (datos.tipoComprobante === "factura" && datos.ruc)
-    ? datos.ruc
-    : datos.dniCliente;
-  const esBoleta        = clienteNumDoc.length !== 11;
-  const tipoComprobante = esBoleta ? 1 : 2;
-  const clienteTipoDoc  = esBoleta ? 1 : 6;
-  const clienteNombre   = esBoleta
-    ? datos.nombreCliente
-    : (datos.razonSocial ?? datos.nombreCliente);
-  const clienteDireccion = (!esBoleta && datos.direccionFiscal)
-    ? datos.direccionFiscal
-    : "";
+  // ── Tipo de comprobante — FORZADO BBB1 para prueba ────────────────────────
+  // TODO: restaurar lógica dinámica cuando Nubefact confirme las series
+  const tipoComprobante = 1;
+  const clienteTipoDoc  = 1;
+  const clienteNumDoc   = datos.dniCliente;
+  const clienteNombre   = datos.nombreCliente;
+  const clienteDireccion = "";
 
-  // ── Serie según tipo de IGV — FORZADO con variable explícita ─────────────
-  // Inafecto (9):  BBB2 / FFF2
-  // Gravado  (10): BBB3 / FFF3
-  let serie: string;
-  if (tipoIgv === 10) {
-    serie = esBoleta ? "BBB1" : "FFF1";
-  } else {
-    serie = esBoleta ? "BBB1" : "FFF1";
-  }
-  console.log("SERIE FINAL REAL:", serie, "| tipoIgv:", tipoIgv, "| esBoleta:", esBoleta);
+  const serie = "BBB1";
 
   // ── Fecha en zona horaria Perú (UTC-5) ─────────────────────────────────────
   const fechaPeru        = new Date(new Date().toLocaleString("en-US", { timeZone: "America/Lima" }));
