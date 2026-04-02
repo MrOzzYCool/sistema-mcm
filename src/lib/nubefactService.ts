@@ -8,8 +8,8 @@ export interface BoletaInput {
   descripcion:     string;
   cantidad:        number;
   precioUnitario:  number;
-  valorUnitario?:  number;   // precio sin IGV — para tipo_de_igv=10
-  tipoIgv?:        number;   // 9=Inafecto (default), 10=Gravado
+  valorUnitario?:  number;
+  tipoIgv?:        number;
   codigoUnico:     string;
   tipoComprobante: "boleta" | "factura";
   dniCliente:      string;
@@ -36,71 +36,67 @@ export async function generarBoleta(datos: BoletaInput): Promise<BoletaResult> {
   }
 
   // ── IGV ────────────────────────────────────────────────────────────────────
-  // Forzar tipo 10 si el monto es 400 o 350 (actualizaciones con IGV)
-  const montoTotal  = r2(datos.precioUnitario * datos.cantidad);
-  const tipoIgvBase = datos.tipoIgv ?? 9;
-  const tipoIgv     = (montoTotal === 400 || montoTotal === 350) ? 10 : tipoIgvBase;
-  const esGravado   = tipoIgv === 10;
-  const cantidad    = datos.cantidad;
+  const montoTotal   = r2(datos.precioUnitario * datos.cantidad);
+  const tipoIgvBase  = datos.tipoIgv ?? 9;
+  // Forzar tipo 10 si monto es 400 o 350 (actualizaciones con IGV)
+  const tipoIgv      = (montoTotal === 400 || montoTotal === 350) ? 10 : tipoIgvBase;
+  const esGravado    = tipoIgv === 10;
+  const cantidad     = datos.cantidad;
 
-  const precioUnit = r2(datos.precioUnitario);
-  const valorUnit  = esGravado
+  const precioUnit    = r2(datos.precioUnitario);
+  const valorUnit     = esGravado
     ? r2(datos.valorUnitario ?? precioUnit / 1.18)
     : precioUnit;
 
-  const subtotal  = r2(valorUnit  * cantidad);
-  const totalItem = r2(precioUnit * cantidad);
-  const igvItem   = esGravado ? r2(totalItem - subtotal) : 0;
-
+  const subtotal      = r2(valorUnit  * cantidad);
+  const totalItem     = r2(precioUnit * cantidad);
+  const igvItem       = esGravado ? r2(totalItem - subtotal) : 0;
   const totalGravada  = esGravado ? subtotal  : 0;
   const totalInafecta = esGravado ? 0         : totalItem;
   const totalIgv      = igvItem;
   const total         = r2(totalGravada + totalInafecta + totalIgv);
 
-  // ── Comprobante — series reales ───────────────────────────────────────────
-  // Gravado  (10): BBB3 (boleta) / FFF3 (factura)
-  // Inafecto  (9): BBB2 (boleta) / FFF2 (factura)
-  // Tipo por longitud: 8 dígitos=boleta(1), 11 dígitos=factura(2)
-  const clienteNumDoc    = (datos.tipoComprobante === "factura" && datos.ruc)
-    ? datos.ruc
-    : datos.dniCliente;
-  const esBoleta         = clienteNumDoc.length !== 11;
-  // Nubefact: 1=FACTURA, 2=BOLETA (al revés de lo intuitivo)
-  const tipoComprobante  = esBoleta ? 2 : 1;
-  const clienteTipoDoc   = esBoleta ? 1 : 6;
-  const clienteNombre    = esBoleta
+  // ── Comprobante ────────────────────────────────────────────────────────────
+  // Nubefact: 2=Boleta, 1=Factura | por longitud del documento
+  const clienteNumDoc   = (datos.tipoComprobante === "factura" && datos.ruc)
+    ? datos.ruc : datos.dniCliente;
+  const esBoleta        = clienteNumDoc.length !== 11;
+  const tipoComprobante = esBoleta ? 2 : 1;
+  const clienteTipoDoc  = esBoleta ? 1 : 6;
+  const clienteNombre   = esBoleta
     ? datos.nombreCliente
     : (datos.razonSocial ?? datos.nombreCliente);
   const clienteDireccion = (!esBoleta && datos.direccionFiscal)
-    ? datos.direccionFiscal
-    : "";
+    ? datos.direccionFiscal : "";
 
+  // Series: Gravado(10)→BBB3/FFF3 | Inafecto(9)→BBB2/FFF2
   const serie = esGravado
     ? (esBoleta ? "BBB3" : "FFF3")
     : (esBoleta ? "BBB2" : "FFF2");
 
-  console.log("SERIE:", serie, "| tipo:", tipoComprobante, "| tipoIgv:", tipoIgv, "| doc:", clienteNumDoc);
-
-  // ── Fecha en zona horaria Perú (UTC-5) ─────────────────────────────────────
+  // Fecha en zona horaria Perú
   const fechaPeru        = new Date(new Date().toLocaleString("en-US", { timeZone: "America/Lima" }));
   const fecha_de_emision = fechaPeru.toISOString().split("T")[0];
 
+  console.log("ENDPOINT:", ENDPOINT);
+  console.log("tipoIgv:", tipoIgv, "| esGravado:", esGravado, "| serie:", serie, "| tipo:", tipoComprobante);
+
   // ── Payload ────────────────────────────────────────────────────────────────
   const payload = {
-    operacion:                         "generar_comprobante",
-    tipo_de_comprobante:               tipoComprobante,
+    operacion:                   "generar_comprobante",
+    tipo_de_comprobante:         tipoComprobante,
     serie,
-    codigo_tipo_operacion:             esGravado ? "0101" : "0200",
-    numero:                            "",
-    sunat_transaction:                 1,
-    tipo_de_operacion:                 1,
-    cliente_tipo_de_documento:         clienteTipoDoc,
-    cliente_numero_de_documento:       clienteNumDoc,
-    cliente_denominacion:              clienteNombre,
-    cliente_direccion:                 clienteDireccion,
-    moneda:                            1,
+    codigo_tipo_operacion:       esGravado ? "0101" : "0200",
+    numero:                      "",
+    sunat_transaction:           1,
+    tipo_de_operacion:           1,
+    cliente_tipo_de_documento:   clienteTipoDoc,
+    cliente_numero_de_documento: clienteNumDoc,
+    cliente_denominacion:        clienteNombre,
+    cliente_direccion:           clienteDireccion,
+    moneda:                      1,
     fecha_de_emision,
-    porcentaje_de_igv:                 esGravado ? 18 : 0,
+    porcentaje_de_igv:           esGravado ? 18 : 0,
     ...(esGravado ? {
       total_gravada: totalGravada,
       total_igv:     totalIgv,
@@ -133,8 +129,6 @@ export async function generarBoleta(datos: BoletaInput): Promise<BoletaResult> {
     ],
   };
 
-  console.log("ENDPOINT usado:", ENDPOINT);
-  console.log("TOKEN length:", TOKEN?.length);
   console.log(">>> PAYLOAD:", JSON.stringify(payload, null, 2));
 
   const res = await fetch(ENDPOINT, {
