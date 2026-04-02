@@ -35,13 +35,11 @@ export async function generarBoleta(datos: BoletaInput): Promise<BoletaResult> {
     throw new Error("Nubefact no configurado. Verifica NUBEFACT_ENDPOINT y NUBEFACT_TOKEN.");
   }
 
-  // ── IGV ────────────────────────────────────────────────────────────────────
-  const montoTotal   = r2(datos.precioUnitario * datos.cantidad);
-  const tipoIgvBase  = datos.tipoIgv ?? 9;
-  // Forzar tipo 10 si monto es 400 o 350 (actualizaciones con IGV)
-  const tipoIgv      = (montoTotal === 400 || montoTotal === 350) ? 10 : tipoIgvBase;
-  const esGravado    = tipoIgv === 10;
-  const cantidad     = datos.cantidad;
+  // ── IGV — SIEMPRE INAFECTO para este endpoint ─────────────────────────────
+  // El endpoint 6916dbab solo acepta tipo_de_igv=9 (Inafecto - Onerosa)
+  const tipoIgv   = 9;
+  const esGravado = false;
+  const cantidad  = datos.cantidad;
 
   const precioUnit    = r2(datos.precioUnitario);
   const valorUnit     = esGravado
@@ -69,10 +67,8 @@ export async function generarBoleta(datos: BoletaInput): Promise<BoletaResult> {
   const clienteDireccion = (!esBoleta && datos.direccionFiscal)
     ? datos.direccionFiscal : "";
 
-  // Series: Gravado(10)→BBB3/FFF3 | Inafecto(9)→BBB2/FFF2
-  const serie = esGravado
-    ? (esBoleta ? "BBB3" : "FFF3")
-    : (esBoleta ? "BBB2" : "FFF2");
+  // Serie: BBB3 para boletas con este endpoint
+  const serie = esBoleta ? "BBB3" : "FFF3";
 
   // Fecha en zona horaria Perú
   const fechaPeru        = new Date(new Date().toLocaleString("en-US", { timeZone: "America/Lima" }));
