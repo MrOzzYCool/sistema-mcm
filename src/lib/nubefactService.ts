@@ -90,6 +90,7 @@ export async function generarBoleta(datos: BoletaInput): Promise<BoletaResult> {
     operacion:                         "generar_comprobante",
     tipo_de_comprobante:               tipoComprobante,
     serie,
+    codigo_tipo_operacion:             esGravado ? "0101" : "0200",
     numero:                            "",
     sunat_transaction:                 1,
     tipo_de_operacion:                 1,
