@@ -35,33 +35,33 @@ export async function generarBoleta(datos: BoletaInput): Promise<BoletaResult> {
     throw new Error("Nubefact no configurado. Verifica NUBEFACT_ENDPOINT y NUBEFACT_TOKEN.");
   }
 
-  // ── Tipo de comprobante ────────────────────────────────────────────────────
-  // Prioridad: campo tipoComprobante del formulario
-  // Fallback: longitud del documento (11=RUC→factura, 8=DNI→boleta)
-  const docNumero = (datos.tipoComprobante === "factura" ? datos.ruc : datos.dniCliente) ?? datos.dniCliente;
-  const esBoleta  = datos.tipoComprobante === "boleta"
-    || (datos.tipoComprobante !== "factura" && docNumero.length !== 11);
-
-  // BOLETA  → tipo=1, serie=BBB2, cliente_tipo_doc=1 (DNI)
-  // FACTURA → tipo=2, serie=FFF2, cliente_tipo_doc=6 (RUC)
-  const tipoComprobante = esBoleta ? 1 : 2;
-  const serie           = esBoleta ? "BBB2" : "FFF2";
-  const clienteTipoDoc  = esBoleta ? 1 : 6;
-  const clienteNumDoc   = esBoleta ? datos.dniCliente : (datos.ruc ?? "");
-  const clienteNombre   = esBoleta
+  // ── Tipo de comprobante — FORZADO por longitud del documento ─────────────
+  // DNI = 8 dígitos → BOLETA (tipo=1, serie=BBB2)
+  // RUC = 11 dígitos → FACTURA (tipo=2, serie=FFF2)
+  // Esta regla es absoluta y no puede ser sobrescrita
+  const clienteNumDoc    = datos.tipoComprobante === "factura" && datos.ruc
+    ? datos.ruc
+    : datos.dniCliente;
+  const esBoleta         = clienteNumDoc.length !== 11;
+  const tipoComprobante  = esBoleta ? 1 : 2;
+  const serie            = esBoleta ? "BBB2" : "FFF2";
+  const clienteTipoDoc   = esBoleta ? 1 : 6;
+  const clienteNombre    = esBoleta
     ? datos.nombreCliente
     : (datos.razonSocial ?? datos.nombreCliente);
   const clienteDireccion = (!esBoleta && datos.direccionFiscal)
     ? datos.direccionFiscal
     : "";
 
-  // ── Validación de consistencia ─────────────────────────────────────────────
-  if (tipoComprobante === 1 && !serie.startsWith("B")) {
-    throw new Error(`Serie inválida para boleta: ${serie}`);
-  }
-  if (tipoComprobante === 2 && !serie.startsWith("F")) {
-    throw new Error(`Serie inválida para factura: ${serie}`);
-  }
+  // ── Log final antes del envío ──────────────────────────────────────────────
+  console.log("FINAL NUBEFACT:", {
+    tipo_de_comprobante:       tipoComprobante,
+    serie,
+    cliente_tipo_de_documento: clienteTipoDoc,
+    documento:                 clienteNumDoc,
+    longitud:                  clienteNumDoc.length,
+    tipoComprobante_recibido:  datos.tipoComprobante,
+  });
 
   // ── IGV ────────────────────────────────────────────────────────────────────
   const tipoIgv   = datos.tipoIgv ?? 9;

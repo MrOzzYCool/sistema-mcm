@@ -75,7 +75,7 @@ export async function POST(req: NextRequest) {
             tipoIgv:       actualizacion.tipoIgv,
           }),
           codigoUnico:     id,
-          tipoComprobante: (sol.tipo_comprobante as "boleta" | "factura") ?? "boleta",
+          tipoComprobante: (sol.tipo_comprobante === "factura" ? "factura" : "boleta") as "boleta" | "factura",
           ruc:             sol.ruc ?? undefined,
           razonSocial:     sol.razon_social ?? undefined,
           direccionFiscal: sol.direccion_fiscal ?? undefined,
