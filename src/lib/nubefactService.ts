@@ -113,7 +113,10 @@ export async function generarBoleta(datos: BoletaInput): Promise<BoletaResult> {
     cliente_denominacion:              clienteNombre,
     cliente_direccion:                 clienteDireccion,
     moneda:                            1,
-    fecha_de_emision:                  new Date().toISOString().split("T")[0],
+    fecha_de_emision:                  (() => {
+      const fechaPeru = new Date(new Date().toLocaleString("en-US", { timeZone: "America/Lima" }));
+      return fechaPeru.toISOString().split("T")[0];
+    })(),
     porcentaje_de_igv:                 esGravado ? 18.00 : 0,
     total_gravada:                     totalGravada,
     total_exonerada:                   0,
@@ -140,7 +143,7 @@ export async function generarBoleta(datos: BoletaInput): Promise<BoletaResult> {
     ],
   };
 
-  console.log("[nubefact] Payload:", JSON.stringify(payload, null, 2));
+  console.log(">>> PAYLOAD ENVIADO A NUBEFACT:", JSON.stringify(payload, null, 2));
 
   const res = await fetch(ENDPOINT, {
     method:  "POST",
@@ -153,7 +156,7 @@ export async function generarBoleta(datos: BoletaInput): Promise<BoletaResult> {
   });
 
   const json = await res.json();
-  console.log("[nubefact] Respuesta:", JSON.stringify(json));
+  console.log(">>> RESPUESTA REAL DE NUBEFACT:", JSON.stringify(json, null, 2));
 
   if (!res.ok || json.errors) {
     const msg = json.errors
