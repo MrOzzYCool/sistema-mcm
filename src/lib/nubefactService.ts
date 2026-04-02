@@ -79,9 +79,9 @@ export async function generarBoleta(datos: BoletaInput): Promise<BoletaResult> {
   // Gravado  (10): BBB3 / FFF3
   let serie: string;
   if (tipoIgv === 10) {
-    serie = esBoleta ? "BBB3" : "FFF3";
+    serie = esBoleta ? "BBB1" : "FFF1";
   } else {
-    serie = esBoleta ? "BBB2" : "FFF2";
+    serie = esBoleta ? "BBB1" : "FFF1";
   }
   console.log("SERIE FINAL REAL:", serie, "| tipoIgv:", tipoIgv, "| esBoleta:", esBoleta);
 
@@ -118,11 +118,18 @@ export async function generarBoleta(datos: BoletaInput): Promise<BoletaResult> {
     fecha_de_emision,
     porcentaje_de_igv:                 esGravado ? 18 : 0,
     total_gravada:                     totalGravada,
-    total_exonerada:                   0,
-    total_inafecta:                    totalInafecta,
-    total_gratuita:                    0,
-    total_igv:                         totalIgv,
-    total,
+    ...(esGravado ? {
+      // Gravado: solo estos tres campos de totales
+      total_igv:   totalIgv,
+      total,
+    } : {
+      // Inafecto: incluir todos los campos
+      total_exonerada:  0,
+      total_inafecta:   totalInafecta,
+      total_gratuita:   0,
+      total_igv:        0,
+      total,
+    }),
     codigo_unico:                      Date.now().toString(),
     items: [
       {
