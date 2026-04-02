@@ -151,6 +151,9 @@ export async function generarBoleta(datos: BoletaInput): Promise<BoletaResult> {
   };
 
   console.log(">>> PAYLOAD ENVIADO A NUBEFACT:", JSON.stringify(payload, null, 2));
+  console.log("ENDPOINT:", ENDPOINT);
+  console.log("TOKEN LENGTH:", TOKEN?.length ?? 0, "| TOKEN INICIO:", TOKEN?.slice(0, 8) ?? "N/A");
+  console.log("URL NUBEFACT USADA:", ENDPOINT.split("/").slice(0, -1).join("/") + "/***");
 
   const res = await fetch(ENDPOINT, {
     method:  "POST",

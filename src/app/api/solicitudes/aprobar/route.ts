@@ -27,10 +27,15 @@ export async function POST(req: NextRequest) {
 
     // ── 2. Resolver código Nubefact por tipo de trámite ───────────────────────
     const tramite = TRAMITES_EXTERNOS_CATALOGO.find((t) => t.nombre === sol.tipo_tramite);
-    // Verificar también en catálogo de actualizaciones
+
+    // Comparación normalizada — quita espacios y compara en minúsculas
+    const tipoNorm    = sol.tipo_tramite?.trim().toLowerCase() ?? "";
     const actualizacion = !tramite
-      ? ACTUALIZACIONES_CATALOGO.find((a) => a.label === sol.tipo_tramite)
+      ? ACTUALIZACIONES_CATALOGO.find((a) => a.label.trim().toLowerCase() === tipoNorm)
       : null;
+
+    console.log("tipo_tramite BD:", sol.tipo_tramite);
+    console.log("actualizacion match:", actualizacion?.label ?? "null");
 
     let nubefactItem: { codigo: number; descripcion: string; monto: number } | null = null;
 
@@ -49,10 +54,13 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: `Trámite no mapeado: ${sol.tipo_tramite}` }, { status: 400 });
     }
 
-    const esSilabo    = tramite?.id === "te11";
-    const cantidad    = esSilabo ? 70 : 1;
-    const precioUnit  = esSilabo ? 5 : nubefactItem!.monto;
-    const montoTotal  = Math.round(precioUnit * cantidad * 100) / 100;
+    const esSilabo   = tramite?.id === "te11";
+    const cantidad   = esSilabo ? 70 : 1;
+    const precioUnit = esSilabo ? 5 : nubefactItem!.monto;
+    const montoTotal = Math.round(precioUnit * cantidad * 100) / 100;
+
+    // Forzar tipoIgv=10 si el monto es 400 o 350 (actualizaciones con IGV)
+    const tipoIgvForzado = (montoTotal === 400 || montoTotal === 350) ? 10 : undefined;
 
     console.log("Código Nubefact:", nubefactItem.codigo, "| Desc:", nubefactItem.descripcion);
     console.log("Cantidad:", cantidad, "| Precio unit:", precioUnit, "| Total:", montoTotal);
@@ -72,11 +80,12 @@ export async function POST(req: NextRequest) {
           nombreCliente:   `${sol.nombres} ${sol.apellidos}`,
           cantidad,
           precioUnitario:  precioUnit,
-          // Actualizaciones llevan IGV — pasar valorUnitario y tipoIgv específicos
+          // tipoIgv: actualizacion o forzado por monto, lo que aplique
           ...(actualizacion && {
             valorUnitario: actualizacion.valorUnitario,
             tipoIgv:       actualizacion.tipoIgv,
           }),
+          ...(tipoIgvForzado && !actualizacion && { tipoIgv: tipoIgvForzado }),
           codigoUnico:     id,
           tipoComprobante: (sol.tipo_comprobante === "factura" ? "factura" : "boleta") as "boleta" | "factura",
           ruc:             sol.ruc ?? undefined,
