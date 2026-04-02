@@ -122,16 +122,15 @@ export async function generarBoleta(datos: BoletaInput): Promise<BoletaResult> {
     porcentaje_de_igv:                 esGravado ? 18 : 0,
     total_gravada:                     totalGravada,
     ...(esGravado ? {
-      // Gravado: campos mínimos + total_gratuita obligatorio
-      total_gratuita:  0,
-      total_igv:       totalIgv,
+      // Gravado: SOLO total_gravada, total_igv y total — sin campos en 0
+      total_igv: totalIgv,
       total,
     } : {
-      // Inafecto: incluir todos los campos
-      total_exonerada:  0,
-      total_inafecta:   totalInafecta,
-      total_gratuita:   0,
-      total_igv:        0,
+      // Inafecto: todos los campos
+      total_exonerada: 0,
+      total_inafecta:  totalInafecta,
+      total_gratuita:  0,
+      total_igv:       0,
       total,
     }),
     codigo_unico:                      Date.now().toString(),
