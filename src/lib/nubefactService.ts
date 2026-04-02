@@ -1,32 +1,14 @@
 // ─── Nubefact — Boletas y Facturas Electrónicas ───────────────────────────────
-// Series activas:
-//   Inafecto  (tipo_de_igv=9)  → Boleta: BBB2 | Factura: FFF2
-//   Gravado   (tipo_de_igv=10) → Boleta: BBB3 | Factura: FFF3
-// Tipo de comprobante por longitud de documento:
-//   8 dígitos  (DNI) → tipo=1 (Boleta)
-//   11 dígitos (RUC) → tipo=2 (Factura)
 
 const ENDPOINT = process.env.NUBEFACT_ENDPOINT!;
 const TOKEN    = process.env.NUBEFACT_TOKEN!;
-
-// Construir URL genérica usando solo el token — ignora el endpoint específico
-// Formato correcto: https://api.nubefact.com/api/v1/TOKEN
-function buildUrl(): string {
-  const base = "https://api.nubefact.com/api/v1";
-  const token = TOKEN?.trim();
-  if (!token) throw new Error("NUBEFACT_TOKEN no configurado");
-  // Si ENDPOINT ya tiene el formato correcto (termina en el token), usarlo
-  // Si no, construir la URL genérica
-  if (ENDPOINT && ENDPOINT.endsWith(token)) return ENDPOINT;
-  return `${base}/${token}`;
-}
 
 export interface BoletaInput {
   codigoProducto:  number;
   descripcion:     string;
   cantidad:        number;
-  precioUnitario:  number;   // precio con IGV (o total si inafecto)
-  valorUnitario?:  number;   // precio sin IGV — solo para tipo_de_igv=10
+  precioUnitario:  number;
+  valorUnitario?:  number;   // precio sin IGV — para tipo_de_igv=10
   tipoIgv?:        number;   // 9=Inafecto (default), 10=Gravado
   codigoUnico:     string;
   tipoComprobante: "boleta" | "factura";
@@ -53,16 +35,13 @@ export async function generarBoleta(datos: BoletaInput): Promise<BoletaResult> {
     throw new Error("Nubefact no configurado. Verifica NUBEFACT_ENDPOINT y NUBEFACT_TOKEN.");
   }
 
-  const url = buildUrl();
-  console.log("URL NUBEFACT USADA:", url.split("/").slice(0, -1).join("/") + "/***");
-
   // ── IGV ────────────────────────────────────────────────────────────────────
-  // Forzar tipo 10 si el monto corresponde a una actualización con IGV
-  const montoTotal = r2(datos.precioUnitario * datos.cantidad);
+  // Forzar tipo 10 si el monto es 400 o 350 (actualizaciones con IGV)
+  const montoTotal  = r2(datos.precioUnitario * datos.cantidad);
   const tipoIgvBase = datos.tipoIgv ?? 9;
-  const tipoIgv   = (montoTotal === 400 || montoTotal === 350) ? 10 : tipoIgvBase;
-  const esGravado = tipoIgv === 10;
-  const cantidad  = datos.cantidad;
+  const tipoIgv     = (montoTotal === 400 || montoTotal === 350) ? 10 : tipoIgvBase;
+  const esGravado   = tipoIgv === 10;
+  const cantidad    = datos.cantidad;
 
   const precioUnit = r2(datos.precioUnitario);
   const valorUnit  = esGravado
@@ -78,32 +57,17 @@ export async function generarBoleta(datos: BoletaInput): Promise<BoletaResult> {
   const totalIgv      = igvItem;
   const total         = r2(totalGravada + totalInafecta + totalIgv);
 
-  // ── Tipo de comprobante — FORZADO BBB1 para prueba ────────────────────────
-  // TODO: restaurar lógica dinámica cuando Nubefact confirme las series
+  // ── Comprobante — BBB1 para prueba ─────────────────────────────────────────
   const tipoComprobante = 1;
+  const serie           = "BBB1";
   const clienteTipoDoc  = 1;
   const clienteNumDoc   = datos.dniCliente;
   const clienteNombre   = datos.nombreCliente;
   const clienteDireccion = "";
 
-  const serie = "BBB1";
-
   // ── Fecha en zona horaria Perú (UTC-5) ─────────────────────────────────────
   const fechaPeru        = new Date(new Date().toLocaleString("en-US", { timeZone: "America/Lima" }));
   const fecha_de_emision = fechaPeru.toISOString().split("T")[0];
-
-  // ── Log diagnóstico ────────────────────────────────────────────────────────
-  console.log("FINAL NUBEFACT:", {
-    tipo_de_comprobante: tipoComprobante,
-    serie,
-    cliente_tipo_de_documento: clienteTipoDoc,
-    documento: clienteNumDoc,
-    longitud: clienteNumDoc.length,
-    tipoIgv, esGravado,
-    valorUnit, precioUnit, subtotal, igvItem,
-    totalGravada, totalInafecta, totalIgv, total,
-    fecha_de_emision,
-  });
 
   // ── Payload ────────────────────────────────────────────────────────────────
   const payload = {
@@ -121,19 +85,19 @@ export async function generarBoleta(datos: BoletaInput): Promise<BoletaResult> {
     fecha_de_emision,
     porcentaje_de_igv:                 esGravado ? 18 : 0,
     total_gravada:                     totalGravada,
+    // Gravado: SOLO total_gravada + total_igv + total (sin campos en 0)
+    // Inafecto: todos los campos de totales
     ...(esGravado ? {
-      // Gravado: SOLO total_gravada, total_igv y total — sin campos en 0
       total_igv: totalIgv,
       total,
     } : {
-      // Inafecto: todos los campos
       total_exonerada: 0,
       total_inafecta:  totalInafecta,
       total_gratuita:  0,
       total_igv:       0,
       total,
     }),
-    codigo_unico:                      Date.now().toString(),
+    codigo_unico: Date.now().toString(),
     items: [
       {
         unidad_de_medida:  "ZZ",
@@ -153,11 +117,11 @@ export async function generarBoleta(datos: BoletaInput): Promise<BoletaResult> {
     ],
   };
 
-  console.log(">>> PAYLOAD ENVIADO A NUBEFACT:", JSON.stringify(payload, null, 2));
-  console.log("ENDPOINT config:", ENDPOINT);
-  console.log("TOKEN LENGTH:", TOKEN?.length ?? 0, "| TOKEN INICIO:", TOKEN?.slice(0, 8) ?? "N/A");
+  console.log("ENDPOINT usado:", ENDPOINT);
+  console.log("TOKEN length:", TOKEN?.length);
+  console.log(">>> PAYLOAD:", JSON.stringify(payload, null, 2));
 
-  const res = await fetch(url, {
+  const res = await fetch(ENDPOINT, {
     method:  "POST",
     headers: {
       "Content-Type":  "application/json",
@@ -168,7 +132,7 @@ export async function generarBoleta(datos: BoletaInput): Promise<BoletaResult> {
   });
 
   const json = await res.json();
-  console.log(">>> RESPUESTA REAL DE NUBEFACT:", JSON.stringify(json, null, 2));
+  console.log(">>> RESPUESTA NUBEFACT:", JSON.stringify(json, null, 2));
 
   if (!res.ok || json.errors) {
     let msg: string;
@@ -186,7 +150,7 @@ export async function generarBoleta(datos: BoletaInput): Promise<BoletaResult> {
 
   return {
     pdfUrl:   json.enlace_del_pdf ?? json.pdf_url ?? "",
-    serie:    json.serie ?? serie,
+    serie:    json.serie          ?? serie,
     numero:   json.numero         ?? 0,
     enlaceQr: json.enlace_del_qr  ?? "",
   };
