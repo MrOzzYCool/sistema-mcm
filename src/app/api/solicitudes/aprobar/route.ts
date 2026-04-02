@@ -62,6 +62,7 @@ export async function POST(req: NextRequest) {
 
     if (montoTotal > 0) {
       try {
+        console.log("API APROBAR — actualizacion encontrada:", actualizacion?.label ?? "null", "| tipoIgv a pasar:", actualizacion?.tipoIgv ?? "no aplica (tramite normal)");
         const boleta = await generarBoleta({
           codigoProducto:  nubefactItem.codigo,
           descripcion:     nubefactItem.descripcion,
