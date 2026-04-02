@@ -84,13 +84,14 @@ export async function generarBoleta(datos: BoletaInput): Promise<BoletaResult> {
     moneda:                            1,
     fecha_de_emision,
     porcentaje_de_igv:                 esGravado ? 18 : 0,
-    total_gravada:                     totalGravada,
-    // Gravado: SOLO total_gravada + total_igv + total (sin campos en 0)
+    // Gravado: SOLO total_gravada + total_igv + total
     // Inafecto: todos los campos de totales
     ...(esGravado ? {
-      total_igv: totalIgv,
+      total_gravada: totalGravada,
+      total_igv:     totalIgv,
       total,
     } : {
+      total_gravada:   0,
       total_exonerada: 0,
       total_inafecta:  totalInafecta,
       total_gratuita:  0,
