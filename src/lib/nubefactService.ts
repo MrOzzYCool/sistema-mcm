@@ -57,13 +57,28 @@ export async function generarBoleta(datos: BoletaInput): Promise<BoletaResult> {
   const totalIgv      = igvItem;
   const total         = r2(totalGravada + totalInafecta + totalIgv);
 
-  // ── Comprobante — BBB1 para prueba ─────────────────────────────────────────
-  const tipoComprobante = 1;
-  const serie           = "BBB1";
-  const clienteTipoDoc  = 1;
-  const clienteNumDoc   = datos.dniCliente;
-  const clienteNombre   = datos.nombreCliente;
-  const clienteDireccion = "";
+  // ── Comprobante — series reales ───────────────────────────────────────────
+  // Gravado  (10): BBB3 (boleta) / FFF3 (factura)
+  // Inafecto  (9): BBB2 (boleta) / FFF2 (factura)
+  // Tipo por longitud: 8 dígitos=boleta(1), 11 dígitos=factura(2)
+  const clienteNumDoc    = (datos.tipoComprobante === "factura" && datos.ruc)
+    ? datos.ruc
+    : datos.dniCliente;
+  const esBoleta         = clienteNumDoc.length !== 11;
+  const tipoComprobante  = esBoleta ? 1 : 2;
+  const clienteTipoDoc   = esBoleta ? 1 : 6;
+  const clienteNombre    = esBoleta
+    ? datos.nombreCliente
+    : (datos.razonSocial ?? datos.nombreCliente);
+  const clienteDireccion = (!esBoleta && datos.direccionFiscal)
+    ? datos.direccionFiscal
+    : "";
+
+  const serie = esGravado
+    ? (esBoleta ? "BBB3" : "FFF3")
+    : (esBoleta ? "BBB2" : "FFF2");
+
+  console.log("SERIE:", serie, "| tipo:", tipoComprobante, "| tipoIgv:", tipoIgv, "| doc:", clienteNumDoc);
 
   // ── Fecha en zona horaria Perú (UTC-5) ─────────────────────────────────────
   const fechaPeru        = new Date(new Date().toLocaleString("en-US", { timeZone: "America/Lima" }));
