@@ -9,6 +9,18 @@
 const ENDPOINT = process.env.NUBEFACT_ENDPOINT!;
 const TOKEN    = process.env.NUBEFACT_TOKEN!;
 
+// Construir URL genérica usando solo el token — ignora el endpoint específico
+// Formato correcto: https://api.nubefact.com/api/v1/TOKEN
+function buildUrl(): string {
+  const base = "https://api.nubefact.com/api/v1";
+  const token = TOKEN?.trim();
+  if (!token) throw new Error("NUBEFACT_TOKEN no configurado");
+  // Si ENDPOINT ya tiene el formato correcto (termina en el token), usarlo
+  // Si no, construir la URL genérica
+  if (ENDPOINT && ENDPOINT.endsWith(token)) return ENDPOINT;
+  return `${base}/${token}`;
+}
+
 export interface BoletaInput {
   codigoProducto:  number;
   descripcion:     string;
@@ -40,6 +52,9 @@ export async function generarBoleta(datos: BoletaInput): Promise<BoletaResult> {
   if (!ENDPOINT || !TOKEN) {
     throw new Error("Nubefact no configurado. Verifica NUBEFACT_ENDPOINT y NUBEFACT_TOKEN.");
   }
+
+  const url = buildUrl();
+  console.log("URL NUBEFACT USADA:", url.split("/").slice(0, -1).join("/") + "/***");
 
   // ── IGV ────────────────────────────────────────────────────────────────────
   // Forzar tipo 10 si el monto corresponde a una actualización con IGV
@@ -107,8 +122,9 @@ export async function generarBoleta(datos: BoletaInput): Promise<BoletaResult> {
     porcentaje_de_igv:                 esGravado ? 18 : 0,
     total_gravada:                     totalGravada,
     ...(esGravado ? {
-      // Gravado: solo estos tres campos de totales
-      total_igv:   totalIgv,
+      // Gravado: campos mínimos + total_gratuita obligatorio
+      total_gratuita:  0,
+      total_igv:       totalIgv,
       total,
     } : {
       // Inafecto: incluir todos los campos
@@ -139,11 +155,10 @@ export async function generarBoleta(datos: BoletaInput): Promise<BoletaResult> {
   };
 
   console.log(">>> PAYLOAD ENVIADO A NUBEFACT:", JSON.stringify(payload, null, 2));
-  console.log("ENDPOINT:", ENDPOINT);
+  console.log("ENDPOINT config:", ENDPOINT);
   console.log("TOKEN LENGTH:", TOKEN?.length ?? 0, "| TOKEN INICIO:", TOKEN?.slice(0, 8) ?? "N/A");
-  console.log("URL NUBEFACT USADA:", ENDPOINT.split("/").slice(0, -1).join("/") + "/***");
 
-  const res = await fetch(ENDPOINT, {
+  const res = await fetch(url, {
     method:  "POST",
     headers: {
       "Content-Type":  "application/json",
@@ -157,9 +172,16 @@ export async function generarBoleta(datos: BoletaInput): Promise<BoletaResult> {
   console.log(">>> RESPUESTA REAL DE NUBEFACT:", JSON.stringify(json, null, 2));
 
   if (!res.ok || json.errors) {
-    const msg = json.errors
-      ? Object.values(json.errors).flat().join(", ")
-      : `Error Nubefact HTTP ${res.status}: ${JSON.stringify(json)}`;
+    let msg: string;
+    if (typeof json.errors === "string") {
+      msg = json.errors;
+    } else if (Array.isArray(json.errors)) {
+      msg = json.errors.flat().join(", ");
+    } else if (json.errors && typeof json.errors === "object") {
+      msg = Object.values(json.errors).flat().join(", ");
+    } else {
+      msg = `Error Nubefact HTTP ${res.status}: ${JSON.stringify(json)}`;
+    }
     throw new Error(msg);
   }
 
