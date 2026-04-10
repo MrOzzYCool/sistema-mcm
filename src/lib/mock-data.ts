@@ -191,7 +191,7 @@ export const MOCK_USERS_EXT: UserExtendido[] = [
 
 export const TRAMITES_EXTERNOS_CATALOGO = [
   { id: "te1",  label: "1. CERTIFICADO DE ESCUELA PRIVADA (1966 A 1979)",                          nombre: "Certificado de Escuela Privada (Alumnas que estudiaron de 1966 a 1979)",                                                          costo: 50    },
-  { id: "te2",  label: "2. CERTIFICADO DE CEO/CEPRO (1980 A 2013)",                                nombre: "Certificado de CEO/CEPRO (Alumnas que estudiaron de 1980 a 2013)",                                                                costo: 350   },
+  { id: "te2",  label: "2. CERTIFICADO DE CEO/CEPRO (1980 A 2013)",                                nombre: "Certificado de CEO/CEPRO (Alumnas que estudiaron de 1980 a 2013)",                                                                costo: 250   },
   { id: "te3",  label: "3. CONSTANCIA DE ESTUDIO (1980-2013)",                                     nombre: "Constancia de Estudio (Alumnas que estudiaron de 1980 a 2013)",                                                                   costo: 50    },
   { id: "te4",  label: "4. CERTIFICADO MODULAR POR MÓDULO (2013 A LA ACTUALIDAD)",                 nombre: "Certificado modular por módulo (Alumnas que estudiaron de 2013 a la actualidad) INSTITUTO",                                       costo: 200   },
   { id: "te5",  label: "5. CERTIFICADO OFICIAL DE NOTAS (2013 A LA ACTUALIDAD)",                   nombre: "Certificado Oficial de notas (Alumnas que estudiaron de 2013 a la actualidad) INSTITUTO",                                         costo: 200   },

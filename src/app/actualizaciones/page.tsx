@@ -231,7 +231,7 @@ export default function ActualizacionesPage() {
         {/* Formulario */}
         <div className="bg-white rounded-2xl shadow-2xl p-6 sm:p-8">
           <h2 className="text-lg font-bold text-mcm-text mb-1">Solicitud de Actualización</h2>
-          <p className="text-mcm-muted text-sm mb-6">Completa todos los campos y adjunta tu voucher de pago y DNI.</p>
+          <p className="text-mcm-muted text-sm mb-6">Completa todos los campos; adjunta tu voucher de pago y DNI.</p>
 
           {error && (
             <div className="flex items-center gap-2 bg-red-50 border border-red-200 text-red-700 rounded-lg p-3 mb-4 text-sm">
