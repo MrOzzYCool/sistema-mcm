@@ -3,19 +3,18 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
-import Sidebar from "@/components/Sidebar";
+import SidebarAlumno from "@/components/SidebarAlumno";
 
-export default function DashboardLayout({ children }: { children: React.ReactNode }) {
+export default function PortalLayout({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
     if (!loading && !user) router.replace("/");
-    // Alumnos no deben ver el dashboard admin
-    if (!loading && user && user.role === "alumno") router.replace("/portal");
+    // Si no es alumno, redirigir al dashboard admin
+    if (!loading && user && user.role !== "alumno") router.replace("/dashboard");
   }, [user, loading, router]);
 
-  // Mientras Supabase verifica la sesión, mostrar pantalla de carga
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center"
@@ -23,17 +22,17 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         <div className="text-center">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/logo-blanco.png" alt="Logo" style={{ width: 80, height: "auto", margin: "0 auto 16px" }} />
-          <p className="text-white/70 text-sm">Cargando sesión...</p>
+          <p className="text-white/70 text-sm">Cargando portal...</p>
         </div>
       </div>
     );
   }
 
-  if (!user || user.role === "alumno") return null;
+  if (!user || user.role !== "alumno") return null;
 
   return (
     <div className="flex min-h-screen bg-mcm-gray">
-      <Sidebar />
+      <SidebarAlumno />
       <main className="flex-1 overflow-auto">{children}</main>
     </div>
   );

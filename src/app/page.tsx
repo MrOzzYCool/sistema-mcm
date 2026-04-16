@@ -27,7 +27,11 @@ export default function LoginPage() {
       const rolMap: Record<string, string> = {
         "milnarvaez@margaritacabrera.edu.pe": "/dashboard/actualizacion",
       };
-      const dest = rolMap[user?.email?.toLowerCase() ?? ""] ?? "/dashboard/tramites-externos";
+      const userEmail = user?.email?.toLowerCase() ?? "";
+      const defaultDest = userEmail.endsWith("@margaritacabrera.edu.pe") && !rolMap[userEmail]
+        ? "/portal"
+        : "/dashboard/tramites-externos";
+      const dest = rolMap[userEmail] ?? defaultDest;
       router.push(dest);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Credenciales incorrectas. Verifica tu correo y contraseña.");
