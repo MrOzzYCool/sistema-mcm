@@ -74,3 +74,52 @@ alter table public.solicitudes
 alter table public.solicitudes
   add column if not exists tipo_formulario text default 'tramite'
     check (tipo_formulario in ('tramite','actualizacion'));
+
+-- ─── Tabla de perfiles ────────────────────────────────────────────────────────
+
+create table if not exists public.profiles (
+  id               uuid primary key references auth.users(id) on delete cascade,
+  nombre_completo  text,
+  rol              text not null default 'alumno' check (rol in ('alumno','super_admin','staff_tramites','gestor','actualizacion')),
+  estado           text not null default 'activo' check (estado in ('activo','inactivo')),
+  created_at       timestamptz not null default now()
+);
+
+alter table public.profiles enable row level security;
+
+-- Cualquier usuario autenticado puede leer su propio perfil
+create policy "select_own_profile" on public.profiles
+  for select using (auth.uid() = id);
+
+-- Solo el sistema (trigger) puede insertar
+create policy "insert_profile" on public.profiles
+  for insert with check (true);
+
+-- Solo el propio usuario puede actualizar su perfil
+create policy "update_own_profile" on public.profiles
+  for update using (auth.uid() = id);
+
+-- ─── Trigger: crear perfil automáticamente al registrar usuario ──────────────
+
+create or replace function public.handle_new_user()
+returns trigger as $$
+begin
+  insert into public.profiles (id, nombre_completo, rol, estado)
+  values (
+    new.id,
+    coalesce(new.raw_user_meta_data->>'full_name', split_part(new.email, '@', 1)),
+    'alumno',
+    'activo'
+  )
+  on conflict (id) do nothing;
+  return new;
+end;
+$$ language plpgsql security definer;
+
+-- Eliminar trigger si ya existe para evitar error
+drop trigger if exists on_auth_user_created on auth.users;
+
+-- Crear trigger
+create trigger on_auth_user_created
+  after insert on auth.users
+  for each row execute function public.handle_new_user();

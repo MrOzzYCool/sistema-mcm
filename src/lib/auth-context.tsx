@@ -1,21 +1,19 @@
 "use client";
 
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
-import { Session, User as SupabaseUser } from "@supabase/supabase-js";
+import { User as SupabaseUser } from "@supabase/supabase-js";
 import { supabase } from "./supabase";
 
-// ─── Roles por email (hasta conectar tabla de perfiles) ───────────────────────
+// ─── Roles hardcodeados (admins) — alumnos se leen de profiles ───────────────
 
-const ROLE_MAP: Record<string, "super_admin" | "staff_tramites" | "gestor" | "actualizacion" | "alumno"> = {
-  "admin@margaritacabrera.edu.pe":    "super_admin",
-  "staff@margaritacabrera.edu.pe":    "staff_tramites",
-  "nvasquez@margaritacabrera.edu.pe": "gestor",
+type AppRole = "super_admin" | "staff_tramites" | "gestor" | "actualizacion" | "alumno";
+
+const ADMIN_ROLES: Record<string, AppRole> = {
+  "admin@margaritacabrera.edu.pe":      "super_admin",
+  "staff@margaritacabrera.edu.pe":      "staff_tramites",
+  "nvasquez@margaritacabrera.edu.pe":   "gestor",
   "milnarvaez@margaritacabrera.edu.pe": "actualizacion",
 };
-
-function getRol(email: string) {
-  return ROLE_MAP[email.toLowerCase()] ?? "alumno";
-}
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
 
@@ -23,7 +21,7 @@ export interface AppUser {
   id: string;
   email: string;
   name: string;
-  role: "super_admin" | "staff_tramites" | "gestor" | "actualizacion" | "alumno";
+  role: AppRole;
   avatar: string;
 }
 
@@ -34,34 +32,73 @@ interface AuthCtx {
   logout: () => Promise<void>;
 }
 
-// ─── Context ──────────────────────────────────────────────────────────────────
-
 const AuthContext = createContext<AuthCtx | null>(null);
 
-function toAppUser(su: SupabaseUser): AppUser {
-  const email  = su.email ?? "";
-  const name   = su.user_metadata?.full_name ?? email.split("@")[0];
+// ─── Resolver rol: primero ADMIN_ROLES, luego profiles, fallback alumno ──────
+
+async function resolveUser(su: SupabaseUser): Promise<AppUser> {
+  const email    = su.email ?? "";
+  const emailLow = email.toLowerCase();
+
+  // 1. Admins hardcodeados — no necesitan profiles
+  const adminRole = ADMIN_ROLES[emailLow];
+  if (adminRole) {
+    const name     = su.user_metadata?.full_name ?? email.split("@")[0];
+    const initials = name.split(" ").map((w: string) => w[0]).join("").toUpperCase().slice(0, 2);
+    return { id: su.id, email, name, role: adminRole, avatar: initials };
+  }
+
+  // 2. Buscar en profiles
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("nombre_completo, rol, estado")
+    .eq("id", su.id)
+    .single();
+
+  // 3. Si no existe perfil, crearlo automáticamente (fallback para usuarios sin trigger)
+  if (!profile) {
+    const nombre = su.user_metadata?.full_name ?? email.split("@")[0];
+    await supabase.from("profiles").insert({
+      id:              su.id,
+      nombre_completo: nombre,
+      rol:             "alumno",
+      estado:          "activo",
+    }).select().single();
+
+    const initials = nombre.split(" ").map((w: string) => w[0]).join("").toUpperCase().slice(0, 2);
+    return { id: su.id, email, name: nombre, role: "alumno", avatar: initials };
+  }
+
+  const name     = profile.nombre_completo ?? email.split("@")[0];
   const initials = name.split(" ").map((w: string) => w[0]).join("").toUpperCase().slice(0, 2);
-  return { id: su.id, email, name, role: getRol(email), avatar: initials };
+  const role     = (profile.rol as AppRole) ?? "alumno";
+
+  return { id: su.id, email, name, role, avatar: initials };
 }
 
 // ─── Provider ─────────────────────────────────────────────────────────────────
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser]       = useState<AppUser | null>(null);
-  const [loading, setLoading] = useState(true); // true hasta que getSession responda
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // 1. Recuperar sesión existente al montar (persiste entre recargas)
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ? toAppUser(session.user) : null);
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      if (session?.user) {
+        const appUser = await resolveUser(session.user);
+        setUser(appUser);
+      }
       setLoading(false);
     });
 
-    // 2. Escuchar cambios de sesión (login, logout, token refresh)
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
-        setUser(session?.user ? toAppUser(session.user) : null);
+      async (_event, session) => {
+        if (session?.user) {
+          const appUser = await resolveUser(session.user);
+          setUser(appUser);
+        } else {
+          setUser(null);
+        }
         setLoading(false);
       }
     );
@@ -72,12 +109,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   async function login(email: string, password: string) {
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) throw new Error(error.message);
-    // onAuthStateChange actualizará el user automáticamente
   }
 
   async function logout() {
     await supabase.auth.signOut();
-    // onAuthStateChange pondrá user en null
   }
 
   return (
