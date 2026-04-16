@@ -53,23 +53,44 @@ export async function POST(req: NextRequest) {
     }
 
     const userId = authData.user.id;
+    console.log("create-user: Auth OK, userId:", userId);
 
-    await supabaseAdmin.from("profiles").upsert({
-      id: userId,
-      nombre_completo,
-      rol: tipo,
-      estado: "activo",
-      dni: dni || null,
-      created_by: admin.id,
-    });
+    // Insertar en profiles — upsert para evitar duplicados
+    const { data: profileData, error: profileError } = await supabaseAdmin
+      .from("profiles")
+      .upsert({
+        id: userId,
+        nombre_completo,
+        rol: tipo,
+        estado: "activo",
+        dni: dni || null,
+        created_by: admin.id,
+      }, { onConflict: "id" })
+      .select()
+      .single();
 
-    await supabaseAdmin.from("historial_auditoria").insert({
+    if (profileError) {
+      console.error("create-user: ERROR en profiles:", profileError.message, profileError.details, profileError.hint);
+      // Auth se creó pero profiles falló — informar al admin
+      return NextResponse.json({
+        success: false,
+        warning: "Usuario creado en Auth pero NO en profiles",
+        error: profileError.message,
+        userId,
+        email,
+      }, { status: 207 }); // 207 Multi-Status
+    }
+
+    console.log("create-user: Profile creado OK:", profileData);
+
+    const { error: auditError } = await supabaseAdmin.from("historial_auditoria").insert({
       accion: "crear_usuario",
       detalle: { tipo, email, nombre_completo, force_change, notify_email },
       admin_id: admin.id,
       admin_email: admin.email,
       target_id: userId,
     });
+    if (auditError) console.error("create-user: Error auditoría:", auditError.message);
 
     if (notify_email) {
       try {
@@ -108,7 +129,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    return NextResponse.json({ success: true, userId, email }, { status: 201 });
+    return NextResponse.json({ success: true, userId, email, profileCreated: true }, { status: 201 });
 
   } catch (err) {
     console.error("Error creando usuario:", err);

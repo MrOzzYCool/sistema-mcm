@@ -66,7 +66,10 @@ function UsuariosContent() {
       });
       const json = await res.json();
       console.log("Respuesta del servidor:", json);
-      if (!res.ok) throw new Error(json.error);
+      if (!res.ok && res.status !== 207) throw new Error(json.error);
+      if (res.status === 207) {
+        setError(`⚠️ Usuario creado en Auth pero NO en profiles: ${json.error}. Verifica permisos de la tabla profiles.`);
+      }
       setShowModal(false);
       setForm({ tipo: "alumno", nombre_completo: "", email: "", dni: "", password: "", auto_password: true, force_change: true, notify_email: true });
       cargar();
