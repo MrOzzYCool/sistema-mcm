@@ -123,3 +123,39 @@ drop trigger if exists on_auth_user_created on auth.users;
 create trigger on_auth_user_created
   after insert on auth.users
   for each row execute function public.handle_new_user();
+
+-- ─── Actualizar profiles para soportar profesor ───────────────────────────────
+alter table public.profiles drop constraint if exists profiles_rol_check;
+alter table public.profiles add constraint profiles_rol_check
+  check (rol in ('alumno','profesor','super_admin','staff_tramites','gestor','actualizacion'));
+
+alter table public.profiles
+  add column if not exists dni        text,
+  add column if not exists created_by uuid;
+
+-- ─── Tabla de auditoría ───────────────────────────────────────────────────────
+create table if not exists public.historial_auditoria (
+  id         uuid primary key default gen_random_uuid(),
+  accion     text not null,
+  detalle    jsonb,
+  admin_id   uuid references auth.users(id),
+  admin_email text,
+  target_id  uuid,
+  created_at timestamptz not null default now()
+);
+
+alter table public.historial_auditoria enable row level security;
+
+create policy "select_audit_admin" on public.historial_auditoria
+  for select using (auth.role() = 'authenticated');
+
+create policy "insert_audit" on public.historial_auditoria
+  for insert with check (true);
+
+-- Permitir admins leer todos los profiles
+create policy "select_all_profiles_admin" on public.profiles
+  for select using (auth.role() = 'authenticated');
+
+-- Permitir admins actualizar cualquier profile
+create policy "update_all_profiles_admin" on public.profiles
+  for update using (auth.role() = 'authenticated');
