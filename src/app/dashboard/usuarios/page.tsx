@@ -43,8 +43,10 @@ function UsuariosContent() {
       const res = await fetch("/api/admin/users", {
         headers: { Authorization: `Bearer ${await getToken()}` },
       });
-      if (!res.ok) throw new Error((await res.json()).error);
-      setProfiles(await res.json());
+      const data = await res.json();
+      console.log("Usuarios cargados:", data);
+      if (!res.ok) throw new Error(data.error);
+      setProfiles(data);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Error");
     } finally {
@@ -63,6 +65,7 @@ function UsuariosContent() {
         body: JSON.stringify(form),
       });
       const json = await res.json();
+      console.log("Respuesta del servidor:", json);
       if (!res.ok) throw new Error(json.error);
       setShowModal(false);
       setForm({ tipo: "alumno", nombre_completo: "", email: "", dni: "", password: "", auto_password: true, force_change: true, notify_email: true });

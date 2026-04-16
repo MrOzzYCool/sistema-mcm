@@ -17,8 +17,20 @@ async function verifyAdmin(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const admin = await verifyAdmin(req);
-  if (!admin) return NextResponse.json({ error: "No autorizado" }, { status: 403 });
+  try {
+    // Validar llave de servicio
+    if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      console.error("SUPABASE_SERVICE_ROLE_KEY no configurada");
+      return NextResponse.json({ error: "Llave de servicio no configurada. Agrega SUPABASE_SERVICE_ROLE_KEY en Vercel." }, { status: 500 });
+    }
+
+    const admin = await verifyAdmin(req);
+    if (!admin) {
+      console.log("create-user: admin no verificado");
+      return NextResponse.json({ error: "No autorizado" }, { status: 403 });
+    }
+
+    console.log("create-user: admin verificado:", admin.email);
 
   try {
     const body = await req.json();
