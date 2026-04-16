@@ -159,3 +159,42 @@ create policy "select_all_profiles_admin" on public.profiles
 -- Permitir admins actualizar cualquier profile
 create policy "update_all_profiles_admin" on public.profiles
   for update using (auth.role() = 'authenticated');
+
+-- ─── Gestión Académica ────────────────────────────────────────────────────────
+
+create table if not exists public.carreras (
+  id               uuid primary key default gen_random_uuid(),
+  nombre_carrera   text not null,
+  codigo           text unique not null,
+  duracion_ciclos  integer not null default 6,
+  created_at       timestamptz not null default now()
+);
+
+create table if not exists public.cursos (
+  id                   uuid primary key default gen_random_uuid(),
+  nombre_curso         text not null,
+  ciclo_perteneciente  integer not null default 1,
+  creditos             integer not null default 3,
+  created_at           timestamptz not null default now()
+);
+
+create table if not exists public.malla_curricular (
+  id         uuid primary key default gen_random_uuid(),
+  carrera_id uuid not null references public.carreras(id) on delete cascade,
+  curso_id   uuid not null references public.cursos(id) on delete cascade,
+  unique(carrera_id, curso_id)
+);
+
+-- RLS
+alter table public.carreras enable row level security;
+alter table public.cursos enable row level security;
+alter table public.malla_curricular enable row level security;
+
+create policy "read_carreras" on public.carreras for select using (true);
+create policy "write_carreras" on public.carreras for all using (auth.role() = 'authenticated');
+
+create policy "read_cursos" on public.cursos for select using (true);
+create policy "write_cursos" on public.cursos for all using (auth.role() = 'authenticated');
+
+create policy "read_malla" on public.malla_curricular for select using (true);
+create policy "write_malla" on public.malla_curricular for all using (auth.role() = 'authenticated');

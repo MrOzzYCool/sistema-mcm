@@ -18,6 +18,7 @@ const NAV_ITEMS = [
   { href: "/dashboard/actualizacion",     label: "Actualización",    icon: RefreshCw,       roles: ["super_admin", "actualizacion"] },
   { href: "/dashboard/reportes",          label: "Reportes",         icon: BarChart2,       roles: ["super_admin", "gestor"] },
   { href: "/dashboard/usuarios",          label: "Usuarios",         icon: UserCog,         roles: ["super_admin"] },
+  { href: "/dashboard/academico",         label: "Académico",        icon: BookOpen,        roles: ["super_admin"] },
   { href: "/dashboard/config",            label: "Configuración",    icon: Settings,        roles: ["super_admin", "alumno"] },
 ];
 
