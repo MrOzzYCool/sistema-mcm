@@ -167,7 +167,7 @@ export default function CursosAlumnoPage() {
   const cicloActual = inscripcion?.ciclo_actual ?? cursos[0]?.ciclo ?? "—";
 
   return (
-    <div className="p-6 w-full max-w-7xl mx-auto space-y-6">
+    <div className="p-6 w-full space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-mcm-text">Mis Cursos</h1>

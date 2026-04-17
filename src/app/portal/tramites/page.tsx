@@ -35,7 +35,7 @@ const HISTORIAL = [
 
 export default function TramitesAlumnoPage() {
   return (
-    <div className="p-6 max-w-5xl mx-auto space-y-6">
+    <div className="p-6 w-full space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-mcm-text">Trámites</h1>
         <p className="text-mcm-muted text-sm mt-0.5">Solicita documentos y gestiona tus trámites</p>

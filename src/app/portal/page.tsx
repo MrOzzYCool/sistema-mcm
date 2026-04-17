@@ -68,7 +68,7 @@ export default function PortalInicio() {
   const isFuture = data?.fechaInicio ? new Date(data.fechaInicio) > new Date() : false;
 
   return (
-    <div className="p-6 w-full max-w-7xl mx-auto space-y-6">
+    <div className="p-6 w-full space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>

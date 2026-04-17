@@ -10,17 +10,18 @@ export default function PagosAlumnoPage() {
   const totalPagado = MOCK_PAGOS.filter((p) => p.estado === "pagado").reduce((a, p) => a + p.monto, 0);
 
   return (
-    <div className="p-6 max-w-5xl mx-auto space-y-6">
+    <div className="p-6 w-full space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-mcm-text">Estado de Cuenta</h1>
         <p className="text-mcm-muted text-sm mt-0.5">Historial y estado de tus cuotas</p>
       </div>
 
       {/* Resumen */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <ResumenCard label="Deuda Total"       value={formatMonto(deudaTotal)}  color="red"    />
         <ResumenCard label="Total Pagado"      value={formatMonto(totalPagado)} color="green"  />
         <ResumenCard label="Cuotas Pendientes" value={`${MOCK_PAGOS.filter((p) => p.estado !== "pagado").length} cuotas`} color="yellow" />
+        <ResumenCard label="Total Cuotas"      value={`${MOCK_PAGOS.length} cuotas`} color="blue" />
       </div>
 
       {/* Tabla */}
@@ -64,9 +65,9 @@ export default function PagosAlumnoPage() {
   );
 }
 
-function ResumenCard({ label, value, color }: { label: string; value: string; color: "red"|"green"|"yellow" }) {
-  const colors = { red: "border-l-4 border-red-400 bg-red-50", green: "border-l-4 border-green-400 bg-green-50", yellow: "border-l-4 border-yellow-400 bg-yellow-50" };
-  const textColors = { red: "text-red-700", green: "text-green-700", yellow: "text-yellow-700" };
+function ResumenCard({ label, value, color }: { label: string; value: string; color: "red"|"green"|"yellow"|"blue" }) {
+  const colors = { red: "border-l-4 border-red-400 bg-red-50", green: "border-l-4 border-green-400 bg-green-50", yellow: "border-l-4 border-yellow-400 bg-yellow-50", blue: "border-l-4 border-blue-400 bg-blue-50" };
+  const textColors = { red: "text-red-700", green: "text-green-700", yellow: "text-yellow-700", blue: "text-blue-700" };
   return (
     <div className={clsx("card", colors[color])}>
       <p className="text-xs text-mcm-muted font-medium">{label}</p>

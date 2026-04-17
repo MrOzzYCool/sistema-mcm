@@ -47,7 +47,9 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
   return (
     <div className="flex min-h-screen bg-mcm-gray">
       <SidebarAlumno />
-      <main className="flex-1 overflow-auto">{children}</main>
+      <main className="flex-1 overflow-auto max-w-screen-2xl">
+        {children}
+      </main>
     </div>
   );
 }

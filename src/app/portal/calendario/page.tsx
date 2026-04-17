@@ -18,7 +18,7 @@ const EVENTOS = [
 
 export default function CalendarioPage() {
   return (
-    <div className="p-6 max-w-5xl mx-auto space-y-6">
+    <div className="p-6 w-full space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-mcm-text">Calendario</h1>
         <p className="text-mcm-muted text-sm mt-0.5">Horarios, evaluaciones y eventos</p>
