@@ -1,29 +1,21 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import Sidebar from "@/components/Sidebar";
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
-  const { user, loading } = useAuth();
+  const { user, initializing } = useAuth();
   const router = useRouter();
-  const [timedOut, setTimedOut] = useState(false);
-
-  // Safety timeout
-  useEffect(() => {
-    if (!loading) return;
-    const timer = setTimeout(() => setTimedOut(true), 8000);
-    return () => clearTimeout(timer);
-  }, [loading]);
 
   useEffect(() => {
-    const ready = !loading || timedOut;
-    if (ready && !user) router.replace("/");
-    if (ready && user && user.role === "alumno") router.replace("/portal");
-  }, [user, loading, timedOut, router]);
+    if (initializing) return;
+    if (!user) router.replace("/");
+    else if (user.role === "alumno") router.replace("/portal");
+  }, [user, initializing, router]);
 
-  if (loading && !timedOut) {
+  if (initializing) {
     return (
       <div className="min-h-screen flex items-center justify-center"
         style={{ background: "linear-gradient(160deg,#a93526 0%,#8a2b1f 100%)" }}>

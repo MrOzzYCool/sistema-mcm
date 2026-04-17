@@ -1,29 +1,21 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import SidebarAlumno from "@/components/SidebarAlumno";
 
 export default function PortalLayout({ children }: { children: React.ReactNode }) {
-  const { user, loading } = useAuth();
+  const { user, initializing } = useAuth();
   const router = useRouter();
-  const [timedOut, setTimedOut] = useState(false);
-
-  // Safety timeout: si loading tarda más de 8 segundos, dejar de esperar
-  useEffect(() => {
-    if (!loading) return;
-    const timer = setTimeout(() => setTimedOut(true), 8000);
-    return () => clearTimeout(timer);
-  }, [loading]);
 
   useEffect(() => {
-    const ready = !loading || timedOut;
-    if (ready && !user) router.replace("/");
-    if (ready && user && user.role !== "alumno") router.replace("/dashboard");
-  }, [user, loading, timedOut, router]);
+    if (initializing) return; // Wait for initial session check
+    if (!user) router.replace("/");
+    else if (user.role !== "alumno") router.replace("/dashboard");
+  }, [user, initializing, router]);
 
-  if (loading && !timedOut) {
+  if (initializing) {
     return (
       <div className="min-h-screen flex items-center justify-center"
         style={{ background: "linear-gradient(160deg,#a93526 0%,#8a2b1f 100%)" }}>

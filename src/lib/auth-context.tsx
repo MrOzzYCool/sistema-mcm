@@ -1,10 +1,10 @@
 "use client";
 
-import { createContext, useContext, useEffect, useState, useRef, ReactNode } from "react";
+import { createContext, useContext, useEffect, useState, ReactNode } from "react";
 import { User as SupabaseUser } from "@supabase/supabase-js";
 import { supabase } from "./supabase";
 
-// ─── Roles hardcodeados (admins) — alumnos se leen de profiles ───────────────
+// ─── Roles hardcodeados (admins) ─────────────────────────────────────────────
 
 type AppRole = "super_admin" | "staff_tramites" | "gestor" | "actualizacion" | "profesor" | "alumno";
 
@@ -14,8 +14,6 @@ const ADMIN_ROLES: Record<string, AppRole> = {
   "nvasquez@margaritacabrera.edu.pe":   "gestor",
   "milnarvaez@margaritacabrera.edu.pe": "actualizacion",
 };
-
-// ─── Tipos ────────────────────────────────────────────────────────────────────
 
 export interface AppUser {
   id: string;
@@ -27,175 +25,125 @@ export interface AppUser {
 
 interface AuthCtx {
   user: AppUser | null;
-  loading: boolean;
+  initializing: boolean;  // true ONLY during first app load
   login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthCtx | null>(null);
 
-// ─── Resolver rol: primero ADMIN_ROLES, luego profiles, fallback alumno ──────
+// ─── Resolver rol ────────────────────────────────────────────────────────────
 
 async function resolveUser(su: SupabaseUser): Promise<AppUser> {
-  const email    = su.email ?? "";
+  const email = su.email ?? "";
   const emailLow = email.toLowerCase();
 
-  // 1. Admins hardcodeados — no necesitan profiles
+  // Admins hardcodeados
   const adminRole = ADMIN_ROLES[emailLow];
   if (adminRole) {
-    const name     = su.user_metadata?.full_name ?? email.split("@")[0];
+    const name = su.user_metadata?.full_name ?? email.split("@")[0];
     const initials = name.split(" ").map((w: string) => w[0]).join("").toUpperCase().slice(0, 2);
     return { id: su.id, email, name, role: adminRole, avatar: initials };
   }
 
-  // 2. Buscar en profiles con retry
+  // Buscar en profiles
   try {
-    // Intentar leer el profile — si falla por RLS, reintentar una vez después de un breve delay
-    let profile = null;
-    let profileErr = null;
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("nombre_completo, rol, estado")
+      .eq("id", su.id)
+      .single();
 
-    for (let attempt = 0; attempt < 2; attempt++) {
-      const result = await supabase
-        .from("profiles")
-        .select("nombre_completo, rol, estado")
-        .eq("id", su.id)
-        .single();
-
-      profile = result.data;
-      profileErr = result.error;
-
-      if (profile || (profileErr && profileErr.code !== "PGRST116")) break;
-      // PGRST116 = "no rows returned" — might be timing issue, wait and retry
-      if (attempt === 0) await new Promise(r => setTimeout(r, 500));
+    if (profile) {
+      const name = profile.nombre_completo ?? email.split("@")[0];
+      const initials = name.split(" ").map((w: string) => w[0]).join("").toUpperCase().slice(0, 2);
+      return { id: su.id, email, name, role: (profile.rol as AppRole) ?? "alumno", avatar: initials };
     }
-
-    if (profileErr && !profile) {
-      console.warn("resolveUser: Error leyendo profile:", profileErr.message);
-    }
-
-    // 3. Si no existe perfil, crearlo automáticamente
-    if (!profile) {
-      const nombre = su.user_metadata?.full_name ?? email.split("@")[0];
-      try {
-        const { data: newProfile } = await supabase.from("profiles").upsert({
-          id:              su.id,
-          nombre_completo: nombre,
-          rol:             "alumno",
-          estado:          "activo",
-        }, { onConflict: "id" }).select().single();
-
-        if (newProfile) {
-          const initials = newProfile.nombre_completo.split(" ").map((w: string) => w[0]).join("").toUpperCase().slice(0, 2);
-          return { id: su.id, email, name: newProfile.nombre_completo, role: newProfile.rol as AppRole, avatar: initials };
-        }
-      } catch (insertErr) {
-        console.warn("resolveUser: Error creando profile:", insertErr);
-      }
-
-      const initials = nombre.split(" ").map((w: string) => w[0]).join("").toUpperCase().slice(0, 2);
-      return { id: su.id, email, name: nombre, role: "alumno", avatar: initials };
-    }
-
-    const name     = profile.nombre_completo ?? email.split("@")[0];
-    const initials = name.split(" ").map((w: string) => w[0]).join("").toUpperCase().slice(0, 2);
-    const role     = (profile.rol as AppRole) ?? "alumno";
-
-    return { id: su.id, email, name, role, avatar: initials };
-  } catch (err) {
-    console.error("resolveUser: Fallback por error:", err);
-    const name = su.user_metadata?.full_name ?? email.split("@")[0];
-    const initials = name.split(" ").map((w: string) => w[0]).join("").toUpperCase().slice(0, 2);
-    return { id: su.id, email, name, role: "alumno", avatar: initials };
+  } catch {
+    // Silently fall through to fallback
   }
+
+  // Fallback
+  const name = su.user_metadata?.full_name ?? email.split("@")[0];
+  const initials = name.split(" ").map((w: string) => w[0]).join("").toUpperCase().slice(0, 2);
+  return { id: su.id, email, name, role: "alumno", avatar: initials };
 }
 
 // ─── Provider ─────────────────────────────────────────────────────────────────
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser]       = useState<AppUser | null>(null);
-  const [loading, setLoading] = useState(true);
-  const resolving = useRef(false);
+  const [user, setUser] = useState<AppUser | null>(null);
+  const [initializing, setInitializing] = useState(true);
 
   useEffect(() => {
-    // Initial session check
+    let mounted = true;
+
+    // 1. Check existing session on mount
     supabase.auth.getSession().then(async ({ data: { session } }) => {
+      if (!mounted) return;
       if (session?.user) {
-        resolving.current = true;
-        try {
-          const appUser = await resolveUser(session.user);
-          setUser(appUser);
-        } finally {
-          resolving.current = false;
-        }
+        const appUser = await resolveUser(session.user);
+        if (mounted) setUser(appUser);
       }
-      setLoading(false);
+      if (mounted) setInitializing(false);
+    }).catch(() => {
+      if (mounted) setInitializing(false);
     });
 
-    // Listen for auth changes
+    // 2. Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        // Skip if we're already resolving (avoid double-processing)
-        if (resolving.current) return;
+        if (!mounted) return;
 
         if (event === "SIGNED_OUT") {
           setUser(null);
-          setLoading(false);
           return;
         }
 
-        // TOKEN_REFRESHED: silently update user without loading screen
-        // This happens when the user returns to the tab after inactivity
+        // For SIGNED_IN: resolve user and update
+        if (event === "SIGNED_IN" && session?.user) {
+          const appUser = await resolveUser(session.user);
+          if (mounted) setUser(appUser);
+          return;
+        }
+
+        // For TOKEN_REFRESHED: silently update — no loading, no UI disruption
         if (event === "TOKEN_REFRESHED" && session?.user) {
-          // Don't show loading — just refresh user data quietly
-          resolving.current = true;
-          try {
-            const appUser = await resolveUser(session.user);
-            setUser(appUser);
-          } finally {
-            resolving.current = false;
-          }
+          // Just keep the existing user — no need to re-resolve
+          // The session token is refreshed but the user data hasn't changed
           return;
-        }
-
-        // SIGNED_IN or INITIAL_SESSION: show loading while resolving
-        if (session?.user) {
-          setLoading(true);
-          resolving.current = true;
-          try {
-            const appUser = await resolveUser(session.user);
-            setUser(appUser);
-          } finally {
-            resolving.current = false;
-            setLoading(false);
-          }
         }
       }
     );
 
-    return () => subscription.unsubscribe();
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
   async function login(email: string, password: string) {
-    setLoading(true);
-    try {
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) throw new Error(error.message);
-      // onAuthStateChange will handle setting the user
-    } catch (err) {
-      setLoading(false);
-      throw err;
-    }
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) throw new Error(error.message);
+    // onAuthStateChange SIGNED_IN will set the user
+    // Wait for user to be set (max 5 seconds)
+    await new Promise<void>((resolve) => {
+      const check = setInterval(() => {
+        // User will be set by onAuthStateChange
+        resolve();
+        clearInterval(check);
+      }, 100);
+      setTimeout(() => { clearInterval(check); resolve(); }, 5000);
+    });
   }
 
   async function logout() {
-    setLoading(true);
     await supabase.auth.signOut();
     setUser(null);
-    setLoading(false);
   }
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout }}>
+    <AuthContext.Provider value={{ user, initializing, login, logout }}>
       {children}
     </AuthContext.Provider>
   );
@@ -204,5 +152,5 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 export function useAuth() {
   const ctx = useContext(AuthContext);
   if (!ctx) throw new Error("useAuth debe usarse dentro de AuthProvider");
-  return ctx;
+  return { ...ctx, loading: ctx.initializing }; // backward compat
 }
