@@ -16,7 +16,7 @@ function getDestination(email: string, role: string): string {
 }
 
 export default function LoginPage() {
-  const { login, user, initializing } = useAuth();
+  const { login, user, initializing, forceReady } = useAuth();
   const router = useRouter();
 
   const [email, setEmail]       = useState("");
@@ -24,6 +24,7 @@ export default function LoginPage() {
   const [showPass, setShowPass] = useState(false);
   const [error, setError]       = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [showEmergency, setShowEmergency] = useState(false);
 
   // If already logged in, redirect
   useEffect(() => {
@@ -31,6 +32,13 @@ export default function LoginPage() {
       router.replace(getDestination(user.email, user.role));
     }
   }, [user, initializing, router]);
+
+  // Emergency button after 7s of initializing
+  useEffect(() => {
+    if (!initializing) { setShowEmergency(false); return; }
+    const timer = setTimeout(() => setShowEmergency(true), 7000);
+    return () => clearTimeout(timer);
+  }, [initializing]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -56,6 +64,12 @@ export default function LoginPage() {
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/logo-blanco.png" alt="Logo" style={{ width: 80, height: "auto", margin: "0 auto 16px" }} />
           <p className="text-white/70 text-sm">Cargando...</p>
+          {showEmergency && (
+            <button onClick={forceReady}
+              className="mt-6 px-4 py-2 bg-white/20 hover:bg-white/30 text-white text-xs rounded-lg transition-colors">
+              Cargar de todos modos
+            </button>
+          )}
         </div>
       </div>
     );

@@ -1,13 +1,20 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import Sidebar from "@/components/Sidebar";
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
-  const { user, initializing } = useAuth();
+  const { user, initializing, forceReady } = useAuth();
   const router = useRouter();
+  const [showEmergency, setShowEmergency] = useState(false);
+
+  useEffect(() => {
+    if (!initializing) { setShowEmergency(false); return; }
+    const timer = setTimeout(() => setShowEmergency(true), 7000);
+    return () => clearTimeout(timer);
+  }, [initializing]);
 
   useEffect(() => {
     if (initializing) return;
@@ -23,6 +30,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/logo-blanco.png" alt="Logo" style={{ width: 80, height: "auto", margin: "0 auto 16px" }} />
           <p className="text-white/70 text-sm">Cargando sesión...</p>
+          {showEmergency && (
+            <button onClick={() => { forceReady(); router.replace("/"); }}
+              className="mt-6 px-4 py-2 bg-white/20 hover:bg-white/30 text-white text-xs rounded-lg transition-colors">
+              Reiniciar sesión
+            </button>
+          )}
         </div>
       </div>
     );
