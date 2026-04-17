@@ -30,7 +30,9 @@ function UsuariosContent() {
   const [form, setForm] = useState({
     tipo: "alumno", nombre_completo: "", email: "", dni: "",
     password: "", auto_password: true, force_change: true, notify_email: true,
+    carrera_id: "", ciclo_inicial: "1",
   });
+  const [carrerasDisp, setCarrerasDisp] = useState<{ id: string; nombre_carrera: string; duracion_ciclos: number }[]>([]);
 
   async function getToken() {
     const { data } = await supabase.auth.getSession();
@@ -56,6 +58,21 @@ function UsuariosContent() {
 
   useEffect(() => { cargar(); }, [cargar]);
 
+  // Cargar carreras para el selector
+  useEffect(() => {
+    async function loadCarreras() {
+      const token = await getToken();
+      const res = await fetch("/api/admin/academico?tipo=carreras", { headers: { Authorization: `Bearer ${token}` } });
+      if (res.ok) {
+        const data = await res.json();
+        setCarrerasDisp(data.map((c: { id: string; nombre_carrera: string; duracion_ciclos: number }) => ({
+          id: c.id, nombre_carrera: c.nombre_carrera, duracion_ciclos: c.duracion_ciclos,
+        })));
+      }
+    }
+    loadCarreras();
+  }, []);
+
   async function handleCreate() {
     setSaving(true); setError("");
     try {
@@ -71,7 +88,7 @@ function UsuariosContent() {
         setError(`⚠️ Usuario creado en Auth pero NO en profiles: ${json.error}. Verifica permisos de la tabla profiles.`);
       }
       setShowModal(false);
-      setForm({ tipo: "alumno", nombre_completo: "", email: "", dni: "", password: "", auto_password: true, force_change: true, notify_email: true });
+      setForm({ tipo: "alumno", nombre_completo: "", email: "", dni: "", password: "", auto_password: true, force_change: true, notify_email: true, carrera_id: "", ciclo_inicial: "1" });
       cargar();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Error");
@@ -272,6 +289,27 @@ function UsuariosContent() {
                   placeholder="12345678" maxLength={8}
                   className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#a93526]" />
               </div>
+              {/* Campos de carrera y ciclo — solo para alumnos */}
+              {form.tipo === "alumno" && (
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-sm font-medium text-mcm-text mb-1">Carrera *</label>
+                    <select value={form.carrera_id} onChange={e => setForm({...form, carrera_id: e.target.value})}
+                      className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#a93526]">
+                      <option value="">Seleccionar...</option>
+                      {carrerasDisp.map(c => <option key={c.id} value={c.id}>{c.nombre_carrera}</option>)}
+                    </select>
+                    {!form.carrera_id && <p className="text-red-500 text-xs mt-1">Obligatorio para alumnos</p>}
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-mcm-text mb-1">Ciclo inicial *</label>
+                    <select value={form.ciclo_inicial} onChange={e => setForm({...form, ciclo_inicial: e.target.value})}
+                      className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#a93526]">
+                      {[1,2,3,4,5,6].map(n => <option key={n} value={String(n)}>Ciclo {n}</option>)}
+                    </select>
+                  </div>
+                </div>
+              )}
               <div className="space-y-2">
                 <label className="flex items-center gap-2 text-sm cursor-pointer">
                   <input type="checkbox" checked={form.auto_password}
@@ -297,7 +335,7 @@ function UsuariosContent() {
             </div>
             <div className="flex gap-3 mt-5">
               <button onClick={() => setShowModal(false)} className="btn-secondary flex-1 text-sm">Cancelar</button>
-              <button onClick={handleCreate} disabled={saving || !form.nombre_completo || !form.email}
+              <button onClick={handleCreate} disabled={saving || !form.nombre_completo || !form.email || (form.tipo === "alumno" && !form.carrera_id)}
                 className="btn-primary flex-1 text-sm disabled:opacity-50 flex items-center justify-center gap-2">
                 {saving && <Loader2 size={14} className="animate-spin" />}
                 {saving ? "Creando..." : "Crear usuario"}

@@ -30,10 +30,15 @@ export async function POST(req: NextRequest) {
     console.log("create-user: admin verificado:", admin.email);
 
     const body = await req.json();
-    const { tipo, nombre_completo, email, dni, password: customPassword, auto_password, force_change, notify_email } = body;
+    const { tipo, nombre_completo, email, dni, password: customPassword, auto_password, force_change, notify_email, carrera_id, ciclo_inicial } = body;
 
     if (!tipo || !nombre_completo || !email) {
       return NextResponse.json({ error: "Faltan campos obligatorios" }, { status: 400 });
+    }
+
+    // Validar carrera y ciclo para alumnos
+    if (tipo === "alumno" && (!carrera_id || !ciclo_inicial)) {
+      return NextResponse.json({ error: "Para alumnos, carrera y ciclo inicial son obligatorios" }, { status: 400 });
     }
 
     const password = auto_password ? generatePassword() : customPassword;
@@ -82,6 +87,41 @@ export async function POST(req: NextRequest) {
     }
 
     console.log("create-user: Profile creado OK:", profileData);
+
+    // Crear inscripción para alumnos
+    if (tipo === "alumno" && carrera_id) {
+      const ciclo = parseInt(ciclo_inicial) || 1;
+      const { error: inscError } = await supabaseAdmin.from("inscripciones").insert({
+        alumno_id: userId,
+        carrera_id,
+        ciclo_actual: ciclo,
+        fecha_inicio_ciclo: new Date().toISOString(),
+        estado: "activo",
+      });
+      if (inscError) {
+        console.error("create-user: Error inscripción:", inscError.message);
+      } else {
+        // Registrar en historial de ciclos
+        await supabaseAdmin.from("historial_ciclos").insert({
+          alumno_id: userId,
+          carrera_id,
+          ciclo,
+          fecha_inicio: new Date().toISOString(),
+          estado: "activo",
+        });
+
+        // Generar cursos del ciclo desde la malla curricular
+        const { generarCursosCiclo } = await import("@/lib/generar-cursos-ciclo");
+        const { creados, error: cursosErr } = await generarCursosCiclo(userId, carrera_id, ciclo);
+        if (cursosErr) {
+          console.error("create-user: Error generando cursos:", cursosErr);
+        } else {
+          console.log("create-user: Cursos generados:", creados);
+        }
+
+        console.log("create-user: Inscripción creada — carrera:", carrera_id, "ciclo:", ciclo);
+      }
+    }
 
     const { error: auditError } = await supabaseAdmin.from("historial_auditoria").insert({
       accion: "crear_usuario",

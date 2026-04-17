@@ -202,3 +202,119 @@ create policy "write_malla" on public.malla_curricular for all using (auth.role(
 -- Campo codigo_interno para cursos (usado en import CSV)
 alter table public.cursos
   add column if not exists codigo_interno text unique;
+
+-- ─── Inscripciones de alumnos ─────────────────────────────────────────────────
+
+create table if not exists public.inscripciones (
+  id                uuid primary key default gen_random_uuid(),
+  alumno_id         uuid not null references auth.users(id) on delete cascade,
+  carrera_id        uuid not null references public.carreras(id),
+  ciclo_actual      integer not null default 1,
+  fecha_inicio_ciclo timestamptz not null default now(),
+  estado            text not null default 'activo'
+                    check (estado in ('activo','pendiente_promocion','promovido','egresado','inactivo')),
+  created_at        timestamptz not null default now(),
+  updated_at        timestamptz not null default now(),
+  unique(alumno_id, carrera_id)
+);
+
+alter table public.inscripciones enable row level security;
+create policy "read_inscripciones" on public.inscripciones for select using (auth.role() = 'authenticated');
+create policy "write_inscripciones" on public.inscripciones for all using (auth.role() = 'authenticated');
+
+-- ─── Historial de ciclos ──────────────────────────────────────────────────────
+
+create table if not exists public.historial_ciclos (
+  id          uuid primary key default gen_random_uuid(),
+  alumno_id   uuid not null references auth.users(id) on delete cascade,
+  carrera_id  uuid not null references public.carreras(id),
+  ciclo       integer not null,
+  fecha_inicio timestamptz not null,
+  fecha_fin   timestamptz,
+  estado      text not null default 'activo'
+              check (estado in ('activo','completado','egresado')),
+  observacion text,
+  created_at  timestamptz not null default now()
+);
+
+alter table public.historial_ciclos enable row level security;
+create policy "read_historial_ciclos" on public.historial_ciclos for select using (auth.role() = 'authenticated');
+create policy "write_historial_ciclos" on public.historial_ciclos for all using (auth.role() = 'authenticated');
+
+-- ─── Ajustes de seguridad para inscripciones y historial ──────────────────────
+
+-- Cambiar FK a profiles en vez de auth.users (si las tablas ya existen)
+-- Si acabas de crear las tablas, ignora estos ALTER
+-- alter table public.inscripciones drop constraint if exists inscripciones_alumno_id_fkey;
+-- alter table public.inscripciones add constraint inscripciones_alumno_id_fkey foreign key (alumno_id) references public.profiles(id) on delete cascade;
+-- alter table public.historial_ciclos drop constraint if exists historial_ciclos_alumno_id_fkey;
+-- alter table public.historial_ciclos add constraint historial_ciclos_alumno_id_fkey foreign key (alumno_id) references public.profiles(id) on delete cascade;
+
+-- RLS restrictivo: alumno solo lee su propia info
+drop policy if exists "rw_inscripciones" on public.inscripciones;
+drop policy if exists "read_inscripciones" on public.inscripciones;
+drop policy if exists "write_inscripciones" on public.inscripciones;
+
+create policy "alumno_read_own_inscripcion" on public.inscripciones
+  for select using (auth.uid() = alumno_id);
+
+create policy "admin_all_inscripciones" on public.inscripciones
+  for all using (auth.role() = 'authenticated' and exists (
+    select 1 from public.profiles where id = auth.uid() and rol in ('super_admin')
+  ));
+
+drop policy if exists "rw_historial_ciclos" on public.historial_ciclos;
+drop policy if exists "read_historial_ciclos" on public.historial_ciclos;
+drop policy if exists "write_historial_ciclos" on public.historial_ciclos;
+
+create policy "alumno_read_own_historial" on public.historial_ciclos
+  for select using (auth.uid() = alumno_id);
+
+create policy "admin_all_historial_ciclos" on public.historial_ciclos
+  for all using (auth.role() = 'authenticated' and exists (
+    select 1 from public.profiles where id = auth.uid() and rol in ('super_admin')
+  ));
+
+-- Trigger para updated_at en inscripciones
+create or replace function public.set_updated_at()
+returns trigger as $$
+begin
+  new.updated_at = now();
+  return new;
+end;
+$$ language plpgsql;
+
+drop trigger if exists set_inscripciones_updated_at on public.inscripciones;
+create trigger set_inscripciones_updated_at
+  before update on public.inscripciones
+  for each row execute function public.set_updated_at();
+
+-- ─── Cursos asignados a cada alumno ───────────────────────────────────────────
+
+create table if not exists public.alumno_cursos (
+  id          uuid primary key default gen_random_uuid(),
+  alumno_id   uuid not null references public.profiles(id) on delete cascade,
+  carrera_id  uuid not null references public.carreras(id),
+  ciclo       integer not null,
+  curso_id    uuid not null references public.cursos(id),
+  estado      text not null default 'en_curso'
+              check (estado in ('en_curso','aprobado','desaprobado','retirado')),
+  created_at  timestamptz not null default now(),
+  updated_at  timestamptz not null default now(),
+  unique(alumno_id, curso_id, ciclo)
+);
+
+alter table public.alumno_cursos enable row level security;
+
+create policy "alumno_read_own_cursos" on public.alumno_cursos
+  for select using (auth.uid() = alumno_id);
+
+create policy "admin_all_alumno_cursos" on public.alumno_cursos
+  for all using (auth.role() = 'authenticated' and exists (
+    select 1 from public.profiles where id = auth.uid() and rol in ('super_admin')
+  ));
+
+drop trigger if exists set_alumno_cursos_updated_at on public.alumno_cursos;
+create trigger set_alumno_cursos_updated_at
+  before update on public.alumno_cursos
+  for each row execute function public.set_updated_at();
