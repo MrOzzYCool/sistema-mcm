@@ -6,7 +6,7 @@ import RouteGuard from "@/components/RouteGuard";
 import { supabase } from "@/lib/supabase";
 import {
   UserPlus, RefreshCw, Loader2, Search, Download, Upload,
-  CheckCircle, XCircle, Key, Mail, Eye, X, Trash2, UserX,
+  CheckCircle, XCircle, Key, X, UserX,
 } from "lucide-react";
 import clsx from "clsx";
 
@@ -29,7 +29,7 @@ function UsuariosContent() {
 
   // Form state
   const [form, setForm] = useState({
-    tipo: "alumno", nombre_completo: "", email: "", dni: "",
+    tipo: "alumno", nombres: "", apellidos: "", email: "", dni: "",
     password: "", auto_password: true, force_change: true, notify_email: true,
     carrera_id: "", ciclo_inicial: "1", fecha_inicio_ciclo: "",
   });
@@ -77,10 +77,11 @@ function UsuariosContent() {
   async function handleCreate() {
     setSaving(true); setError("");
     try {
+      const nombre_completo = `${form.nombres.trim()} ${form.apellidos.trim()}`.trim();
       const res = await fetch("/api/admin/create-user", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${await getToken()}` },
-        body: JSON.stringify(form),
+        body: JSON.stringify({ ...form, nombre_completo }),
       });
       const json = await res.json();
       console.log("Respuesta del servidor:", json);
@@ -89,7 +90,7 @@ function UsuariosContent() {
         setError(`⚠️ Usuario creado en Auth pero NO en profiles: ${json.error}. Verifica permisos de la tabla profiles.`);
       }
       setShowModal(false);
-      setForm({ tipo: "alumno", nombre_completo: "", email: "", dni: "", password: "", auto_password: true, force_change: true, notify_email: true, carrera_id: "", ciclo_inicial: "1", fecha_inicio_ciclo: "" });
+      setForm({ tipo: "alumno", nombres: "", apellidos: "", email: "", dni: "", password: "", auto_password: true, force_change: true, notify_email: true, carrera_id: "", ciclo_inicial: "1", fecha_inicio_ciclo: "" });
       cargar();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Error");
@@ -118,21 +119,6 @@ function UsuariosContent() {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${await getToken()}` },
         body: JSON.stringify({ userId, estado: nuevoEstado }),
-      });
-      if (!res.ok) throw new Error((await res.json()).error);
-      cargar();
-    } catch (e) { setError(e instanceof Error ? e.message : "Error"); }
-  }
-
-  async function handleDeactivate(p: Profile) {
-    if (p.id === user?.id) { setError("No puedes desactivar tu propia cuenta"); return; }
-    if (p.estado === "inactivo") { setError("Este usuario ya está inactivo"); return; }
-    if (!confirm(`¿Desactivar a "${p.nombre_completo}" (${p.email})?\n\nEl usuario quedará inactivo y no aparecerá en el listado por defecto. Sus datos académicos se mantienen intactos.`)) return;
-    try {
-      const res = await fetch("/api/admin/toggle-user", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${await getToken()}` },
-        body: JSON.stringify({ userId: p.id, estado: "inactivo" }),
       });
       if (!res.ok) throw new Error((await res.json()).error);
       cargar();
@@ -279,16 +265,12 @@ function UsuariosContent() {
                     </td>
                     <td className="py-3 px-4">
                       <div className="flex gap-2">
-                        <button onClick={() => handleReset(p.id)} title="Resetear contraseña"
+                        <button onClick={() => handleReset(p.id)} title="Restablecer contraseña"
                           className="text-mcm-muted hover:text-[#a93526]"><Key size={14} /></button>
                         <button onClick={() => handleToggle(p.id, p.estado)} title={p.estado === "activo" ? "Desactivar" : "Activar"}
                           className="text-mcm-muted hover:text-[#a93526]">
                           {p.estado === "activo" ? <XCircle size={14} /> : <CheckCircle size={14} />}
                         </button>
-                        {p.estado === "activo" && p.id !== user?.id && (
-                          <button onClick={() => handleDeactivate(p)} title="Desactivar usuario"
-                            className="text-mcm-muted hover:text-red-600"><Trash2 size={14} /></button>
-                        )}
                         {p.id !== user?.id && (
                           <button onClick={() => handlePurge(p)} title="Eliminar usuario de prueba (irreversible)"
                             className="text-mcm-muted hover:text-red-700"><UserX size={14} /></button>
@@ -323,11 +305,19 @@ function UsuariosContent() {
                   <option value="profesor">Profesor</option>
                 </select>
               </div>
-              <div>
-                <label className="block text-sm font-medium text-mcm-text mb-1">Nombre completo</label>
-                <input value={form.nombre_completo} onChange={e => setForm({...form, nombre_completo: e.target.value.toUpperCase()})}
-                  placeholder="NOMBRE APELLIDO" style={{ textTransform: "uppercase" }}
-                  className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#a93526]" />
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm font-medium text-mcm-text mb-1">Nombres *</label>
+                  <input value={form.nombres} onChange={e => setForm({...form, nombres: e.target.value.toUpperCase()})}
+                    placeholder="JUAN CARLOS" style={{ textTransform: "uppercase" }}
+                    className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#a93526]" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-mcm-text mb-1">Apellidos *</label>
+                  <input value={form.apellidos} onChange={e => setForm({...form, apellidos: e.target.value.toUpperCase()})}
+                    placeholder="PÉREZ GARCÍA" style={{ textTransform: "uppercase" }}
+                    className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#a93526]" />
+                </div>
               </div>
               <div>
                 <label className="block text-sm font-medium text-mcm-text mb-1">Correo electrónico</label>
@@ -405,7 +395,7 @@ function UsuariosContent() {
             </div>
             <div className="flex gap-3 mt-5">
               <button onClick={() => setShowModal(false)} className="btn-secondary flex-1 text-sm">Cancelar</button>
-              <button onClick={handleCreate} disabled={saving || !form.nombre_completo || !form.email || (form.tipo === "alumno" && !form.carrera_id)}
+              <button onClick={handleCreate} disabled={saving || !form.nombres || !form.apellidos || !form.email || (form.tipo === "alumno" && !form.carrera_id)}
                 className="btn-primary flex-1 text-sm disabled:opacity-50 flex items-center justify-center gap-2">
                 {saving && <Loader2 size={14} className="animate-spin" />}
                 {saving ? "Creando..." : "Crear usuario"}
