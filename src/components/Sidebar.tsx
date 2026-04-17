@@ -4,22 +4,21 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import {
-  LayoutDashboard, BookOpen, CreditCard, FileText,
-  Settings, LogOut, ChevronRight, Users, BarChart2, RefreshCw, UserCog,
+  LayoutDashboard, BookOpen, FileText,
+  Settings, LogOut, ChevronRight, BarChart2, RefreshCw, UserCog,
 } from "lucide-react";
 import clsx from "clsx";
 
+const ADMIN_ROLES = ["super_admin", "staff_tramites", "gestor", "actualizacion"];
+
 const NAV_ITEMS = [
-  { href: "/dashboard",                   label: "Inicio",           icon: LayoutDashboard, roles: ["super_admin", "staff_tramites", "gestor", "alumno"] },
-  { href: "/dashboard/cursos",            label: "Cursos",           icon: BookOpen,        roles: ["super_admin", "alumno"] },
-  { href: "/dashboard/pagos",             label: "Pagos",            icon: CreditCard,      roles: ["super_admin", "alumno"] },
-  { href: "/dashboard/tramites",          label: "Trámites",         icon: FileText,        roles: ["super_admin", "alumno"] },
-  { href: "/dashboard/tramites-externos", label: "Trám. Externos",   icon: Users,           roles: ["super_admin", "staff_tramites", "gestor"] },
-  { href: "/dashboard/actualizacion",     label: "Actualización",    icon: RefreshCw,       roles: ["super_admin", "actualizacion"] },
-  { href: "/dashboard/reportes",          label: "Reportes",         icon: BarChart2,       roles: ["super_admin", "gestor"] },
-  { href: "/dashboard/usuarios",          label: "Usuarios",         icon: UserCog,         roles: ["super_admin"] },
-  { href: "/dashboard/academico",         label: "Académico",        icon: BookOpen,        roles: ["super_admin"] },
-  { href: "/dashboard/config",            label: "Configuración",    icon: Settings,        roles: ["super_admin", "alumno"] },
+  { href: "/dashboard",                   label: "Inicio",              icon: LayoutDashboard, roles: ["super_admin", "staff_tramites", "gestor"] },
+  { href: "/dashboard/tramites-externos", label: "Gestión de Trámites", icon: FileText,        roles: ["super_admin", "staff_tramites", "gestor"] },
+  { href: "/dashboard/actualizacion",     label: "Actualización",       icon: RefreshCw,       roles: ["super_admin", "actualizacion"] },
+  { href: "/dashboard/usuarios",          label: "Usuarios",            icon: UserCog,         roles: ["super_admin"] },
+  { href: "/dashboard/academico",         label: "Académico",           icon: BookOpen,        roles: ["super_admin"] },
+  { href: "/dashboard/reportes",          label: "Reportes",            icon: BarChart2,       roles: ["super_admin", "gestor"] },
+  { href: "/dashboard/config",            label: "Configuración",       icon: Settings,        roles: ["super_admin"] },
 ];
 
 export default function Sidebar() {
