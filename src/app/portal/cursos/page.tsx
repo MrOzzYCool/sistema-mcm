@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { supabase } from "@/lib/supabase";
-import { BookOpen, Clock, TrendingUp, Loader2, RefreshCw } from "lucide-react";
+import { BookOpen, Clock, TrendingUp, Loader2, RefreshCw, AlertCircle } from "lucide-react";
 
 interface Inscripcion {
   ciclo_actual: number;
@@ -30,31 +30,91 @@ export default function CursosAlumnoPage() {
   const [cursos, setCursos]           = useState<AlumnoCurso[]>([]);
   const [historial, setHistorial]     = useState<HistorialCiclo[]>([]);
   const [loading, setLoading]         = useState(true);
+  const [error, setError]             = useState("");
+  const [hasLoaded, setHasLoaded]     = useState(false); // Track if we've loaded at least once
+  const abortRef = useRef<AbortController | null>(null);
 
-  const cargar = useCallback(async () => {
-    setLoading(true);
-    const { data: { session } } = await supabase.auth.getSession();
-    const token = session?.access_token;
-    if (!token) { setLoading(false); return; }
+  const cargar = useCallback(async (showSpinner = true) => {
+    // Cancel any pending request
+    if (abortRef.current) abortRef.current.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
 
-    const res = await fetch("/api/portal/mis-cursos", {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    if (res.ok) {
+    if (showSpinner && !hasLoaded) setLoading(true);
+    setError("");
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      if (!token) {
+        if (!hasLoaded) setError("Sesión no disponible. Intenta recargar la página.");
+        return;
+      }
+
+      const res = await fetch("/api/portal/mis-cursos", {
+        headers: { Authorization: `Bearer ${token}` },
+        signal: controller.signal,
+      });
+
+      if (controller.signal.aborted) return;
+
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({ error: "Error del servidor" }));
+        throw new Error(json.error ?? `Error ${res.status}`);
+      }
+
       const data = await res.json();
+      if (controller.signal.aborted) return;
+
       setInscripcion(data.inscripcion);
       setCursos(data.cursos ?? []);
       setHistorial(data.historial ?? []);
+      setHasLoaded(true);
+    } catch (err) {
+      if (err instanceof DOMException && err.name === "AbortError") return;
+      console.error("Error cargando cursos:", err);
+      if (!hasLoaded) {
+        setError(err instanceof Error ? err.message : "Error cargando cursos");
+      }
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
-  }, []);
+  }, [hasLoaded]);
 
-  useEffect(() => { cargar(); }, [cargar]);
+  // Initial load
+  useEffect(() => {
+    cargar(true);
+    return () => { if (abortRef.current) abortRef.current.abort(); };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  if (loading) {
+  // Soft refresh when tab regains focus (no spinner, no loading state)
+  useEffect(() => {
+    const handler = () => {
+      if (document.visibilityState === "visible" && hasLoaded) {
+        cargar(false); // Silent refresh — don't show spinner
+      }
+    };
+    document.addEventListener("visibilitychange", handler);
+    return () => document.removeEventListener("visibilitychange", handler);
+  }, [hasLoaded, cargar]);
+
+  if (loading && !hasLoaded) {
     return (
       <div className="p-6 flex items-center justify-center min-h-[50vh] gap-3 text-mcm-muted">
         <Loader2 size={20} className="animate-spin" /> <span className="text-sm">Cargando cursos...</span>
+      </div>
+    );
+  }
+
+  if (error && !hasLoaded) {
+    return (
+      <div className="p-6 max-w-3xl mx-auto">
+        <div className="card text-center py-12">
+          <AlertCircle size={40} className="mx-auto text-red-400 mb-3" />
+          <h2 className="font-bold text-mcm-text text-lg mb-1">Error al cargar cursos</h2>
+          <p className="text-mcm-muted text-sm mb-4">{error}</p>
+          <button onClick={() => cargar(true)} className="btn-primary text-sm">Reintentar</button>
+        </div>
       </div>
     );
   }
@@ -82,7 +142,7 @@ export default function CursosAlumnoPage() {
             {inscripcion?.carreras?.nombre_carrera ?? "Carrera asignada"} · Ciclo {inscripcion?.ciclo_actual ?? cursos[0]?.ciclo ?? "—"}
           </p>
         </div>
-        <button onClick={cargar} className="btn-secondary flex items-center gap-2 text-sm">
+        <button onClick={() => cargar(false)} className="btn-secondary flex items-center gap-2 text-sm">
           <RefreshCw size={14} />
         </button>
       </div>
