@@ -6,7 +6,7 @@ import RouteGuard from "@/components/RouteGuard";
 import { supabase } from "@/lib/supabase";
 import {
   UserPlus, RefreshCw, Loader2, Search, Download, Upload,
-  CheckCircle, XCircle, Key, Mail, Eye, X,
+  CheckCircle, XCircle, Key, Mail, Eye, X, Trash2,
 } from "lucide-react";
 import clsx from "clsx";
 
@@ -22,6 +22,7 @@ function UsuariosContent() {
   const [error, setError]         = useState("");
   const [search, setSearch]       = useState("");
   const [filtroRol, setFiltroRol] = useState("todos");
+  const [filtroEstado, setFiltroEstado] = useState("todos");
   const [showModal, setShowModal] = useState(false);
   const [saving, setSaving]       = useState(false);
   const csvRef = useRef<HTMLInputElement>(null);
@@ -123,6 +124,21 @@ function UsuariosContent() {
     } catch (e) { setError(e instanceof Error ? e.message : "Error"); }
   }
 
+  async function handleDeactivate(p: Profile) {
+    if (p.id === user?.id) { setError("No puedes desactivar tu propia cuenta"); return; }
+    if (p.estado === "inactivo") { setError("Este usuario ya está inactivo"); return; }
+    if (!confirm(`¿Desactivar a "${p.nombre_completo}" (${p.email})?\n\nEl usuario quedará inactivo y no aparecerá en el listado por defecto. Sus datos académicos se mantienen intactos.`)) return;
+    try {
+      const res = await fetch("/api/admin/toggle-user", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${await getToken()}` },
+        body: JSON.stringify({ userId: p.id, estado: "inactivo" }),
+      });
+      if (!res.ok) throw new Error((await res.json()).error);
+      cargar();
+    } catch (e) { setError(e instanceof Error ? e.message : "Error"); }
+  }
+
   async function handleCSV(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -162,6 +178,7 @@ function UsuariosContent() {
   }
 
   const lista = profiles
+    .filter(p => filtroEstado === "todos" ? p.estado === "activo" : p.estado === filtroEstado)
     .filter(p => filtroRol === "todos" || p.rol === filtroRol)
     .filter(p => !search || p.nombre_completo.toLowerCase().includes(search.toLowerCase()) || p.email.toLowerCase().includes(search.toLowerCase()));
 
@@ -170,7 +187,7 @@ function UsuariosContent() {
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-2xl font-bold text-mcm-text">Gestión de Usuarios</h1>
-          <p className="text-mcm-muted text-sm">{profiles.length} usuarios registrados</p>
+          <p className="text-mcm-muted text-sm">{profiles.length} usuarios registrados · {profiles.filter(p => p.estado === "activo").length} activos</p>
         </div>
         <div className="flex items-center gap-2">
           <button onClick={() => setShowModal(true)} className="btn-primary flex items-center gap-2 text-sm">
@@ -205,6 +222,14 @@ function UsuariosContent() {
             {r}
           </button>
         ))}
+        <span className="text-mcm-border">|</span>
+        {["todos", "activo", "inactivo"].map(e => (
+          <button key={`e-${e}`} onClick={() => setFiltroEstado(e)}
+            className={clsx("px-3 py-1.5 rounded-full text-xs font-semibold transition-colors capitalize",
+              filtroEstado === e ? "bg-[#a93526] text-white" : "bg-slate-100 text-mcm-muted hover:bg-slate-200")}>
+            {e === "todos" ? "todos los estados" : e}
+          </button>
+        ))}
       </div>
 
       {/* Tabla */}
@@ -231,7 +256,7 @@ function UsuariosContent() {
                     <td className="py-3 px-4"><span className={p.rol === "profesor" ? "badge-blue" : "badge-green"}>{p.rol}</span></td>
                     <td className="py-3 px-4 text-mcm-muted font-mono text-xs">{p.dni ?? "—"}</td>
                     <td className="py-3 px-4">
-                      <span className={p.estado === "activo" ? "badge-green" : "badge-red"}>{p.estado}</span>
+                      <span className={p.estado === "activo" ? "badge-green" : "px-2 py-0.5 rounded-full text-xs font-semibold bg-gray-100 text-gray-600"}>{p.estado}</span>
                     </td>
                     <td className="py-3 px-4">
                       <div className="flex gap-2">
@@ -241,6 +266,10 @@ function UsuariosContent() {
                           className="text-mcm-muted hover:text-[#a93526]">
                           {p.estado === "activo" ? <XCircle size={14} /> : <CheckCircle size={14} />}
                         </button>
+                        {p.estado === "activo" && p.id !== user?.id && (
+                          <button onClick={() => handleDeactivate(p)} title="Desactivar usuario"
+                            className="text-mcm-muted hover:text-red-600"><Trash2 size={14} /></button>
+                        )}
                       </div>
                     </td>
                   </tr>
