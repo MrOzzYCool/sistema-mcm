@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useEffect, useState, ReactNode } from "react";
+import { createContext, useContext, useEffect, useState, useRef, ReactNode } from "react";
 import { User as SupabaseUser } from "@supabase/supabase-js";
 import { supabase } from "./supabase";
 
@@ -48,30 +48,48 @@ async function resolveUser(su: SupabaseUser): Promise<AppUser> {
     return { id: su.id, email, name, role: adminRole, avatar: initials };
   }
 
-  // 2. Buscar en profiles (con timeout para evitar que se quede colgado)
+  // 2. Buscar en profiles con retry
   try {
-    const { data: profile, error: profileErr } = await supabase
-      .from("profiles")
-      .select("nombre_completo, rol, estado")
-      .eq("id", su.id)
-      .single();
+    // Intentar leer el profile — si falla por RLS, reintentar una vez después de un breve delay
+    let profile = null;
+    let profileErr = null;
 
-    if (profileErr) {
-      console.warn("Error leyendo profile:", profileErr.message);
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const result = await supabase
+        .from("profiles")
+        .select("nombre_completo, rol, estado")
+        .eq("id", su.id)
+        .single();
+
+      profile = result.data;
+      profileErr = result.error;
+
+      if (profile || (profileErr && profileErr.code !== "PGRST116")) break;
+      // PGRST116 = "no rows returned" — might be timing issue, wait and retry
+      if (attempt === 0) await new Promise(r => setTimeout(r, 500));
+    }
+
+    if (profileErr && !profile) {
+      console.warn("resolveUser: Error leyendo profile:", profileErr.message);
     }
 
     // 3. Si no existe perfil, crearlo automáticamente
     if (!profile) {
       const nombre = su.user_metadata?.full_name ?? email.split("@")[0];
       try {
-        await supabase.from("profiles").insert({
+        const { data: newProfile } = await supabase.from("profiles").upsert({
           id:              su.id,
           nombre_completo: nombre,
           rol:             "alumno",
           estado:          "activo",
-        }).select().single();
+        }, { onConflict: "id" }).select().single();
+
+        if (newProfile) {
+          const initials = newProfile.nombre_completo.split(" ").map((w: string) => w[0]).join("").toUpperCase().slice(0, 2);
+          return { id: su.id, email, name: newProfile.nombre_completo, role: newProfile.rol as AppRole, avatar: initials };
+        }
       } catch (insertErr) {
-        console.warn("Error creando profile automático:", insertErr);
+        console.warn("resolveUser: Error creando profile:", insertErr);
       }
 
       const initials = nombre.split(" ").map((w: string) => w[0]).join("").toUpperCase().slice(0, 2);
@@ -84,8 +102,7 @@ async function resolveUser(su: SupabaseUser): Promise<AppUser> {
 
     return { id: su.id, email, name, role, avatar: initials };
   } catch (err) {
-    // Fallback: si todo falla, devolver usuario básico para no bloquear el login
-    console.error("Error en resolveUser, usando fallback:", err);
+    console.error("resolveUser: Fallback por error:", err);
     const name = su.user_metadata?.full_name ?? email.split("@")[0];
     const initials = name.split(" ").map((w: string) => w[0]).join("").toUpperCase().slice(0, 2);
     return { id: su.id, email, name, role: "alumno", avatar: initials };
@@ -97,26 +114,46 @@ async function resolveUser(su: SupabaseUser): Promise<AppUser> {
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser]       = useState<AppUser | null>(null);
   const [loading, setLoading] = useState(true);
+  const resolving = useRef(false);
 
   useEffect(() => {
+    // Initial session check
     supabase.auth.getSession().then(async ({ data: { session } }) => {
       if (session?.user) {
-        const appUser = await resolveUser(session.user);
-        setUser(appUser);
+        resolving.current = true;
+        try {
+          const appUser = await resolveUser(session.user);
+          setUser(appUser);
+        } finally {
+          resolving.current = false;
+        }
       }
       setLoading(false);
     });
 
+    // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (_event, session) => {
-        if (session?.user) {
-          setLoading(true); // Prevent premature redirects while resolving user
-          const appUser = await resolveUser(session.user);
-          setUser(appUser);
-        } else {
+      async (event, session) => {
+        // Skip if we're already resolving (avoid double-processing)
+        if (resolving.current) return;
+
+        if (event === "SIGNED_OUT") {
           setUser(null);
+          setLoading(false);
+          return;
         }
-        setLoading(false);
+
+        if (session?.user) {
+          setLoading(true);
+          resolving.current = true;
+          try {
+            const appUser = await resolveUser(session.user);
+            setUser(appUser);
+          } finally {
+            resolving.current = false;
+            setLoading(false);
+          }
+        }
       }
     );
 
@@ -124,12 +161,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   async function login(email: string, password: string) {
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) throw new Error(error.message);
+    setLoading(true);
+    try {
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) throw new Error(error.message);
+      // onAuthStateChange will handle setting the user
+    } catch (err) {
+      setLoading(false);
+      throw err;
+    }
   }
 
   async function logout() {
+    setLoading(true);
     await supabase.auth.signOut();
+    setUser(null);
+    setLoading(false);
   }
 
   return (

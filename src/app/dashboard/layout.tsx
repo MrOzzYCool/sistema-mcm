@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import Sidebar from "@/components/Sidebar";
@@ -8,15 +8,22 @@ import Sidebar from "@/components/Sidebar";
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
   const router = useRouter();
+  const [timedOut, setTimedOut] = useState(false);
+
+  // Safety timeout
+  useEffect(() => {
+    if (!loading) return;
+    const timer = setTimeout(() => setTimedOut(true), 8000);
+    return () => clearTimeout(timer);
+  }, [loading]);
 
   useEffect(() => {
-    if (!loading && !user) router.replace("/");
-    // Alumnos no deben ver el dashboard admin
-    if (!loading && user && user.role === "alumno") router.replace("/portal");
-  }, [user, loading, router]);
+    const ready = !loading || timedOut;
+    if (ready && !user) router.replace("/");
+    if (ready && user && user.role === "alumno") router.replace("/portal");
+  }, [user, loading, timedOut, router]);
 
-  // Mientras Supabase verifica la sesión, mostrar pantalla de carga
-  if (loading) {
+  if (loading && !timedOut) {
     return (
       <div className="min-h-screen flex items-center justify-center"
         style={{ background: "linear-gradient(160deg,#a93526 0%,#8a2b1f 100%)" }}>

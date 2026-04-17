@@ -117,7 +117,9 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      message: `Inscripción ${existente ? "actualizada" : "creada"} para ${profile.nombre_completo}. ${creados} cursos generados.`,
+      message: cursosErr
+        ? `Inscripción ${existente ? "actualizada" : "creada"} para ${profile.nombre_completo}, pero hubo un problema generando cursos: ${cursosErr}`
+        : `Inscripción ${existente ? "actualizada" : "creada"} para ${profile.nombre_completo}. ${creados} cursos generados.`,
       cursos_generados: creados,
       cursos_error: cursosErr ?? null,
     });
