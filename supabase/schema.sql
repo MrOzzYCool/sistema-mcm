@@ -198,3 +198,7 @@ create policy "write_cursos" on public.cursos for all using (auth.role() = 'auth
 
 create policy "read_malla" on public.malla_curricular for select using (true);
 create policy "write_malla" on public.malla_curricular for all using (auth.role() = 'authenticated');
+
+-- Campo codigo_interno para cursos (usado en import CSV)
+alter table public.cursos
+  add column if not exists codigo_interno text unique;

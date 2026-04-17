@@ -92,7 +92,7 @@ export async function POST(req: NextRequest) {
     }
 
     if (accion === "import_cursos") {
-      const { rows } = body as { rows: { nombre_curso: string; ciclo: number; creditos: number; career_codes: string[] }[] };
+      const { rows } = body as { rows: { nombre_curso: string; codigo_interno?: string; ciclo: number; creditos: number; career_codes: string[] }[] };
       if (!rows?.length) return NextResponse.json({ error: "Sin datos" }, { status: 400 });
 
       // Cargar carreras existentes para mapear códigos
@@ -109,19 +109,35 @@ export async function POST(req: NextRequest) {
             .map(code => codeMap.get(code.toUpperCase()))
             .filter(Boolean) as string[];
 
+          const carrerasNoEncontradas = row.career_codes.filter(code => !codeMap.has(code.toUpperCase()));
+
           if (!carreraIds.length) {
             results.push({ nombre: row.nombre_curso, status: "error", message: `Carreras no encontradas: ${row.career_codes.join(";")}` });
             continue;
           }
 
+          const insertData: Record<string, unknown> = {
+            nombre_curso: row.nombre_curso.trim(),
+            ciclo_perteneciente: row.ciclo || 1,
+            creditos: row.creditos || 3,
+          };
+          if (row.codigo_interno?.trim()) insertData.codigo_interno = row.codigo_interno.trim();
+
           const { data: curso, error } = await supabaseAdmin.from("cursos")
-            .insert({ nombre_curso: row.nombre_curso.trim(), ciclo_perteneciente: row.ciclo || 1, creditos: row.creditos || 3 })
+            .insert(insertData)
             .select().single();
 
           if (error) { results.push({ nombre: row.nombre_curso, status: "error", message: error.message }); continue; }
 
           const mallaRows = carreraIds.map(cid => ({ carrera_id: cid, curso_id: curso.id }));
           await supabaseAdmin.from("malla_curricular").insert(mallaRows);
+
+          const warning = carrerasNoEncontradas.length ? ` (carreras no encontradas: ${carrerasNoEncontradas.join(";")})` : "";
+          results.push({ nombre: row.nombre_curso, status: "ok", message: warning || undefined });
+        } catch (e) {
+          results.push({ nombre: row.nombre_curso ?? "—", status: "error", message: e instanceof Error ? e.message : "Error" });
+        }
+      }
 
           results.push({ nombre: row.nombre_curso, status: "ok" });
         } catch (e) {

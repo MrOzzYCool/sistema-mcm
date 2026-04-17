@@ -24,7 +24,7 @@ function AcademicoContent() {
 
   const [formCarrera, setFormCarrera] = useState({ nombre_carrera: "", codigo: "", duracion_ciclos: "6" });
   const [formCurso, setFormCurso]     = useState({ id: "", nombre_curso: "", ciclo_perteneciente: "1", creditos: "3", carrera_ids: [] as string[] });
-  const [csvRows, setCsvRows]         = useState<{ nombre_curso: string; ciclo: number; creditos: number; career_codes: string[] }[]>([]);
+  const [csvRows, setCsvRows]         = useState<{ nombre_curso: string; codigo_interno: string; ciclo: number; creditos: number; career_codes: string[] }[]>([]);
   const [importResult, setImportResult] = useState<{ nombre: string; status: string; message?: string }[] | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<{ tipo: "carrera" | "curso"; id: string; nombre: string } | null>(null);
   const [deleting, setDeleting]         = useState(false);
@@ -133,13 +133,16 @@ function AcademicoContent() {
     const reader = new FileReader();
     reader.onload = () => {
       const text = reader.result as string;
-      const lines = text.split("\n").filter(Boolean);
+      const lines = text.split("\n").filter(l => l.trim());
+      // Columnas: nombre_curso,codigo_interno,ciclo,creditos,career_codes
       const rows = lines.slice(1).map(line => {
-        const [nombre_curso, , cicloStr, creditosStr, codesStr] = line.split(",").map(s => s.trim());
+        const parts = line.split(",").map(s => s.trim());
         return {
-          nombre_curso: nombre_curso ?? "", ciclo: parseInt(cicloStr) || 1,
-          creditos: parseInt(creditosStr) || 3,
-          career_codes: (codesStr ?? "").split(";").map(s => s.trim()).filter(Boolean),
+          nombre_curso:    parts[0] ?? "",
+          codigo_interno:  parts[1] ?? "",
+          ciclo:           parseInt(parts[2]) || 1,
+          creditos:        parseInt(parts[3]) || 3,
+          career_codes:    (parts[4] ?? "").split(";").map(s => s.trim().toUpperCase()).filter(Boolean),
         };
       }).filter(r => r.nombre_curso);
       setCsvRows(rows); setModal("importCSV"); setImportResult(null);
@@ -333,7 +336,7 @@ function AcademicoContent() {
                 <div className="overflow-x-auto border border-mcm-border rounded-lg mb-4">
                   <table className="w-full text-xs">
                     <thead className="bg-slate-50">
-                      <tr>{["Curso", "Ciclo", "Créd.", "Carreras"].map(h => (
+                      <tr>{["Curso", "Código", "Ciclo", "Créd.", "Carreras"].map(h => (
                         <th key={h} className="text-left py-2 px-3 text-mcm-muted font-medium">{h}</th>
                       ))}</tr>
                     </thead>
@@ -341,6 +344,7 @@ function AcademicoContent() {
                       {csvRows.slice(0, 10).map((r, i) => (
                         <tr key={i} className="border-t border-mcm-border">
                           <td className="py-1.5 px-3">{r.nombre_curso}</td>
+                          <td className="py-1.5 px-3 font-mono">{r.codigo_interno}</td>
                           <td className="py-1.5 px-3">{r.ciclo}</td>
                           <td className="py-1.5 px-3">{r.creditos}</td>
                           <td className="py-1.5 px-3">{r.career_codes.join("; ")}</td>
