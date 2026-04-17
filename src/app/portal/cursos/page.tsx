@@ -1,8 +1,10 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useReducer } from "react";
 import { supabase } from "@/lib/supabase";
 import { BookOpen, Clock, TrendingUp, Loader2, RefreshCw, AlertCircle } from "lucide-react";
+
+/* ─── Types ────────────────────────────────────────────────────────────────── */
 
 interface Inscripcion {
   ciclo_actual: number;
@@ -10,97 +12,123 @@ interface Inscripcion {
   estado: string;
   carreras: { nombre_carrera: string; duracion_ciclos: number };
 }
-
 interface AlumnoCurso {
-  id: string;
-  ciclo: number;
-  estado: string;
+  id: string; ciclo: number; estado: string;
   cursos: { nombre_curso: string; creditos: number };
 }
-
 interface HistorialCiclo {
-  ciclo: number;
-  fecha_inicio: string;
-  fecha_fin: string | null;
-  estado: string;
+  ciclo: number; fecha_inicio: string; fecha_fin: string | null; estado: string;
 }
 
-export default function CursosAlumnoPage() {
-  const [inscripcion, setInscripcion] = useState<Inscripcion | null>(null);
-  const [cursos, setCursos]           = useState<AlumnoCurso[]>([]);
-  const [historial, setHistorial]     = useState<HistorialCiclo[]>([]);
-  const [firstLoad, setFirstLoad]     = useState(true);  // only true until first successful fetch
-  const [error, setError]             = useState("");
-  const mountedRef = useRef(true);
-  const fetchingRef = useRef(false);
+/* ─── State machine — impossible to get stuck ──────────────────────────────── */
 
-  async function fetchCursos() {
-    // Prevent concurrent fetches
-    if (fetchingRef.current) return;
-    fetchingRef.current = true;
+type State = {
+  status: "idle" | "loading" | "ready" | "error";
+  inscripcion: Inscripcion | null;
+  cursos: AlumnoCurso[];
+  historial: HistorialCiclo[];
+  errorMsg: string;
+};
 
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!mountedRef.current) return;
+type Action =
+  | { type: "FETCH_START" }
+  | { type: "FETCH_OK"; inscripcion: Inscripcion | null; cursos: AlumnoCurso[]; historial: HistorialCiclo[] }
+  | { type: "FETCH_ERROR"; msg: string }
+  | { type: "BG_REFRESH_OK"; inscripcion: Inscripcion | null; cursos: AlumnoCurso[]; historial: HistorialCiclo[] };
 
-      const token = session?.access_token;
-      if (!token) {
-        if (firstLoad) setError("Sesión no disponible. Recarga la página.");
-        return;
-      }
-
-      const res = await fetch("/api/portal/mis-cursos", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-
-      if (!mountedRef.current) return;
-
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
-        throw new Error(body.error ?? `Error ${res.status}`);
-      }
-
-      const data = await res.json();
-      if (!mountedRef.current) return;
-
-      setInscripcion(data.inscripcion);
-      setCursos(data.cursos ?? []);
-      setHistorial(data.historial ?? []);
-      setFirstLoad(false);
-      setError("");
-    } catch (err) {
-      if (!mountedRef.current) return;
-      const msg = err instanceof Error ? err.message : "Error cargando cursos";
-      // Only show error if we haven't loaded data yet
-      if (firstLoad) setError(msg);
-      else console.warn("Background refresh failed:", msg);
-    } finally {
-      fetchingRef.current = false;
-      if (mountedRef.current && firstLoad) setFirstLoad(false);
-    }
+function reducer(state: State, action: Action): State {
+  switch (action.type) {
+    case "FETCH_START":
+      // Only show loading if we have no data yet
+      return state.status === "ready"
+        ? state // Keep showing existing data during background refresh
+        : { ...state, status: "loading" };
+    case "FETCH_OK":
+      return { status: "ready", inscripcion: action.inscripcion, cursos: action.cursos, historial: action.historial, errorMsg: "" };
+    case "BG_REFRESH_OK":
+      return { status: "ready", inscripcion: action.inscripcion, cursos: action.cursos, historial: action.historial, errorMsg: "" };
+    case "FETCH_ERROR":
+      // If we already have data, keep it visible
+      return state.status === "ready"
+        ? state
+        : { ...state, status: "error", errorMsg: action.msg };
+    default:
+      return state;
   }
+}
 
-  // Initial load
-  useEffect(() => {
-    mountedRef.current = true;
-    fetchCursos();
-    return () => { mountedRef.current = false; };
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+const initialState: State = {
+  status: "idle", inscripcion: null, cursos: [], historial: [], errorMsg: "",
+};
 
-  // Silent refresh on tab focus — no spinner, no loading state
+/* ─── Component ────────────────────────────────────────────────────────────── */
+
+export default function CursosAlumnoPage() {
+  const [state, dispatch] = useReducer(reducer, initialState);
+  const [fetchId, setFetchId] = useState(0); // Increment to trigger a new fetch
+
+  // Single effect that fetches data whenever fetchId changes
   useEffect(() => {
-    function onFocus() {
-      if (document.visibilityState === "visible" && !firstLoad) {
-        fetchCursos(); // Background refresh — existing data stays visible
+    let cancelled = false;
+
+    async function doFetch() {
+      dispatch({ type: "FETCH_START" });
+
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (cancelled) return;
+
+        const token = session?.access_token;
+        if (!token) {
+          dispatch({ type: "FETCH_ERROR", msg: "Sesión no disponible. Recarga la página." });
+          return;
+        }
+
+        const res = await fetch("/api/portal/mis-cursos", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (cancelled) return;
+
+        if (!res.ok) {
+          const body = await res.json().catch(() => ({}));
+          dispatch({ type: "FETCH_ERROR", msg: body.error ?? `Error ${res.status}` });
+          return;
+        }
+
+        const data = await res.json();
+        if (cancelled) return;
+
+        const actionType = state.status === "ready" ? "BG_REFRESH_OK" : "FETCH_OK";
+        dispatch({
+          type: actionType,
+          inscripcion: data.inscripcion,
+          cursos: data.cursos ?? [],
+          historial: data.historial ?? [],
+        });
+      } catch (err) {
+        if (cancelled) return;
+        dispatch({ type: "FETCH_ERROR", msg: err instanceof Error ? err.message : "Error de red" });
       }
     }
-    document.addEventListener("visibilitychange", onFocus);
-    return () => document.removeEventListener("visibilitychange", onFocus);
-  }); // No deps — always uses latest refs
 
-  // ─── RENDER ─────────────────────────────────────────────────────────────────
+    doFetch();
+    return () => { cancelled = true; };
+  }, [fetchId]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  if (firstLoad && !error) {
+  // On tab focus: trigger background refresh (only if we already have data)
+  useEffect(() => {
+    function onVisible() {
+      if (document.visibilityState === "visible" && state.status === "ready") {
+        setFetchId(n => n + 1);
+      }
+    }
+    document.addEventListener("visibilitychange", onVisible);
+    return () => document.removeEventListener("visibilitychange", onVisible);
+  }, [state.status]);
+
+  /* ─── Render ─────────────────────────────────────────────────────────────── */
+
+  if (state.status === "idle" || state.status === "loading") {
     return (
       <div className="p-6 flex items-center justify-center min-h-[50vh] gap-3 text-mcm-muted">
         <Loader2 size={20} className="animate-spin" /> <span className="text-sm">Cargando cursos...</span>
@@ -108,20 +136,20 @@ export default function CursosAlumnoPage() {
     );
   }
 
-  if (error && cursos.length === 0) {
+  if (state.status === "error") {
     return (
       <div className="p-6 max-w-3xl mx-auto">
         <div className="card text-center py-12">
           <AlertCircle size={40} className="mx-auto text-red-400 mb-3" />
           <h2 className="font-bold text-mcm-text text-lg mb-1">Error al cargar cursos</h2>
-          <p className="text-mcm-muted text-sm mb-4">{error}</p>
-          <button onClick={() => { setFirstLoad(true); setError(""); fetchCursos(); }} className="btn-primary text-sm">
-            Reintentar
-          </button>
+          <p className="text-mcm-muted text-sm mb-4">{state.errorMsg}</p>
+          <button onClick={() => setFetchId(n => n + 1)} className="btn-primary text-sm">Reintentar</button>
         </div>
       </div>
     );
   }
+
+  const { inscripcion, cursos, historial } = state;
 
   if (!inscripcion && cursos.length === 0) {
     return (
@@ -147,7 +175,7 @@ export default function CursosAlumnoPage() {
             {inscripcion?.carreras?.nombre_carrera ?? "Carrera asignada"} · Ciclo {cicloActual}
           </p>
         </div>
-        <button onClick={fetchCursos} className="btn-secondary flex items-center gap-2 text-sm">
+        <button onClick={() => setFetchId(n => n + 1)} className="btn-secondary flex items-center gap-2 text-sm">
           <RefreshCw size={14} />
         </button>
       </div>
@@ -231,7 +259,7 @@ export default function CursosAlumnoPage() {
         </div>
       </div>
 
-      {/* Historial de ciclos */}
+      {/* Historial */}
       {historial.length > 0 && (
         <div className="card overflow-hidden p-0">
           <div className="px-6 py-4 border-b border-mcm-border flex items-center gap-2">
