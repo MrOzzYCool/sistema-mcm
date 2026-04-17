@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useState, useRef } from "react";
 import { supabase } from "@/lib/supabase";
 import { BookOpen, Clock, TrendingUp, Loader2, RefreshCw, AlertCircle } from "lucide-react";
 
@@ -29,76 +29,78 @@ export default function CursosAlumnoPage() {
   const [inscripcion, setInscripcion] = useState<Inscripcion | null>(null);
   const [cursos, setCursos]           = useState<AlumnoCurso[]>([]);
   const [historial, setHistorial]     = useState<HistorialCiclo[]>([]);
-  const [loading, setLoading]         = useState(true);
+  const [firstLoad, setFirstLoad]     = useState(true);  // only true until first successful fetch
   const [error, setError]             = useState("");
-  const [hasLoaded, setHasLoaded]     = useState(false); // Track if we've loaded at least once
-  const abortRef = useRef<AbortController | null>(null);
+  const mountedRef = useRef(true);
+  const fetchingRef = useRef(false);
 
-  const cargar = useCallback(async (showSpinner = true) => {
-    // Cancel any pending request
-    if (abortRef.current) abortRef.current.abort();
-    const controller = new AbortController();
-    abortRef.current = controller;
-
-    if (showSpinner && !hasLoaded) setLoading(true);
-    setError("");
+  async function fetchCursos() {
+    // Prevent concurrent fetches
+    if (fetchingRef.current) return;
+    fetchingRef.current = true;
 
     try {
       const { data: { session } } = await supabase.auth.getSession();
+      if (!mountedRef.current) return;
+
       const token = session?.access_token;
       if (!token) {
-        if (!hasLoaded) setError("Sesión no disponible. Intenta recargar la página.");
+        if (firstLoad) setError("Sesión no disponible. Recarga la página.");
         return;
       }
 
       const res = await fetch("/api/portal/mis-cursos", {
         headers: { Authorization: `Bearer ${token}` },
-        signal: controller.signal,
       });
 
-      if (controller.signal.aborted) return;
+      if (!mountedRef.current) return;
 
       if (!res.ok) {
-        const json = await res.json().catch(() => ({ error: "Error del servidor" }));
-        throw new Error(json.error ?? `Error ${res.status}`);
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error ?? `Error ${res.status}`);
       }
 
       const data = await res.json();
-      if (controller.signal.aborted) return;
+      if (!mountedRef.current) return;
 
       setInscripcion(data.inscripcion);
       setCursos(data.cursos ?? []);
       setHistorial(data.historial ?? []);
-      setHasLoaded(true);
+      setFirstLoad(false);
+      setError("");
     } catch (err) {
-      if (err instanceof DOMException && err.name === "AbortError") return;
-      console.error("Error cargando cursos:", err);
-      if (!hasLoaded) {
-        setError(err instanceof Error ? err.message : "Error cargando cursos");
-      }
+      if (!mountedRef.current) return;
+      const msg = err instanceof Error ? err.message : "Error cargando cursos";
+      // Only show error if we haven't loaded data yet
+      if (firstLoad) setError(msg);
+      else console.warn("Background refresh failed:", msg);
     } finally {
-      setLoading(false);
+      fetchingRef.current = false;
+      if (mountedRef.current && firstLoad) setFirstLoad(false);
     }
-  }, [hasLoaded]);
+  }
 
   // Initial load
   useEffect(() => {
-    cargar(true);
-    return () => { if (abortRef.current) abortRef.current.abort(); };
+    mountedRef.current = true;
+    fetchCursos();
+    return () => { mountedRef.current = false; };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Soft refresh when tab regains focus (no spinner, no loading state)
+  // Silent refresh on tab focus — no spinner, no loading state
   useEffect(() => {
-    const handler = () => {
-      if (document.visibilityState === "visible" && hasLoaded) {
-        cargar(false); // Silent refresh — don't show spinner
+    function onFocus() {
+      if (document.visibilityState === "visible" && !firstLoad) {
+        fetchCursos(); // Background refresh — existing data stays visible
       }
-    };
-    document.addEventListener("visibilitychange", handler);
-    return () => document.removeEventListener("visibilitychange", handler);
-  }, [hasLoaded, cargar]);
+    }
+    document.addEventListener("visibilitychange", onFocus);
+    return () => document.removeEventListener("visibilitychange", onFocus);
+  }); // No deps — always uses latest refs
 
-  if (loading && !hasLoaded) {
+  // ─── RENDER ─────────────────────────────────────────────────────────────────
+
+  if (firstLoad && !error) {
     return (
       <div className="p-6 flex items-center justify-center min-h-[50vh] gap-3 text-mcm-muted">
         <Loader2 size={20} className="animate-spin" /> <span className="text-sm">Cargando cursos...</span>
@@ -106,14 +108,16 @@ export default function CursosAlumnoPage() {
     );
   }
 
-  if (error && !hasLoaded) {
+  if (error && cursos.length === 0) {
     return (
       <div className="p-6 max-w-3xl mx-auto">
         <div className="card text-center py-12">
           <AlertCircle size={40} className="mx-auto text-red-400 mb-3" />
           <h2 className="font-bold text-mcm-text text-lg mb-1">Error al cargar cursos</h2>
           <p className="text-mcm-muted text-sm mb-4">{error}</p>
-          <button onClick={() => cargar(true)} className="btn-primary text-sm">Reintentar</button>
+          <button onClick={() => { setFirstLoad(true); setError(""); fetchCursos(); }} className="btn-primary text-sm">
+            Reintentar
+          </button>
         </div>
       </div>
     );
@@ -132,6 +136,7 @@ export default function CursosAlumnoPage() {
   }
 
   const totalCreditos = cursos.reduce((a, c) => a + (c.cursos?.creditos ?? 0), 0);
+  const cicloActual = inscripcion?.ciclo_actual ?? cursos[0]?.ciclo ?? "—";
 
   return (
     <div className="p-6 w-full max-w-7xl mx-auto space-y-6">
@@ -139,10 +144,10 @@ export default function CursosAlumnoPage() {
         <div>
           <h1 className="text-2xl font-bold text-mcm-text">Mis Cursos</h1>
           <p className="text-mcm-muted text-sm mt-0.5">
-            {inscripcion?.carreras?.nombre_carrera ?? "Carrera asignada"} · Ciclo {inscripcion?.ciclo_actual ?? cursos[0]?.ciclo ?? "—"}
+            {inscripcion?.carreras?.nombre_carrera ?? "Carrera asignada"} · Ciclo {cicloActual}
           </p>
         </div>
-        <button onClick={() => cargar(false)} className="btn-secondary flex items-center gap-2 text-sm">
+        <button onClick={fetchCursos} className="btn-secondary flex items-center gap-2 text-sm">
           <RefreshCw size={14} />
         </button>
       </div>
@@ -155,7 +160,7 @@ export default function CursosAlumnoPage() {
           </div>
           <div>
             <p className="text-white/70 text-xs">Ciclo actual</p>
-            <p className="text-3xl font-bold">{inscripcion?.ciclo_actual ?? cursos[0]?.ciclo ?? "—"}</p>
+            <p className="text-3xl font-bold">{cicloActual}</p>
           </div>
         </div>
         <div className="card">
@@ -189,7 +194,7 @@ export default function CursosAlumnoPage() {
       <div className="card overflow-hidden p-0">
         <div className="px-6 py-4 border-b border-mcm-border flex items-center gap-2">
           <BookOpen size={16} className="text-mcm-muted" />
-          <h2 className="font-semibold text-mcm-text">Cursos del Ciclo {inscripcion?.ciclo_actual ?? cursos[0]?.ciclo ?? ""}</h2>
+          <h2 className="font-semibold text-mcm-text">Cursos del Ciclo {cicloActual}</h2>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
@@ -204,8 +209,8 @@ export default function CursosAlumnoPage() {
               {cursos.map(c => {
                 const isFuture = inscripcion?.fecha_inicio_ciclo && new Date(inscripcion.fecha_inicio_ciclo) > new Date();
                 const effectiveEstado = (c.estado === "en_curso" && isFuture) ? "programado" : c.estado;
-                const badge = { programado: "badge-yellow", en_curso: "badge-blue", aprobado: "badge-green", desaprobado: "badge-red", retirado: "badge-gray" } as Record<string, string>;
-                const label = { programado: "Programado", en_curso: "En curso", aprobado: "Aprobado", desaprobado: "Desaprobado", retirado: "Retirado" } as Record<string, string>;
+                const badge: Record<string, string> = { programado: "badge-yellow", en_curso: "badge-blue", aprobado: "badge-green", desaprobado: "badge-red", retirado: "badge-gray" };
+                const label: Record<string, string> = { programado: "Programado", en_curso: "En curso", aprobado: "Aprobado", desaprobado: "Desaprobado", retirado: "Retirado" };
                 return (
                   <tr key={c.id} className="border-t border-mcm-border hover:bg-slate-50">
                     <td className="py-3.5 px-4 font-semibold text-mcm-text">{c.cursos?.nombre_curso}</td>

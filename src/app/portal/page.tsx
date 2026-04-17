@@ -1,11 +1,11 @@
 "use client";
 
 import { useAuth } from "@/lib/auth-context";
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useRef } from "react";
 import { supabase } from "@/lib/supabase";
 import {
   Calendar, BookOpen, CreditCard, FileText, ArrowRight,
-  TrendingUp, Clock, GraduationCap, Loader2,
+  GraduationCap, Loader2,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -20,38 +20,50 @@ interface PortalData {
 export default function PortalInicio() {
   const { user } = useAuth();
   const [data, setData] = useState<PortalData | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [firstLoad, setFirstLoad] = useState(true);
+  const mountedRef = useRef(true);
+  const fetchingRef = useRef(false);
 
-  const cargar = useCallback(async () => {
-    setLoading(true);
+  async function fetchData() {
+    if (fetchingRef.current) return;
+    fetchingRef.current = true;
     try {
       const { data: { session } } = await supabase.auth.getSession();
+      if (!mountedRef.current) return;
       const token = session?.access_token;
-      if (!token) { setLoading(false); return; }
+      if (!token) return;
 
       const res = await fetch("/api/portal/mis-cursos", {
         headers: { Authorization: `Bearer ${token}` },
       });
-      if (res.ok) {
-        const json = await res.json();
-        const insc = json.inscripcion;
-        const cursos = json.cursos ?? [];
-        setData({
-          carrera: insc?.carreras?.nombre_carrera ?? "Sin carrera asignada",
-          ciclo: insc?.ciclo_actual ?? cursos[0]?.ciclo ?? 0,
-          totalCursos: cursos.length,
-          totalCreditos: cursos.reduce((a: number, c: { cursos?: { creditos?: number } }) => a + (c.cursos?.creditos ?? 0), 0),
-          fechaInicio: insc?.fecha_inicio_ciclo ?? null,
-        });
-      }
-    } catch (err) {
-      console.error("Error cargando portal:", err);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+      if (!mountedRef.current || !res.ok) return;
 
-  useEffect(() => { cargar(); }, [cargar]);
+      const json = await res.json();
+      if (!mountedRef.current) return;
+
+      const insc = json.inscripcion;
+      const cursos = json.cursos ?? [];
+      setData({
+        carrera: insc?.carreras?.nombre_carrera ?? "Sin carrera asignada",
+        ciclo: insc?.ciclo_actual ?? cursos[0]?.ciclo ?? 0,
+        totalCursos: cursos.length,
+        totalCreditos: cursos.reduce((a: number, c: { cursos?: { creditos?: number } }) => a + (c.cursos?.creditos ?? 0), 0),
+        fechaInicio: insc?.fecha_inicio_ciclo ?? null,
+      });
+      setFirstLoad(false);
+    } catch (err) {
+      console.warn("Error cargando portal:", err);
+    } finally {
+      fetchingRef.current = false;
+      if (mountedRef.current) setFirstLoad(false);
+    }
+  }
+
+  useEffect(() => {
+    mountedRef.current = true;
+    fetchData();
+    return () => { mountedRef.current = false; };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const isFuture = data?.fechaInicio ? new Date(data.fechaInicio) > new Date() : false;
 
@@ -74,7 +86,7 @@ export default function PortalInicio() {
       </div>
 
       {/* KPI Cards */}
-      {loading ? (
+      {firstLoad ? (
         <div className="flex items-center justify-center py-12 gap-3 text-mcm-muted">
           <Loader2 size={20} className="animate-spin" /> <span className="text-sm">Cargando datos...</span>
         </div>
@@ -120,7 +132,7 @@ export default function PortalInicio() {
       ) : null}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Accesos rápidos — más grandes */}
+        {/* Accesos rápidos */}
         <div className="lg:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-4">
           <ActionCard href="/portal/cursos" icon={<BookOpen size={24} />}
             label="Mis Cursos" desc="Ver materias, créditos y estado" color="bg-green-50 text-green-600" />
