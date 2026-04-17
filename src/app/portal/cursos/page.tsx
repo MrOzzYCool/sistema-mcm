@@ -111,8 +111,10 @@ export default function CursosAlumnoPage() {
           <p className="text-sm font-bold text-mcm-text mt-1">
             {new Date(inscripcion.fecha_inicio_ciclo).toLocaleDateString("es-PE", { day: "2-digit", month: "long", year: "numeric" })}
           </p>
-          {new Date(inscripcion.fecha_inicio_ciclo) > new Date() && (
+          {new Date(inscripcion.fecha_inicio_ciclo) > new Date() ? (
             <span className="badge-yellow text-xs mt-1">Programado</span>
+          ) : (
+            <span className="badge-blue text-xs mt-1">En curso</span>
           )}
         </div>
       </div>
@@ -134,20 +136,24 @@ export default function CursosAlumnoPage() {
             </thead>
             <tbody>
               {cursos.map(c => {
-                const badge = { en_curso: "badge-blue", aprobado: "badge-green", desaprobado: "badge-red", retirado: "badge-gray" } as Record<string, string>;
-                const label = { en_curso: "En curso", aprobado: "Aprobado", desaprobado: "Desaprobado", retirado: "Retirado" } as Record<string, string>;
+                const isFuture = inscripcion?.fecha_inicio_ciclo && new Date(inscripcion.fecha_inicio_ciclo) > new Date();
+                const effectiveEstado = (c.estado === "en_curso" && isFuture) ? "programado" : c.estado;
+                const badge = { programado: "badge-yellow", en_curso: "badge-blue", aprobado: "badge-green", desaprobado: "badge-red", retirado: "badge-gray" } as Record<string, string>;
+                const label = { programado: "Programado", en_curso: "En curso", aprobado: "Aprobado", desaprobado: "Desaprobado", retirado: "Retirado" } as Record<string, string>;
                 return (
                   <tr key={c.id} className="border-t border-mcm-border hover:bg-slate-50">
                     <td className="py-3.5 px-4 font-semibold text-mcm-text">{c.cursos?.nombre_curso}</td>
                     <td className="py-3.5 px-4 text-mcm-text">{c.cursos?.creditos}</td>
                     <td className="py-3.5 px-4">
-                      <span className={badge[c.estado] ?? "badge-gray"}>{label[c.estado] ?? c.estado}</span>
+                      <span className={badge[effectiveEstado] ?? "badge-gray"}>{label[effectiveEstado] ?? effectiveEstado}</span>
                     </td>
                   </tr>
                 );
               })}
               {!cursos.length && (
-                <tr><td colSpan={3} className="py-12 text-center text-mcm-muted text-sm">No hay cursos asignados para este ciclo</td></tr>
+                <tr><td colSpan={3} className="py-12 text-center text-mcm-muted text-sm">
+                  No hay cursos asignados para este ciclo. Contacta a secretaría si crees que es un error.
+                </td></tr>
               )}
             </tbody>
           </table>
