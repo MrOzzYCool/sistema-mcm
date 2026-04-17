@@ -59,7 +59,7 @@ export default function CursosAlumnoPage() {
     );
   }
 
-  if (!inscripcion) {
+  if (!inscripcion && cursos.length === 0) {
     return (
       <div className="p-6 max-w-3xl mx-auto">
         <div className="card text-center py-12">
@@ -79,7 +79,7 @@ export default function CursosAlumnoPage() {
         <div>
           <h1 className="text-2xl font-bold text-mcm-text">Mis Cursos</h1>
           <p className="text-mcm-muted text-sm mt-0.5">
-            {inscripcion.carreras?.nombre_carrera} · Ciclo {inscripcion.ciclo_actual}
+            {inscripcion?.carreras?.nombre_carrera ?? "Carrera asignada"} · Ciclo {inscripcion?.ciclo_actual ?? cursos[0]?.ciclo ?? "—"}
           </p>
         </div>
         <button onClick={cargar} className="btn-secondary flex items-center gap-2 text-sm">
@@ -95,7 +95,7 @@ export default function CursosAlumnoPage() {
           </div>
           <div>
             <p className="text-white/70 text-xs">Ciclo actual</p>
-            <p className="text-3xl font-bold">{inscripcion.ciclo_actual}</p>
+            <p className="text-3xl font-bold">{inscripcion?.ciclo_actual ?? cursos[0]?.ciclo ?? "—"}</p>
           </div>
         </div>
         <div className="card">
@@ -108,13 +108,19 @@ export default function CursosAlumnoPage() {
         </div>
         <div className="card">
           <p className="text-xs text-mcm-muted">Inicio de clases</p>
-          <p className="text-sm font-bold text-mcm-text mt-1">
-            {new Date(inscripcion.fecha_inicio_ciclo).toLocaleDateString("es-PE", { day: "2-digit", month: "long", year: "numeric" })}
-          </p>
-          {new Date(inscripcion.fecha_inicio_ciclo) > new Date() ? (
-            <span className="badge-yellow text-xs mt-1">Programado</span>
+          {inscripcion?.fecha_inicio_ciclo ? (
+            <>
+              <p className="text-sm font-bold text-mcm-text mt-1">
+                {new Date(inscripcion.fecha_inicio_ciclo).toLocaleDateString("es-PE", { day: "2-digit", month: "long", year: "numeric" })}
+              </p>
+              {new Date(inscripcion.fecha_inicio_ciclo) > new Date() ? (
+                <span className="badge-yellow text-xs mt-1">Programado</span>
+              ) : (
+                <span className="badge-blue text-xs mt-1">En curso</span>
+              )}
+            </>
           ) : (
-            <span className="badge-blue text-xs mt-1">En curso</span>
+            <p className="text-sm font-bold text-mcm-text mt-1">Por definir</p>
           )}
         </div>
       </div>
@@ -123,7 +129,7 @@ export default function CursosAlumnoPage() {
       <div className="card overflow-hidden p-0">
         <div className="px-6 py-4 border-b border-mcm-border flex items-center gap-2">
           <BookOpen size={16} className="text-mcm-muted" />
-          <h2 className="font-semibold text-mcm-text">Cursos del Ciclo {inscripcion.ciclo_actual}</h2>
+          <h2 className="font-semibold text-mcm-text">Cursos del Ciclo {inscripcion?.ciclo_actual ?? cursos[0]?.ciclo ?? ""}</h2>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
