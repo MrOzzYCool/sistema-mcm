@@ -318,3 +318,7 @@ drop trigger if exists set_alumno_cursos_updated_at on public.alumno_cursos;
 create trigger set_alumno_cursos_updated_at
   before update on public.alumno_cursos
   for each row execute function public.set_updated_at();
+
+-- Campo fecha_matricula separado de fecha_inicio_ciclo
+alter table public.inscripciones
+  add column if not exists fecha_matricula timestamptz default now();

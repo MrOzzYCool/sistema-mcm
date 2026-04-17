@@ -56,12 +56,15 @@ export async function POST(req: NextRequest) {
 
     // Cerrar cursos del ciclo anterior y generar nuevos
     const { cerrarCursosCiclo, generarCursosCiclo } = await import("@/lib/generar-cursos-ciclo");
+    const { proximoLunes } = await import("@/lib/fecha-utils");
     await cerrarCursosCiclo(alumno_id, carrera_id, insc.ciclo_actual);
+
+    const nuevaFechaInicio = proximoLunes() + "T00:00:00.000Z";
 
     // Actualizar inscripción
     await supabaseAdmin.from("inscripciones").update({
       ciclo_actual: nuevoCiclo,
-      fecha_inicio_ciclo: ahora.toISOString(),
+      fecha_inicio_ciclo: nuevaFechaInicio,
       estado: nuevoEstado,
       updated_at: ahora.toISOString(),
     }).eq("id", insc.id);
@@ -70,7 +73,7 @@ export async function POST(req: NextRequest) {
     if (!esUltimoCiclo) {
       await supabaseAdmin.from("historial_ciclos").insert({
         alumno_id, carrera_id, ciclo: nuevoCiclo,
-        fecha_inicio: ahora.toISOString(), estado: "activo",
+        fecha_inicio: nuevaFechaInicio, estado: "activo",
       });
       await generarCursosCiclo(alumno_id, carrera_id, nuevoCiclo);
     }

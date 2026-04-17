@@ -30,7 +30,7 @@ function UsuariosContent() {
   const [form, setForm] = useState({
     tipo: "alumno", nombre_completo: "", email: "", dni: "",
     password: "", auto_password: true, force_change: true, notify_email: true,
-    carrera_id: "", ciclo_inicial: "1",
+    carrera_id: "", ciclo_inicial: "1", fecha_inicio_ciclo: "",
   });
   const [carrerasDisp, setCarrerasDisp] = useState<{ id: string; nombre_carrera: string; duracion_ciclos: number }[]>([]);
 
@@ -88,7 +88,7 @@ function UsuariosContent() {
         setError(`⚠️ Usuario creado en Auth pero NO en profiles: ${json.error}. Verifica permisos de la tabla profiles.`);
       }
       setShowModal(false);
-      setForm({ tipo: "alumno", nombre_completo: "", email: "", dni: "", password: "", auto_password: true, force_change: true, notify_email: true, carrera_id: "", ciclo_inicial: "1" });
+      setForm({ tipo: "alumno", nombre_completo: "", email: "", dni: "", password: "", auto_password: true, force_change: true, notify_email: true, carrera_id: "", ciclo_inicial: "1", fecha_inicio_ciclo: "" });
       cargar();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Error");
@@ -308,6 +308,23 @@ function UsuariosContent() {
                       {[1,2,3,4,5,6].map(n => <option key={n} value={String(n)}>Ciclo {n}</option>)}
                     </select>
                   </div>
+                </div>
+                {/* Fecha de inicio — solo para ciclo 1 */}
+                {form.ciclo_inicial === "1" && (
+                  <div>
+                    <label className="block text-sm font-medium text-mcm-text mb-1">Fecha de inicio de clases</label>
+                    <input type="date" value={form.fecha_inicio_ciclo}
+                      onChange={e => setForm({...form, fecha_inicio_ciclo: e.target.value})}
+                      className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#a93526]" />
+                    <p className="text-xs text-mcm-muted mt-1">
+                      {form.fecha_inicio_ciclo
+                        ? new Date(form.fecha_inicio_ciclo + "T00:00:00").getDay() === 1
+                          ? "✓ Lunes confirmado"
+                          : "⚠️ Se ajustará al próximo lunes"
+                        : "Si no se indica, se usará el próximo lunes"}
+                    </p>
+                  </div>
+                )}
                 </div>
               )}
               <div className="space-y-2">

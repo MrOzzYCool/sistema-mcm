@@ -88,7 +88,7 @@ export default function CursosAlumnoPage() {
       </div>
 
       {/* Resumen */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
         <div className="card flex items-center gap-4 bg-gradient-to-r from-[#8a2b1f] to-[#a93526] text-white border-0">
           <div className="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center">
             <TrendingUp className="w-6 h-6 text-white" />
@@ -105,6 +105,15 @@ export default function CursosAlumnoPage() {
         <div className="card">
           <p className="text-xs text-mcm-muted">Créditos totales</p>
           <p className="text-2xl font-bold text-mcm-text mt-1">{totalCreditos}</p>
+        </div>
+        <div className="card">
+          <p className="text-xs text-mcm-muted">Inicio de clases</p>
+          <p className="text-sm font-bold text-mcm-text mt-1">
+            {new Date(inscripcion.fecha_inicio_ciclo).toLocaleDateString("es-PE", { day: "2-digit", month: "long", year: "numeric" })}
+          </p>
+          {new Date(inscripcion.fecha_inicio_ciclo) > new Date() && (
+            <span className="badge-yellow text-xs mt-1">Programado</span>
+          )}
         </div>
       </div>
 

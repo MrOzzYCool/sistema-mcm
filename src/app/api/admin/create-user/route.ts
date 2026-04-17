@@ -30,7 +30,7 @@ export async function POST(req: NextRequest) {
     console.log("create-user: admin verificado:", admin.email);
 
     const body = await req.json();
-    const { tipo, nombre_completo, email, dni, password: customPassword, auto_password, force_change, notify_email, carrera_id, ciclo_inicial } = body;
+    const { tipo, nombre_completo, email, dni, password: customPassword, auto_password, force_change, notify_email, carrera_id, ciclo_inicial, fecha_inicio_ciclo: fechaInicioProp } = body;
 
     if (!tipo || !nombre_completo || !email) {
       return NextResponse.json({ error: "Faltan campos obligatorios" }, { status: 400 });
@@ -91,11 +91,24 @@ export async function POST(req: NextRequest) {
     // Crear inscripción para alumnos
     if (tipo === "alumno" && carrera_id) {
       const ciclo = parseInt(ciclo_inicial) || 1;
+      const ahora = new Date().toISOString();
+
+      // Calcular fecha de inicio: usar la proporcionada o el próximo lunes
+      const { proximoLunes, esLunes } = await import("@/lib/fecha-utils");
+      let fechaInicio: string;
+      if (fechaInicioProp && ciclo === 1) {
+        // Admin proporcionó fecha — validar que sea lunes
+        fechaInicio = esLunes(fechaInicioProp) ? fechaInicioProp : proximoLunes(new Date(fechaInicioProp));
+      } else {
+        fechaInicio = proximoLunes();
+      }
+
       const { error: inscError } = await supabaseAdmin.from("inscripciones").insert({
         alumno_id: userId,
         carrera_id,
         ciclo_actual: ciclo,
-        fecha_inicio_ciclo: new Date().toISOString(),
+        fecha_inicio_ciclo: fechaInicio + "T00:00:00.000Z",
+        fecha_matricula: ahora,
         estado: "activo",
       });
       if (inscError) {
@@ -106,7 +119,7 @@ export async function POST(req: NextRequest) {
           alumno_id: userId,
           carrera_id,
           ciclo,
-          fecha_inicio: new Date().toISOString(),
+          fecha_inicio: fechaInicio + "T00:00:00.000Z",
           estado: "activo",
         });
 
