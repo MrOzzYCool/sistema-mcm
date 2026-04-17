@@ -6,7 +6,7 @@ import RouteGuard from "@/components/RouteGuard";
 import { supabase } from "@/lib/supabase";
 import {
   UserPlus, RefreshCw, Loader2, Search, Download, Upload,
-  CheckCircle, XCircle, Key, Mail, Eye, X, Trash2,
+  CheckCircle, XCircle, Key, Mail, Eye, X, Trash2, UserX,
 } from "lucide-react";
 import clsx from "clsx";
 
@@ -135,6 +135,25 @@ function UsuariosContent() {
         body: JSON.stringify({ userId: p.id, estado: "inactivo" }),
       });
       if (!res.ok) throw new Error((await res.json()).error);
+      cargar();
+    } catch (e) { setError(e instanceof Error ? e.message : "Error"); }
+  }
+
+  async function handlePurge(p: Profile) {
+    if (p.id === user?.id) { setError("No puedes eliminar tu propia cuenta"); return; }
+    const msg = `⚠️ ELIMINAR USUARIO DE PRUEBA ⚠️\n\n"${p.nombre_completo}" (${p.email})\n\nEsta acción eliminará COMPLETAMENTE al usuario:\n• Se borrará de Supabase Auth\n• Se borrará su perfil\n• Se borrarán inscripciones, historial y cursos\n\nPodrás crear otro usuario con el mismo email/DNI después.\n\n¿Continuar?`;
+    if (!confirm(msg)) return;
+    // Doble confirmación
+    if (!confirm(`¿Estás SEGURO? Esta acción es IRREVERSIBLE.\n\nUsuario: ${p.nombre_completo}\nEmail: ${p.email}`)) return;
+    try {
+      const res = await fetch("/api/admin/purge-test-user", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${await getToken()}` },
+        body: JSON.stringify({ userId: p.id }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error);
+      alert(json.message ?? "Usuario de prueba eliminado completamente.");
       cargar();
     } catch (e) { setError(e instanceof Error ? e.message : "Error"); }
   }
@@ -269,6 +288,10 @@ function UsuariosContent() {
                         {p.estado === "activo" && p.id !== user?.id && (
                           <button onClick={() => handleDeactivate(p)} title="Desactivar usuario"
                             className="text-mcm-muted hover:text-red-600"><Trash2 size={14} /></button>
+                        )}
+                        {p.id !== user?.id && (
+                          <button onClick={() => handlePurge(p)} title="Eliminar usuario de prueba (irreversible)"
+                            className="text-mcm-muted hover:text-red-700"><UserX size={14} /></button>
                         )}
                       </div>
                     </td>
