@@ -48,32 +48,48 @@ async function resolveUser(su: SupabaseUser): Promise<AppUser> {
     return { id: su.id, email, name, role: adminRole, avatar: initials };
   }
 
-  // 2. Buscar en profiles
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("nombre_completo, rol, estado")
-    .eq("id", su.id)
-    .single();
+  // 2. Buscar en profiles (con timeout para evitar que se quede colgado)
+  try {
+    const { data: profile, error: profileErr } = await supabase
+      .from("profiles")
+      .select("nombre_completo, rol, estado")
+      .eq("id", su.id)
+      .single();
 
-  // 3. Si no existe perfil, crearlo automáticamente (fallback para usuarios sin trigger)
-  if (!profile) {
-    const nombre = su.user_metadata?.full_name ?? email.split("@")[0];
-    await supabase.from("profiles").insert({
-      id:              su.id,
-      nombre_completo: nombre,
-      rol:             "alumno",
-      estado:          "activo",
-    }).select().single();
+    if (profileErr) {
+      console.warn("Error leyendo profile:", profileErr.message);
+    }
 
-    const initials = nombre.split(" ").map((w: string) => w[0]).join("").toUpperCase().slice(0, 2);
-    return { id: su.id, email, name: nombre, role: "alumno", avatar: initials };
+    // 3. Si no existe perfil, crearlo automáticamente
+    if (!profile) {
+      const nombre = su.user_metadata?.full_name ?? email.split("@")[0];
+      try {
+        await supabase.from("profiles").insert({
+          id:              su.id,
+          nombre_completo: nombre,
+          rol:             "alumno",
+          estado:          "activo",
+        }).select().single();
+      } catch (insertErr) {
+        console.warn("Error creando profile automático:", insertErr);
+      }
+
+      const initials = nombre.split(" ").map((w: string) => w[0]).join("").toUpperCase().slice(0, 2);
+      return { id: su.id, email, name: nombre, role: "alumno", avatar: initials };
+    }
+
+    const name     = profile.nombre_completo ?? email.split("@")[0];
+    const initials = name.split(" ").map((w: string) => w[0]).join("").toUpperCase().slice(0, 2);
+    const role     = (profile.rol as AppRole) ?? "alumno";
+
+    return { id: su.id, email, name, role, avatar: initials };
+  } catch (err) {
+    // Fallback: si todo falla, devolver usuario básico para no bloquear el login
+    console.error("Error en resolveUser, usando fallback:", err);
+    const name = su.user_metadata?.full_name ?? email.split("@")[0];
+    const initials = name.split(" ").map((w: string) => w[0]).join("").toUpperCase().slice(0, 2);
+    return { id: su.id, email, name, role: "alumno", avatar: initials };
   }
-
-  const name     = profile.nombre_completo ?? email.split("@")[0];
-  const initials = name.split(" ").map((w: string) => w[0]).join("").toUpperCase().slice(0, 2);
-  const role     = (profile.rol as AppRole) ?? "alumno";
-
-  return { id: su.id, email, name, role, avatar: initials };
 }
 
 // ─── Provider ─────────────────────────────────────────────────────────────────

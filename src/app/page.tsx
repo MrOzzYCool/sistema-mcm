@@ -21,17 +21,16 @@ export default function LoginPage() {
     setLoading(true);
     try {
       await login(email, password);
-      // Redirigir según rol
-      const { supabase } = await import("@/lib/supabase");
-      const { data: { user } } = await supabase.auth.getUser();
+      // Esperar brevemente a que onAuthStateChange resuelva el usuario
+      // luego redirigir según el email
+      const emailLow = email.toLowerCase().trim();
       const rolMap: Record<string, string> = {
+        "admin@margaritacabrera.edu.pe":      "/dashboard",
+        "staff@margaritacabrera.edu.pe":      "/dashboard/tramites-externos",
+        "nvasquez@margaritacabrera.edu.pe":   "/dashboard/tramites-externos",
         "milnarvaez@margaritacabrera.edu.pe": "/dashboard/actualizacion",
       };
-      const userEmail = user?.email?.toLowerCase() ?? "";
-      const defaultDest = userEmail.endsWith("@margaritacabrera.edu.pe") && !rolMap[userEmail]
-        ? "/portal"
-        : "/dashboard/tramites-externos";
-      const dest = rolMap[userEmail] ?? defaultDest;
+      const dest = rolMap[emailLow] ?? "/portal";
       router.push(dest);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Credenciales incorrectas. Verifica tu correo y contraseña.");
