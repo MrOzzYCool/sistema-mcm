@@ -10,7 +10,6 @@ async function verifyAdmin(req: NextRequest) {
   return user;
 }
 
-// GET — listar carreras o cursos
 export async function GET(req: NextRequest) {
   const admin = await verifyAdmin(req);
   if (!admin) return NextResponse.json({ error: "No autorizado" }, { status: 403 });
@@ -32,7 +31,6 @@ export async function GET(req: NextRequest) {
   return NextResponse.json(data);
 }
 
-// POST — crear carrera, curso, asignar/quitar malla, import CSV
 export async function POST(req: NextRequest) {
   const admin = await verifyAdmin(req);
   if (!admin) return NextResponse.json({ error: "No autorizado" }, { status: 403 });
@@ -59,16 +57,12 @@ export async function POST(req: NextRequest) {
       const { nombre_curso, ciclo_perteneciente, creditos, carrera_ids } = body;
       if (!nombre_curso) return NextResponse.json({ error: "Nombre del curso es obligatorio" }, { status: 400 });
       if (!carrera_ids?.length) return NextResponse.json({ error: "Debes seleccionar al menos 1 carrera" }, { status: 400 });
-
       const { data: curso, error } = await supabaseAdmin.from("cursos")
         .insert({ nombre_curso, ciclo_perteneciente: ciclo_perteneciente || 1, creditos: creditos || 3 })
         .select().single();
       if (error) return NextResponse.json({ error: error.message }, { status: 400 });
-
       const rows = carrera_ids.map((cid: string) => ({ carrera_id: cid, curso_id: curso.id }));
-      const { error: mallaErr } = await supabaseAdmin.from("malla_curricular").insert(rows);
-      if (mallaErr) console.error("Error malla:", mallaErr.message);
-
+      await supabaseAdmin.from("malla_curricular").insert(rows);
       await supabaseAdmin.from("historial_auditoria").insert({
         accion: "crear_curso", admin_id: admin.id, admin_email: admin.email,
         detalle: { nombre_curso, carrera_ids },
@@ -92,10 +86,11 @@ export async function POST(req: NextRequest) {
     }
 
     if (accion === "import_cursos") {
-      const { rows } = body as { rows: { nombre_curso: string; codigo_interno?: string; ciclo: number; creditos: number; career_codes: string[] }[] };
+      const { rows } = body as {
+        rows: { nombre_curso: string; codigo_interno?: string; ciclo: number; creditos: number; career_codes: string[] }[];
+      };
       if (!rows?.length) return NextResponse.json({ error: "Sin datos" }, { status: 400 });
 
-      // Cargar carreras existentes para mapear códigos
       const { data: allCarreras } = await supabaseAdmin.from("carreras").select("id, codigo");
       const codeMap = new Map((allCarreras ?? []).map(c => [c.codigo.toUpperCase(), c.id]));
 
@@ -103,13 +98,16 @@ export async function POST(req: NextRequest) {
 
       for (const row of rows) {
         try {
-          if (!row.nombre_curso?.trim()) { results.push({ nombre: "—", status: "error", message: "Nombre vacío" }); continue; }
+          if (!row.nombre_curso?.trim()) {
+            results.push({ nombre: "—", status: "error", message: "Nombre vacío" });
+            continue;
+          }
 
           const carreraIds = row.career_codes
             .map(code => codeMap.get(code.toUpperCase()))
             .filter(Boolean) as string[];
 
-          const carrerasNoEncontradas = row.career_codes.filter(code => !codeMap.has(code.toUpperCase()));
+          const noEncontradas = row.career_codes.filter(code => !codeMap.has(code.toUpperCase()));
 
           if (!carreraIds.length) {
             results.push({ nombre: row.nombre_curso, status: "error", message: `Carreras no encontradas: ${row.career_codes.join(";")}` });
@@ -124,22 +122,18 @@ export async function POST(req: NextRequest) {
           if (row.codigo_interno?.trim()) insertData.codigo_interno = row.codigo_interno.trim();
 
           const { data: curso, error } = await supabaseAdmin.from("cursos")
-            .insert(insertData)
-            .select().single();
+            .insert(insertData).select().single();
 
-          if (error) { results.push({ nombre: row.nombre_curso, status: "error", message: error.message }); continue; }
+          if (error) {
+            results.push({ nombre: row.nombre_curso, status: "error", message: error.message });
+            continue;
+          }
 
           const mallaRows = carreraIds.map(cid => ({ carrera_id: cid, curso_id: curso.id }));
           await supabaseAdmin.from("malla_curricular").insert(mallaRows);
 
-          const warning = carrerasNoEncontradas.length ? ` (carreras no encontradas: ${carrerasNoEncontradas.join(";")})` : "";
+          const warning = noEncontradas.length ? ` (carreras no encontradas: ${noEncontradas.join(";")})` : "";
           results.push({ nombre: row.nombre_curso, status: "ok", message: warning || undefined });
-        } catch (e) {
-          results.push({ nombre: row.nombre_curso ?? "—", status: "error", message: e instanceof Error ? e.message : "Error" });
-        }
-      }
-
-          results.push({ nombre: row.nombre_curso, status: "ok" });
         } catch (e) {
           results.push({ nombre: row.nombre_curso ?? "—", status: "error", message: e instanceof Error ? e.message : "Error" });
         }
@@ -159,7 +153,6 @@ export async function POST(req: NextRequest) {
   }
 }
 
-// PUT — editar carrera o curso + actualizar malla
 export async function PUT(req: NextRequest) {
   const admin = await verifyAdmin(req);
   if (!admin) return NextResponse.json({ error: "No autorizado" }, { status: 403 });
@@ -172,7 +165,6 @@ export async function PUT(req: NextRequest) {
       const { error } = await supabaseAdmin.from("carreras").update(campos).eq("id", id);
       if (error) return NextResponse.json({ error: error.message }, { status: 400 });
     } else if (tipo === "curso") {
-      // Actualizar datos del curso
       const updateFields: Record<string, unknown> = {};
       if (campos.nombre_curso) updateFields.nombre_curso = campos.nombre_curso;
       if (campos.ciclo_perteneciente) updateFields.ciclo_perteneciente = campos.ciclo_perteneciente;
@@ -183,11 +175,8 @@ export async function PUT(req: NextRequest) {
         if (error) return NextResponse.json({ error: error.message }, { status: 400 });
       }
 
-      // Actualizar relaciones de malla si se proporcionaron
       if (Array.isArray(carrera_ids)) {
-        // Borrar relaciones actuales
         await supabaseAdmin.from("malla_curricular").delete().eq("curso_id", id);
-        // Insertar nuevas
         if (carrera_ids.length) {
           const rows = carrera_ids.map((cid: string) => ({ carrera_id: cid, curso_id: id }));
           await supabaseAdmin.from("malla_curricular").insert(rows);
@@ -205,7 +194,6 @@ export async function PUT(req: NextRequest) {
   }
 }
 
-// DELETE — eliminar carrera o curso
 export async function DELETE(req: NextRequest) {
   const admin = await verifyAdmin(req);
   if (!admin) return NextResponse.json({ error: "No autorizado" }, { status: 403 });
@@ -215,11 +203,9 @@ export async function DELETE(req: NextRequest) {
 
   try {
     if (tipo === "carrera") {
-      // Limpiar malla antes de borrar (ON DELETE CASCADE lo haría, pero por seguridad)
       await supabaseAdmin.from("malla_curricular").delete().eq("carrera_id", id);
       const { error } = await supabaseAdmin.from("carreras").delete().eq("id", id);
       if (error) return NextResponse.json({ error: error.message }, { status: 400 });
-
       await supabaseAdmin.from("historial_auditoria").insert({
         accion: "eliminar_carrera", admin_id: admin.id, admin_email: admin.email,
         target_id: id, detalle: { tipo: "carrera" },
@@ -228,15 +214,9 @@ export async function DELETE(req: NextRequest) {
     }
 
     if (tipo === "curso") {
-      // TODO: cuando exista tabla de notas, verificar actividad académica
-      // const { data: notas } = await supabaseAdmin.from("notas").select("id").eq("curso_id", id).limit(1);
-      // if (notas?.length) return NextResponse.json({ error: "No se puede eliminar porque ya tiene actividad académica." }, { status: 409 });
-
-      // Limpiar malla
       await supabaseAdmin.from("malla_curricular").delete().eq("curso_id", id);
       const { error } = await supabaseAdmin.from("cursos").delete().eq("id", id);
       if (error) return NextResponse.json({ error: error.message }, { status: 400 });
-
       await supabaseAdmin.from("historial_auditoria").insert({
         accion: "eliminar_curso", admin_id: admin.id, admin_email: admin.email,
         target_id: id, detalle: { tipo: "curso" },
