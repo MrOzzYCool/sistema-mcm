@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import RouteGuard from "@/components/RouteGuard";
 import { supabase } from "@/lib/supabase";
-import { Plus, RefreshCw, Loader2, X, BookOpen, GraduationCap, Link2, Pencil, Upload, Download, Trash2 } from "lucide-react";
+import { Plus, RefreshCw, Loader2, X, BookOpen, GraduationCap, Link2, Pencil, Upload, Download, Trash2, Search } from "lucide-react";
 import clsx from "clsx";
 
 interface Carrera { id: string; nombre_carrera: string; codigo: string; duracion_ciclos: number; malla_curricular?: { curso_id: string; cursos: { id: string; nombre_curso: string; ciclo_perteneciente: number; creditos: number } }[] }
@@ -28,6 +28,10 @@ function AcademicoContent() {
   const [importResult, setImportResult] = useState<{ nombre: string; status: string; message?: string }[] | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<{ tipo: "carrera" | "curso"; id: string; nombre: string } | null>(null);
   const [deleting, setDeleting]         = useState(false);
+  // Filtros de cursos
+  const [busqueda, setBusqueda]         = useState("");
+  const [filtroCarrera, setFiltroCarrera] = useState("todos");
+  const [filtroCiclo, setFiltroCiclo]   = useState("todos");
 
   async function getToken() {
     const { data } = await supabase.auth.getSession();
@@ -246,41 +250,79 @@ function AcademicoContent() {
           </div>
         </div>
       ) : (
-        <div className="card overflow-hidden p-0">
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="bg-slate-50">
-                <tr>{["Curso", "Ciclo", "Créditos", "Carreras", ""].map(h => (
-                  <th key={h} className="text-left py-3 px-4 text-mcm-muted font-medium text-xs uppercase tracking-wide">{h}</th>
-                ))}</tr>
-              </thead>
-              <tbody>
-                {cursos.map(c => (
-                  <tr key={c.id} className="border-t border-mcm-border hover:bg-slate-50">
-                    <td className="py-3 px-4 font-semibold text-mcm-text">{c.nombre_curso}</td>
-                    <td className="py-3 px-4">{c.ciclo_perteneciente}</td>
-                    <td className="py-3 px-4">{c.creditos}</td>
-                    <td className="py-3 px-4">
-                      <div className="flex flex-wrap gap-1">
-                        {c.malla_curricular?.map((m, i) => (
-                          <span key={i} className="badge-green text-xs">{m.carreras?.nombre_carrera}</span>
-                        )) ?? <span className="text-mcm-muted text-xs">—</span>}
-                      </div>
-                    </td>
-                    <td className="py-3 px-4">
-                      <div className="flex gap-2">
-                        <button onClick={() => openEdit(c)} className="text-mcm-muted hover:text-[#a93526]"><Pencil size={14} /></button>
-                        <button onClick={() => setDeleteTarget({ tipo: "curso", id: c.id, nombre: c.nombre_curso })}
-                          className="text-mcm-muted hover:text-red-600 transition-colors"><Trash2 size={14} /></button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-                {!cursos.length && <tr><td colSpan={5} className="py-12 text-center text-mcm-muted text-sm">No hay cursos</td></tr>}
-              </tbody>
-            </table>
+        <>
+          {/* Filtros de cursos */}
+          <div className="flex flex-wrap gap-3 items-center">
+            <div className="relative flex-1 min-w-[200px] max-w-xs">
+              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-mcm-muted" />
+              <input value={busqueda} onChange={e => setBusqueda(e.target.value)}
+                placeholder="Buscar por nombre o código..."
+                className="w-full pl-9 pr-3 py-2 border border-mcm-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#a93526]" />
+            </div>
+            <select value={filtroCarrera} onChange={e => setFiltroCarrera(e.target.value)}
+              className="border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#a93526]">
+              <option value="todos">Todas las carreras</option>
+              {carreras.map(c => <option key={c.id} value={c.id}>{c.nombre_carrera}</option>)}
+            </select>
+            <select value={filtroCiclo} onChange={e => setFiltroCiclo(e.target.value)}
+              className="border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#a93526]">
+              <option value="todos">Todos los ciclos</option>
+              {[1,2,3,4,5,6].map(n => <option key={n} value={String(n)}>Ciclo {n}</option>)}
+            </select>
           </div>
-        </div>
+
+          {(() => {
+            const cf = cursos.filter(c => {
+              const q = busqueda.toLowerCase();
+              const matchBusq = !busqueda || c.nombre_curso.toLowerCase().includes(q);
+              const matchCarr = filtroCarrera === "todos" || c.malla_curricular?.some(m => m.carrera_id === filtroCarrera);
+              const matchCiclo = filtroCiclo === "todos" || c.ciclo_perteneciente === parseInt(filtroCiclo);
+              return matchBusq && matchCarr && matchCiclo;
+            });
+            return (
+              <div className="card overflow-hidden p-0">
+                <div className="px-4 py-2 border-b border-mcm-border bg-slate-50 text-xs text-mcm-muted">
+                  {cf.length} de {cursos.length} cursos
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead className="bg-slate-50">
+                      <tr>{["Curso", "Ciclo", "Créditos", "Carreras", ""].map(h => (
+                        <th key={h} className="text-left py-3 px-4 text-mcm-muted font-medium text-xs uppercase tracking-wide">{h}</th>
+                      ))}</tr>
+                    </thead>
+                    <tbody>
+                      {cf.map(c => (
+                        <tr key={c.id} className="border-t border-mcm-border hover:bg-slate-50">
+                          <td className="py-3 px-4 font-semibold text-mcm-text">{c.nombre_curso}</td>
+                          <td className="py-3 px-4">{c.ciclo_perteneciente}</td>
+                          <td className="py-3 px-4">{c.creditos}</td>
+                          <td className="py-3 px-4">
+                            <div className="flex flex-wrap gap-1">
+                              {c.malla_curricular?.map((m, i) => (
+                                <span key={i} className="badge-green text-xs">{m.carreras?.nombre_carrera}</span>
+                              )) ?? <span className="text-mcm-muted text-xs">—</span>}
+                            </div>
+                          </td>
+                          <td className="py-3 px-4">
+                            <div className="flex gap-2">
+                              <button onClick={() => openEdit(c)} className="text-mcm-muted hover:text-[#a93526]"><Pencil size={14} /></button>
+                              <button onClick={() => setDeleteTarget({ tipo: "curso", id: c.id, nombre: c.nombre_curso })}
+                                className="text-mcm-muted hover:text-red-600 transition-colors"><Trash2 size={14} /></button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                      {!cf.length && (
+                        <tr><td colSpan={5} className="py-12 text-center text-mcm-muted text-sm">No se encontraron cursos con estos filtros</td></tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            );
+          })()}
+        </>
       )}
 
       {/* ── Modals ── */}
