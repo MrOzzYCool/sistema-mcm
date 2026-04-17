@@ -188,3 +188,48 @@ export async function PUT(req: NextRequest) {
     return NextResponse.json({ error: err instanceof Error ? err.message : "Error" }, { status: 500 });
   }
 }
+
+// DELETE — eliminar carrera o curso
+export async function DELETE(req: NextRequest) {
+  const admin = await verifyAdmin(req);
+  if (!admin) return NextResponse.json({ error: "No autorizado" }, { status: 403 });
+
+  const { tipo, id } = await req.json();
+  if (!tipo || !id) return NextResponse.json({ error: "tipo e id son obligatorios" }, { status: 400 });
+
+  try {
+    if (tipo === "carrera") {
+      // Limpiar malla antes de borrar (ON DELETE CASCADE lo haría, pero por seguridad)
+      await supabaseAdmin.from("malla_curricular").delete().eq("carrera_id", id);
+      const { error } = await supabaseAdmin.from("carreras").delete().eq("id", id);
+      if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+
+      await supabaseAdmin.from("historial_auditoria").insert({
+        accion: "eliminar_carrera", admin_id: admin.id, admin_email: admin.email,
+        target_id: id, detalle: { tipo: "carrera" },
+      });
+      return NextResponse.json({ success: true });
+    }
+
+    if (tipo === "curso") {
+      // TODO: cuando exista tabla de notas, verificar actividad académica
+      // const { data: notas } = await supabaseAdmin.from("notas").select("id").eq("curso_id", id).limit(1);
+      // if (notas?.length) return NextResponse.json({ error: "No se puede eliminar porque ya tiene actividad académica." }, { status: 409 });
+
+      // Limpiar malla
+      await supabaseAdmin.from("malla_curricular").delete().eq("curso_id", id);
+      const { error } = await supabaseAdmin.from("cursos").delete().eq("id", id);
+      if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+
+      await supabaseAdmin.from("historial_auditoria").insert({
+        accion: "eliminar_curso", admin_id: admin.id, admin_email: admin.email,
+        target_id: id, detalle: { tipo: "curso" },
+      });
+      return NextResponse.json({ success: true });
+    }
+
+    return NextResponse.json({ error: "Tipo no reconocido" }, { status: 400 });
+  } catch (err) {
+    return NextResponse.json({ error: err instanceof Error ? err.message : "Error" }, { status: 500 });
+  }
+}

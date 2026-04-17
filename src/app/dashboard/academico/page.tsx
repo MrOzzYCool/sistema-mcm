@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import RouteGuard from "@/components/RouteGuard";
 import { supabase } from "@/lib/supabase";
-import { Plus, RefreshCw, Loader2, X, BookOpen, GraduationCap, Link2, Pencil, Upload, Download } from "lucide-react";
+import { Plus, RefreshCw, Loader2, X, BookOpen, GraduationCap, Link2, Pencil, Upload, Download, Trash2 } from "lucide-react";
 import clsx from "clsx";
 
 interface Carrera { id: string; nombre_carrera: string; codigo: string; duracion_ciclos: number; malla_curricular?: { curso_id: string; cursos: { id: string; nombre_curso: string; ciclo_perteneciente: number; creditos: number } }[] }
@@ -26,6 +26,8 @@ function AcademicoContent() {
   const [formCurso, setFormCurso]     = useState({ id: "", nombre_curso: "", ciclo_perteneciente: "1", creditos: "3", carrera_ids: [] as string[] });
   const [csvRows, setCsvRows]         = useState<{ nombre_curso: string; ciclo: number; creditos: number; career_codes: string[] }[]>([]);
   const [importResult, setImportResult] = useState<{ nombre: string; status: string; message?: string }[] | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<{ tipo: "carrera" | "curso"; id: string; nombre: string } | null>(null);
+  const [deleting, setDeleting]         = useState(false);
 
   async function getToken() {
     const { data } = await supabase.auth.getSession();
@@ -106,6 +108,24 @@ function AcademicoContent() {
       carrera_ids: c.malla_curricular?.map(m => m.carrera_id) ?? [],
     });
     setModal("editCurso");
+  }
+
+  async function handleDelete() {
+    if (!deleteTarget) return;
+    setDeleting(true); setError("");
+    try {
+      const token = await getToken();
+      const res = await fetch("/api/admin/academico", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ tipo: deleteTarget.tipo, id: deleteTarget.id }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error);
+      setDeleteTarget(null);
+      cargar();
+    } catch (e) { setError(e instanceof Error ? e.message : "Error"); }
+    finally { setDeleting(false); }
   }
 
   function handleCSVFile(e: React.ChangeEvent<HTMLInputElement>) {
@@ -194,7 +214,7 @@ function AcademicoContent() {
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="bg-slate-50">
-                <tr>{["Carrera", "Código", "Ciclos", "Cursos"].map(h => (
+                <tr>{["Carrera", "Código", "Ciclos", "Cursos", ""].map(h => (
                   <th key={h} className="text-left py-3 px-4 text-mcm-muted font-medium text-xs uppercase tracking-wide">{h}</th>
                 ))}</tr>
               </thead>
@@ -211,9 +231,13 @@ function AcademicoContent() {
                         )) ?? <span className="text-mcm-muted text-xs">Sin cursos</span>}
                       </div>
                     </td>
+                    <td className="py-3 px-4">
+                      <button onClick={() => setDeleteTarget({ tipo: "carrera", id: c.id, nombre: c.nombre_carrera })}
+                        className="text-mcm-muted hover:text-red-600 transition-colors"><Trash2 size={14} /></button>
+                    </td>
                   </tr>
                 ))}
-                {!carreras.length && <tr><td colSpan={4} className="py-12 text-center text-mcm-muted text-sm">No hay carreras</td></tr>}
+                {!carreras.length && <tr><td colSpan={5} className="py-12 text-center text-mcm-muted text-sm">No hay carreras</td></tr>}
               </tbody>
             </table>
           </div>
@@ -241,7 +265,11 @@ function AcademicoContent() {
                       </div>
                     </td>
                     <td className="py-3 px-4">
-                      <button onClick={() => openEdit(c)} className="text-mcm-muted hover:text-[#a93526]"><Pencil size={14} /></button>
+                      <div className="flex gap-2">
+                        <button onClick={() => openEdit(c)} className="text-mcm-muted hover:text-[#a93526]"><Pencil size={14} /></button>
+                        <button onClick={() => setDeleteTarget({ tipo: "curso", id: c.id, nombre: c.nombre_curso })}
+                          className="text-mcm-muted hover:text-red-600 transition-colors"><Trash2 size={14} /></button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -345,6 +373,30 @@ function AcademicoContent() {
                 <button onClick={() => { setModal(null); setCsvRows([]); setImportResult(null); }} className="btn-primary w-full text-sm">Cerrar</button>
               </>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Modal confirmar eliminación */}
+      {deleteTarget && (
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-sm">
+            <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Trash2 className="w-6 h-6 text-red-600" />
+            </div>
+            <h3 className="font-bold text-mcm-text text-lg text-center mb-2">¿Eliminar {deleteTarget.tipo}?</h3>
+            <p className="text-mcm-muted text-sm text-center mb-1">
+              <strong>{deleteTarget.nombre}</strong>
+            </p>
+            <p className="text-red-600 text-xs text-center mb-5">Esta acción no se puede deshacer.</p>
+            <div className="flex gap-3">
+              <button onClick={() => setDeleteTarget(null)} className="btn-secondary flex-1 text-sm">Cancelar</button>
+              <button onClick={handleDelete} disabled={deleting}
+                className="flex-1 text-sm text-white font-semibold px-4 py-2 rounded-lg bg-red-600 hover:bg-red-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2">
+                {deleting && <Loader2 size={14} className="animate-spin" />}
+                {deleting ? "Eliminando..." : "Sí, eliminar"}
+              </button>
+            </div>
           </div>
         </div>
       )}
