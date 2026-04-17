@@ -1,12 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { Eye, EyeOff, AlertCircle } from "lucide-react";
 
 export default function LoginPage() {
-  const { login } = useAuth();
+  const { login, user, loading: authLoading } = useAuth();
   const router = useRouter();
 
   const [email, setEmail]       = useState("");
@@ -14,6 +14,20 @@ export default function LoginPage() {
   const [showPass, setShowPass] = useState(false);
   const [error, setError]       = useState("");
   const [loading, setLoading]   = useState(false);
+
+  // Si ya está autenticado, redirigir
+  useEffect(() => {
+    if (!authLoading && user) {
+      const adminEmails: Record<string, string> = {
+        "admin@margaritacabrera.edu.pe":      "/dashboard",
+        "staff@margaritacabrera.edu.pe":      "/dashboard/tramites-externos",
+        "nvasquez@margaritacabrera.edu.pe":   "/dashboard/tramites-externos",
+        "milnarvaez@margaritacabrera.edu.pe": "/dashboard/actualizacion",
+      };
+      const dest = adminEmails[user.email.toLowerCase()] ?? (user.role === "alumno" ? "/portal" : "/dashboard");
+      router.replace(dest);
+    }
+  }, [user, authLoading, router]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();

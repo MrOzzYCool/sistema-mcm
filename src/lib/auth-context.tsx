@@ -110,6 +110,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (_event, session) => {
         if (session?.user) {
+          setLoading(true); // Prevent premature redirects while resolving user
           const appUser = await resolveUser(session.user);
           setUser(appUser);
         } else {
