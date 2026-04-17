@@ -291,41 +291,42 @@ function UsuariosContent() {
               </div>
               {/* Campos de carrera y ciclo — solo para alumnos */}
               {form.tipo === "alumno" && (
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-sm font-medium text-mcm-text mb-1">Carrera *</label>
-                    <select value={form.carrera_id} onChange={e => setForm({...form, carrera_id: e.target.value})}
-                      className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#a93526]">
-                      <option value="">Seleccionar...</option>
-                      {carrerasDisp.map(c => <option key={c.id} value={c.id}>{c.nombre_carrera}</option>)}
-                    </select>
-                    {!form.carrera_id && <p className="text-red-500 text-xs mt-1">Obligatorio para alumnos</p>}
+                <>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-sm font-medium text-mcm-text mb-1">Carrera *</label>
+                      <select value={form.carrera_id} onChange={e => setForm({...form, carrera_id: e.target.value})}
+                        className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#a93526]">
+                        <option value="">Seleccionar...</option>
+                        {carrerasDisp.map(c => <option key={c.id} value={c.id}>{c.nombre_carrera}</option>)}
+                      </select>
+                      {!form.carrera_id && <p className="text-red-500 text-xs mt-1">Obligatorio para alumnos</p>}
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-mcm-text mb-1">Ciclo inicial *</label>
+                      <select value={form.ciclo_inicial} onChange={e => setForm({...form, ciclo_inicial: e.target.value})}
+                        className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#a93526]">
+                        {[1,2,3,4,5,6].map(n => <option key={n} value={String(n)}>Ciclo {n}</option>)}
+                      </select>
+                    </div>
                   </div>
-                  <div>
-                    <label className="block text-sm font-medium text-mcm-text mb-1">Ciclo inicial *</label>
-                    <select value={form.ciclo_inicial} onChange={e => setForm({...form, ciclo_inicial: e.target.value})}
-                      className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#a93526]">
-                      {[1,2,3,4,5,6].map(n => <option key={n} value={String(n)}>Ciclo {n}</option>)}
-                    </select>
-                  </div>
-                </div>
-                {/* Fecha de inicio — solo para ciclo 1 */}
-                {form.ciclo_inicial === "1" && (
-                  <div>
-                    <label className="block text-sm font-medium text-mcm-text mb-1">Fecha de inicio de clases</label>
-                    <input type="date" value={form.fecha_inicio_ciclo}
-                      onChange={e => setForm({...form, fecha_inicio_ciclo: e.target.value})}
-                      className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#a93526]" />
-                    <p className="text-xs text-mcm-muted mt-1">
-                      {form.fecha_inicio_ciclo
-                        ? new Date(form.fecha_inicio_ciclo + "T00:00:00").getDay() === 1
-                          ? "✓ Lunes confirmado"
-                          : "⚠️ Se ajustará al próximo lunes"
-                        : "Si no se indica, se usará el próximo lunes"}
-                    </p>
-                  </div>
-                )}
-                </div>
+                  {/* Fecha de inicio — solo para ciclo 1 */}
+                  {form.ciclo_inicial === "1" && (
+                    <div>
+                      <label className="block text-sm font-medium text-mcm-text mb-1">Fecha de inicio de clases</label>
+                      <input type="date" value={form.fecha_inicio_ciclo}
+                        onChange={e => setForm({...form, fecha_inicio_ciclo: e.target.value})}
+                        className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#a93526]" />
+                      <p className="text-xs text-mcm-muted mt-1">
+                        {form.fecha_inicio_ciclo
+                          ? new Date(form.fecha_inicio_ciclo + "T00:00:00").getDay() === 1
+                            ? "✓ Lunes confirmado"
+                            : "⚠️ Se ajustará al próximo lunes"
+                          : "Si no se indica, se usará el próximo lunes"}
+                      </p>
+                    </div>
+                  )}
+                </>
               )}
               <div className="space-y-2">
                 <label className="flex items-center gap-2 text-sm cursor-pointer">
