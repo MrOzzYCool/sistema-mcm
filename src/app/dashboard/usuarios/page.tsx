@@ -6,7 +6,7 @@ import RouteGuard from "@/components/RouteGuard";
 import { supabase } from "@/lib/supabase";
 import {
   UserPlus, RefreshCw, Loader2, Search, Download, Upload,
-  CheckCircle, XCircle, Key, X, UserX,
+  CheckCircle, XCircle, Key, X, UserX, GraduationCap,
 } from "lucide-react";
 import clsx from "clsx";
 
@@ -26,6 +26,11 @@ function UsuariosContent() {
   const [showModal, setShowModal] = useState(false);
   const [saving, setSaving]       = useState(false);
   const csvRef = useRef<HTMLInputElement>(null);
+
+  // Enrollment modal state
+  const [enrollModal, setEnrollModal] = useState<{ show: boolean; target: Profile | null }>({ show: false, target: null });
+  const [enrollForm, setEnrollForm] = useState({ carrera_id: "", ciclo: "1", fecha_inicio_ciclo: "" });
+  const [enrollSaving, setEnrollSaving] = useState(false);
 
   // Form state
   const [form, setForm] = useState({
@@ -142,6 +147,37 @@ function UsuariosContent() {
       alert(json.message ?? "Usuario de prueba eliminado completamente.");
       cargar();
     } catch (e) { setError(e instanceof Error ? e.message : "Error"); }
+  }
+
+  function openEnrollModal(p: Profile) {
+    setEnrollForm({ carrera_id: "", ciclo: "1", fecha_inicio_ciclo: "" });
+    setEnrollModal({ show: true, target: p });
+  }
+
+  async function handleEnroll() {
+    if (!enrollModal.target || !enrollForm.carrera_id) return;
+    setEnrollSaving(true); setError("");
+    try {
+      const res = await fetch("/api/admin/enroll-user", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${await getToken()}` },
+        body: JSON.stringify({
+          alumno_id: enrollModal.target.id,
+          carrera_id: enrollForm.carrera_id,
+          ciclo: parseInt(enrollForm.ciclo),
+          fecha_inicio_ciclo: enrollForm.fecha_inicio_ciclo || null,
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error);
+      alert(json.message ?? "Inscripción creada exitosamente.");
+      setEnrollModal({ show: false, target: null });
+      cargar();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Error");
+    } finally {
+      setEnrollSaving(false);
+    }
   }
 
   async function handleCSV(e: React.ChangeEvent<HTMLInputElement>) {
@@ -271,6 +307,10 @@ function UsuariosContent() {
                           className="text-mcm-muted hover:text-[#a93526]">
                           {p.estado === "activo" ? <XCircle size={14} /> : <CheckCircle size={14} />}
                         </button>
+                        {p.rol === "alumno" && (
+                          <button onClick={() => openEnrollModal(p)} title="Asignar carrera/ciclo"
+                            className="text-mcm-muted hover:text-blue-600"><GraduationCap size={14} /></button>
+                        )}
                         {p.id !== user?.id && (
                           <button onClick={() => handlePurge(p)} title="Eliminar usuario de prueba (irreversible)"
                             className="text-mcm-muted hover:text-red-700"><UserX size={14} /></button>
@@ -399,6 +439,59 @@ function UsuariosContent() {
                 className="btn-primary flex-1 text-sm disabled:opacity-50 flex items-center justify-center gap-2">
                 {saving && <Loader2 size={14} className="animate-spin" />}
                 {saving ? "Creando..." : "Crear usuario"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Modal asignar carrera/ciclo */}
+      {enrollModal.show && enrollModal.target && (
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-md">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-bold text-mcm-text text-lg">Asignar Carrera y Ciclo</h3>
+              <button onClick={() => setEnrollModal({ show: false, target: null })}><X size={20} className="text-mcm-muted" /></button>
+            </div>
+            <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 mb-4">
+              <p className="text-sm font-semibold text-blue-800">{enrollModal.target.nombre_completo}</p>
+              <p className="text-xs text-blue-600">{enrollModal.target.email}</p>
+            </div>
+            <div className="space-y-3">
+              <div>
+                <label className="block text-sm font-medium text-mcm-text mb-1">Carrera *</label>
+                <select value={enrollForm.carrera_id} onChange={e => setEnrollForm({...enrollForm, carrera_id: e.target.value})}
+                  className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#a93526]">
+                  <option value="">Seleccionar carrera...</option>
+                  {carrerasDisp.map(c => <option key={c.id} value={c.id}>{c.nombre_carrera}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-mcm-text mb-1">Ciclo *</label>
+                <select value={enrollForm.ciclo} onChange={e => setEnrollForm({...enrollForm, ciclo: e.target.value})}
+                  className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#a93526]">
+                  {[1,2,3,4,5,6].map(n => <option key={n} value={String(n)}>Ciclo {n}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-mcm-text mb-1">Fecha de inicio de clases</label>
+                <input type="date" value={enrollForm.fecha_inicio_ciclo}
+                  onChange={e => setEnrollForm({...enrollForm, fecha_inicio_ciclo: e.target.value})}
+                  className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#a93526]" />
+                <p className="text-xs text-mcm-muted mt-1">
+                  {enrollForm.fecha_inicio_ciclo
+                    ? new Date(enrollForm.fecha_inicio_ciclo + "T00:00:00").getDay() === 1
+                      ? "✓ Lunes confirmado"
+                      : "⚠️ Se ajustará al próximo lunes"
+                    : "Si no se indica, se usará el próximo lunes"}
+                </p>
+              </div>
+            </div>
+            <div className="flex gap-3 mt-5">
+              <button onClick={() => setEnrollModal({ show: false, target: null })} className="btn-secondary flex-1 text-sm">Cancelar</button>
+              <button onClick={handleEnroll} disabled={enrollSaving || !enrollForm.carrera_id}
+                className="btn-primary flex-1 text-sm disabled:opacity-50 flex items-center justify-center gap-2">
+                {enrollSaving && <Loader2 size={14} className="animate-spin" />}
+                {enrollSaving ? "Asignando..." : "Asignar inscripción"}
               </button>
             </div>
           </div>
