@@ -74,7 +74,7 @@ export default function CursosAlumnoPage() {
   const totalCreditos = cursos.reduce((a, c) => a + (c.cursos?.creditos ?? 0), 0);
 
   return (
-    <div className="p-6 max-w-5xl mx-auto space-y-6">
+    <div className="p-6 w-full max-w-7xl mx-auto space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-mcm-text">Mis Cursos</h1>

@@ -143,6 +143,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           return;
         }
 
+        // TOKEN_REFRESHED: silently update user without loading screen
+        // This happens when the user returns to the tab after inactivity
+        if (event === "TOKEN_REFRESHED" && session?.user) {
+          // Don't show loading — just refresh user data quietly
+          resolving.current = true;
+          try {
+            const appUser = await resolveUser(session.user);
+            setUser(appUser);
+          } finally {
+            resolving.current = false;
+          }
+          return;
+        }
+
+        // SIGNED_IN or INITIAL_SESSION: show loading while resolving
         if (session?.user) {
           setLoading(true);
           resolving.current = true;
