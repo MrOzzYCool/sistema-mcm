@@ -58,7 +58,7 @@ export async function POST(req: NextRequest) {
       if (!nombre_curso) return NextResponse.json({ error: "Nombre del curso es obligatorio" }, { status: 400 });
       if (!carrera_ids?.length) return NextResponse.json({ error: "Debes seleccionar al menos 1 carrera" }, { status: 400 });
       const { data: curso, error } = await supabaseAdmin.from("cursos")
-        .insert({ nombre_curso, ciclo_perteneciente: ciclo_perteneciente || 1, creditos: creditos || 3 })
+        .insert({ nombre_curso: nombre_curso.toUpperCase(), ciclo_perteneciente: ciclo_perteneciente || 1, creditos: creditos || 3 })
         .select().single();
       if (error) return NextResponse.json({ error: error.message }, { status: 400 });
       const rows = carrera_ids.map((cid: string) => ({ carrera_id: cid, curso_id: curso.id }));
@@ -115,11 +115,11 @@ export async function POST(req: NextRequest) {
           }
 
           const insertData: Record<string, unknown> = {
-            nombre_curso: row.nombre_curso.trim(),
+            nombre_curso: row.nombre_curso.trim().toUpperCase(),
             ciclo_perteneciente: row.ciclo || 1,
             creditos: row.creditos || 3,
           };
-          if (row.codigo_interno?.trim()) insertData.codigo_interno = row.codigo_interno.trim();
+          if (row.codigo_interno?.trim()) insertData.codigo_interno = row.codigo_interno.trim().toUpperCase();
 
           const { data: curso, error } = await supabaseAdmin.from("cursos")
             .insert(insertData).select().single();
@@ -166,7 +166,7 @@ export async function PUT(req: NextRequest) {
       if (error) return NextResponse.json({ error: error.message }, { status: 400 });
     } else if (tipo === "curso") {
       const updateFields: Record<string, unknown> = {};
-      if (campos.nombre_curso) updateFields.nombre_curso = campos.nombre_curso;
+      if (campos.nombre_curso) updateFields.nombre_curso = String(campos.nombre_curso).toUpperCase();
       if (campos.ciclo_perteneciente) updateFields.ciclo_perteneciente = campos.ciclo_perteneciente;
       if (campos.creditos) updateFields.creditos = campos.creditos;
 
