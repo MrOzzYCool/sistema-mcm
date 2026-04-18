@@ -11,8 +11,9 @@ import {
 import clsx from "clsx";
 
 interface Installment {
-  id: string; tipo: string; numero: number; monto: number; monto_original: number;
-  fecha_vencimiento: string; status: string; fecha_pago: string | null; observacion: string | null;
+  id: string; concepto: string; tipo: string; numero: number;
+  amount: number; amount_original: number;
+  due_date: string; status: string; fecha_pago: string | null; observacion: string | null;
 }
 interface Plan {
   id: string; ciclo: number; year: number; status: string;
@@ -49,10 +50,7 @@ function PagosAlumnoContent() {
       const res = await fetch(`/api/admin/payments?alumno_id=${alumnoId}`, {
         headers: { Authorization: `Bearer ${await getToken()}` },
       });
-      if (res.ok) {
-        const data = await res.json();
-        setPlans(data.plans ?? []);
-      }
+      if (res.ok) setPlans((await res.json()).plans ?? []);
     } catch { /* ignore */ }
     finally { setLoading(false); }
   }
@@ -66,30 +64,24 @@ function PagosAlumnoContent() {
       const res = await fetch("/api/admin/payments", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${await getToken()}` },
-        body: JSON.stringify({
-          action: "generate-plan",
-          alumno_id: alumnoId,
-          ciclo: parseInt(genForm.ciclo),
-          year: parseInt(genForm.year),
-        }),
+        body: JSON.stringify({ action: "generate-plan", alumno_id: alumnoId, ciclo: parseInt(genForm.ciclo), year: parseInt(genForm.year) }),
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error);
-      setSuccess(`Plan generado: ${json.installments} cuotas creadas.`);
+      setSuccess(`Plan generado: ${json.installments} conceptos creados.`);
       setShowGenModal(false);
       loadPlans();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Error");
-    } finally { setGenerating(false); }
+    } catch (err) { setError(err instanceof Error ? err.message : "Error"); }
+    finally { setGenerating(false); }
   }
 
-  async function handleMarkPaid(installmentId: string) {
+  async function handleMarkPaid(id: string) {
     if (!confirm("¿Marcar esta cuota como pagada?")) return;
     try {
       const res = await fetch("/api/admin/payments", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${await getToken()}` },
-        body: JSON.stringify({ action: "mark-paid", installment_id: installmentId }),
+        body: JSON.stringify({ action: "mark-paid", installment_id: id }),
       });
       if (!res.ok) throw new Error((await res.json()).error);
       loadPlans();
@@ -103,64 +95,42 @@ function PagosAlumnoContent() {
       const res = await fetch("/api/admin/payments", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${await getToken()}` },
-        body: JSON.stringify({
-          action: "update-amount",
-          installment_id: editingId,
-          monto: parseFloat(editMonto),
-          observacion: editObs || null,
-        }),
+        body: JSON.stringify({ action: "update-amount", installment_id: editingId, monto: parseFloat(editMonto), observacion: editObs || null }),
       });
       if (!res.ok) throw new Error((await res.json()).error);
-      setEditingId(null);
-      loadPlans();
+      setEditingId(null); loadPlans();
     } catch (err) { setError(err instanceof Error ? err.message : "Error"); }
     finally { setSaving(false); }
   }
 
   function openEdit(inst: Installment) {
     setEditingId(inst.id);
-    setEditMonto(String(inst.monto));
+    setEditMonto(String(inst.amount));
     setEditObs(inst.observacion ?? "");
   }
 
   if (!alumnoId) {
-    return (
-      <div className="p-6 card text-center py-12">
-        <AlertCircle size={40} className="mx-auto text-red-400 mb-3" />
-        <p className="text-mcm-text font-bold">Falta alumno_id</p>
-        <button onClick={() => router.back()} className="btn-secondary text-sm mt-4">Volver</button>
-      </div>
-    );
+    return <div className="p-6 card text-center py-12"><AlertCircle size={40} className="mx-auto text-red-400 mb-3" /><p className="text-mcm-text font-bold">Falta alumno_id</p><button onClick={() => router.back()} className="btn-secondary text-sm mt-4">Volver</button></div>;
   }
 
   return (
     <div className="p-6 w-full space-y-5">
       <div className="flex items-center gap-3">
-        <button onClick={() => router.back()} className="text-mcm-muted hover:text-mcm-text">
-          <ArrowLeft size={20} />
-        </button>
+        <button onClick={() => router.back()} className="text-mcm-muted hover:text-mcm-text"><ArrowLeft size={20} /></button>
         <div className="flex-1">
           <h1 className="text-2xl font-bold text-mcm-text">Pagos del Alumno</h1>
           <p className="text-mcm-muted text-sm">{alumnoNombre}</p>
         </div>
-        <button onClick={() => setShowGenModal(true)} className="btn-primary flex items-center gap-2 text-sm">
-          <Plus size={14} /> Generar Plan
-        </button>
+        <button onClick={() => setShowGenModal(true)} className="btn-primary flex items-center gap-2 text-sm"><Plus size={14} /> Generar Plan</button>
       </div>
 
       {error && <div className="bg-red-50 border border-red-200 text-red-700 rounded-xl p-3 text-sm flex items-center gap-2"><AlertCircle size={16} />{error}</div>}
       {success && <div className="bg-green-50 border border-green-200 text-green-700 rounded-xl p-3 text-sm flex items-center gap-2"><CheckCircle size={16} />{success}</div>}
 
       {loading ? (
-        <div className="flex items-center justify-center py-16 gap-3 text-mcm-muted">
-          <Loader2 size={20} className="animate-spin" /> Cargando...
-        </div>
+        <div className="flex items-center justify-center py-16 gap-3 text-mcm-muted"><Loader2 size={20} className="animate-spin" /> Cargando...</div>
       ) : plans.length === 0 ? (
-        <div className="card text-center py-12">
-          <CreditCard size={40} className="mx-auto text-mcm-muted mb-3" />
-          <h2 className="font-bold text-mcm-text text-lg mb-1">Sin planes de pago</h2>
-          <p className="text-mcm-muted text-sm">Genera un plan para este alumno.</p>
-        </div>
+        <div className="card text-center py-12"><CreditCard size={40} className="mx-auto text-mcm-muted mb-3" /><h2 className="font-bold text-mcm-text text-lg mb-1">Sin planes de pago</h2><p className="text-mcm-muted text-sm">Genera un plan para este alumno.</p></div>
       ) : (
         plans.map(plan => (
           <div key={plan.id} className="card overflow-hidden p-0">
@@ -171,7 +141,7 @@ function PagosAlumnoContent() {
                 <span className={plan.status === "activo" ? "badge-blue" : "badge-green"}>{plan.status}</span>
               </div>
               <span className="text-xs text-mcm-muted">
-                Total: S/ {plan.installments.reduce((s, i) => s + Number(i.monto), 0).toFixed(2)}
+                Total: S/ {plan.installments.reduce((s, i) => s + Number(i.amount), 0).toFixed(2)}
               </span>
             </div>
             <div className="overflow-x-auto">
@@ -184,30 +154,22 @@ function PagosAlumnoContent() {
                   </tr>
                 </thead>
                 <tbody>
-                  {plan.installments
-                    .sort((a, b) => a.numero - b.numero)
-                    .map(inst => (
+                  {plan.installments.sort((a, b) => a.numero - b.numero).map(inst => (
                     <tr key={inst.id} className="border-t border-mcm-border hover:bg-slate-50">
                       <td className="py-3 px-4 font-medium text-mcm-text">
-                        {inst.tipo === "matricula" ? "Matrícula" : `Cuota ${inst.numero}`}
+                        {inst.concepto}
                         {inst.observacion && <span className="text-xs text-mcm-muted ml-2">({inst.observacion})</span>}
                       </td>
                       <td className="py-3 px-4 font-bold text-mcm-text">
-                        S/ {Number(inst.monto).toFixed(2)}
-                        {Number(inst.monto) !== Number(inst.monto_original) && (
-                          <span className="text-xs text-amber-600 ml-1">(beca)</span>
-                        )}
+                        S/ {Number(inst.amount).toFixed(2)}
+                        {Number(inst.amount) !== Number(inst.amount_original) && <span className="text-xs text-amber-600 ml-1">(beca)</span>}
                       </td>
-                      <td className="py-3 px-4 text-mcm-muted text-xs">S/ {Number(inst.monto_original).toFixed(2)}</td>
-                      <td className={clsx("py-3 px-4 text-xs",
-                        inst.status === "vencido" ? "text-red-600 font-bold" : "text-mcm-muted")}>
-                        {new Date(inst.fecha_vencimiento + "T00:00:00").toLocaleDateString("es-PE", { day: "2-digit", month: "short", year: "numeric" })}
+                      <td className="py-3 px-4 text-mcm-muted text-xs">S/ {Number(inst.amount_original).toFixed(2)}</td>
+                      <td className={clsx("py-3 px-4 text-xs", inst.status === "vencido" ? "text-red-600 font-bold" : "text-mcm-muted")}>
+                        {new Date(inst.due_date + "T00:00:00").toLocaleDateString("es-PE", { day: "2-digit", month: "short", year: "numeric" })}
                       </td>
                       <td className="py-3 px-4">
-                        <span className={
-                          inst.status === "pagado" ? "badge-green" :
-                          inst.status === "vencido" ? "badge-red" : "badge-yellow"
-                        }>
+                        <span className={inst.status === "pagado" ? "badge-green" : inst.status === "vencido" ? "badge-red" : "badge-yellow"}>
                           {inst.status === "pagado" ? "Pagado" : inst.status === "vencido" ? "Vencido" : "Pendiente"}
                         </span>
                       </td>
@@ -217,10 +179,8 @@ function PagosAlumnoContent() {
                       <td className="py-3 px-4">
                         {inst.status !== "pagado" && (
                           <div className="flex gap-2">
-                            <button onClick={() => handleMarkPaid(inst.id)} title="Marcar pagado"
-                              className="text-mcm-muted hover:text-green-600"><CheckCircle size={14} /></button>
-                            <button onClick={() => openEdit(inst)} title="Editar monto"
-                              className="text-mcm-muted hover:text-blue-600"><Pencil size={14} /></button>
+                            <button onClick={() => handleMarkPaid(inst.id)} title="Marcar pagado" className="text-mcm-muted hover:text-green-600"><CheckCircle size={14} /></button>
+                            <button onClick={() => openEdit(inst)} title="Editar monto" className="text-mcm-muted hover:text-blue-600"><Pencil size={14} /></button>
                           </div>
                         )}
                       </td>
@@ -255,7 +215,7 @@ function PagosAlumnoContent() {
                   className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#a93526]" />
               </div>
               <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 text-xs text-blue-700">
-                Se generará: 1 matrícula (S/ 250) + 4 cuotas (S/ 400 c/u) = S/ 1,850 total
+                Se generará: MATRÍCULA (S/ 250) + CUOTAS 01-04 (S/ 400 c/u) = S/ 1,850 total
               </div>
             </div>
             <div className="flex gap-3 mt-5">

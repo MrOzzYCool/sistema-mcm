@@ -6,8 +6,9 @@ import { CreditCard, Loader2, AlertCircle, CheckCircle, Clock } from "lucide-rea
 import clsx from "clsx";
 
 interface Installment {
-  id: string; tipo: string; numero: number; monto: number; monto_original: number;
-  fecha_vencimiento: string; status: string; fecha_pago: string | null; observacion: string | null;
+  id: string; concepto: string; tipo: string; numero: number;
+  amount: number; amount_original: number;
+  due_date: string; status: string; fecha_pago: string | null; observacion: string | null;
 }
 interface Plan {
   id: string; ciclo: number; year: number; status: string;
@@ -28,38 +29,24 @@ export default function PagosAlumnoPage() {
       if (!mountedRef.current) return;
       const token = session?.access_token;
       if (!token) return;
-
-      const res = await fetch("/api/portal/mis-pagos", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const res = await fetch("/api/portal/mis-pagos", { headers: { Authorization: `Bearer ${token}` } });
       if (!mountedRef.current || !res.ok) return;
       const data = await res.json();
       if (mountedRef.current) setPlans(data.plans ?? []);
     } catch { /* ignore */ }
-    finally {
-      fetchingRef.current = false;
-      if (mountedRef.current) setFirstLoad(false);
-    }
+    finally { fetchingRef.current = false; if (mountedRef.current) setFirstLoad(false); }
   }
 
-  useEffect(() => {
-    mountedRef.current = true;
-    fetchPagos();
-    return () => { mountedRef.current = false; };
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { mountedRef.current = true; fetchPagos(); return () => { mountedRef.current = false; }; }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (firstLoad) {
-    return (
-      <div className="p-6 flex items-center justify-center min-h-[50vh] gap-3 text-mcm-muted">
-        <Loader2 size={20} className="animate-spin" /> <span className="text-sm">Cargando pagos...</span>
-      </div>
-    );
+    return <div className="p-6 flex items-center justify-center min-h-[50vh] gap-3 text-mcm-muted"><Loader2 size={20} className="animate-spin" /> <span className="text-sm">Cargando pagos...</span></div>;
   }
 
-  const allInstallments = plans.flatMap(p => p.installments).sort((a, b) => a.fecha_vencimiento.localeCompare(b.fecha_vencimiento));
-  const totalDeuda = allInstallments.filter(i => i.status !== "pagado").reduce((s, i) => s + Number(i.monto), 0);
-  const totalPagado = allInstallments.filter(i => i.status === "pagado").reduce((s, i) => s + Number(i.monto), 0);
-  const pendientes = allInstallments.filter(i => i.status === "pendiente").length;
+  const all = plans.flatMap(p => p.installments).sort((a, b) => a.due_date.localeCompare(b.due_date));
+  const totalDeuda = all.filter(i => i.status !== "pagado").reduce((s, i) => s + Number(i.amount), 0);
+  const totalPagado = all.filter(i => i.status === "pagado").reduce((s, i) => s + Number(i.amount), 0);
+  const pendientes = all.filter(i => i.status === "pendiente").length;
 
   return (
     <div className="p-6 w-full space-y-6">
@@ -68,15 +55,14 @@ export default function PagosAlumnoPage() {
         <p className="text-mcm-muted text-sm mt-0.5">Historial y estado de tus cuotas</p>
       </div>
 
-      {/* Summary cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <SummaryCard label="Deuda Pendiente" value={`S/ ${totalDeuda.toFixed(2)}`} color="red" />
         <SummaryCard label="Total Pagado" value={`S/ ${totalPagado.toFixed(2)}`} color="green" />
         <SummaryCard label="Cuotas Pendientes" value={`${pendientes} cuotas`} color="yellow" />
-        <SummaryCard label="Total Cuotas" value={`${allInstallments.length} cuotas`} color="blue" />
+        <SummaryCard label="Total Conceptos" value={`${all.length}`} color="blue" />
       </div>
 
-      {allInstallments.length === 0 ? (
+      {all.length === 0 ? (
         <div className="card text-center py-12">
           <CreditCard size={40} className="mx-auto text-mcm-muted mb-3" />
           <h2 className="font-bold text-mcm-text text-lg mb-1">Sin cuotas registradas</h2>
@@ -98,17 +84,17 @@ export default function PagosAlumnoPage() {
                 </tr>
               </thead>
               <tbody>
-                {allInstallments.map(inst => {
-                  const isOverdue = inst.status === "pendiente" && new Date(inst.fecha_vencimiento) < new Date();
+                {all.map(inst => {
+                  const isOverdue = inst.status === "pendiente" && new Date(inst.due_date) < new Date();
                   return (
                     <tr key={inst.id} className="border-t border-mcm-border hover:bg-slate-50">
                       <td className="py-3.5 px-4 font-medium text-mcm-text">
-                        {inst.tipo === "matricula" ? "Matrícula" : `Cuota ${inst.numero}`}
+                        {inst.concepto}
                         {inst.observacion && <span className="text-xs text-mcm-muted ml-2">({inst.observacion})</span>}
                       </td>
-                      <td className="py-3.5 px-4 font-bold text-mcm-text">S/ {Number(inst.monto).toFixed(2)}</td>
+                      <td className="py-3.5 px-4 font-bold text-mcm-text">S/ {Number(inst.amount).toFixed(2)}</td>
                       <td className={clsx("py-3.5 px-4 text-xs", isOverdue ? "text-red-600 font-bold" : "text-mcm-muted")}>
-                        {new Date(inst.fecha_vencimiento + "T00:00:00").toLocaleDateString("es-PE", { day: "2-digit", month: "short", year: "numeric" })}
+                        {new Date(inst.due_date + "T00:00:00").toLocaleDateString("es-PE", { day: "2-digit", month: "short", year: "numeric" })}
                         {isOverdue && <span className="ml-1 badge-red text-xs">Vencido</span>}
                       </td>
                       <td className="py-3.5 px-4">
@@ -136,10 +122,7 @@ export default function PagosAlumnoPage() {
 }
 
 function SummaryCard({ label, value, color }: { label: string; value: string; color: "red"|"green"|"yellow"|"blue" }) {
-  const styles = {
-    red: "border-l-4 border-red-400 bg-red-50", green: "border-l-4 border-green-400 bg-green-50",
-    yellow: "border-l-4 border-yellow-400 bg-yellow-50", blue: "border-l-4 border-blue-400 bg-blue-50",
-  };
+  const styles = { red: "border-l-4 border-red-400 bg-red-50", green: "border-l-4 border-green-400 bg-green-50", yellow: "border-l-4 border-yellow-400 bg-yellow-50", blue: "border-l-4 border-blue-400 bg-blue-50" };
   const textColors = { red: "text-red-700", green: "text-green-700", yellow: "text-yellow-700", blue: "text-blue-700" };
   return (
     <div className={clsx("card", styles[color])}>

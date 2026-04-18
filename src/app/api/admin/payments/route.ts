@@ -86,7 +86,7 @@ export async function POST(req: NextRequest) {
 
     const { error } = await supabaseAdmin
       .from("installments")
-      .update({ monto: Number(monto), observacion: observacion ?? null })
+      .update({ amount: Number(monto), observacion: observacion ?? null })
       .eq("id", installment_id);
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
