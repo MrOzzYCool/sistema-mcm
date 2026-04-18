@@ -365,3 +365,54 @@ drop trigger if exists set_alumno_notas_updated_at on public.alumno_notas;
 create trigger set_alumno_notas_updated_at
   before update on public.alumno_notas
   for each row execute function public.set_updated_at();
+
+-- ─── Sistema de Pagos / Planes de Pago ────────────────────────────────────────
+
+create table if not exists public.payment_plans (
+  id          uuid primary key default gen_random_uuid(),
+  alumno_id   uuid not null references public.profiles(id) on delete cascade,
+  ciclo       integer not null,
+  year        integer not null,
+  estado      text not null default 'activo' check (estado in ('activo','completado','cancelado')),
+  created_at  timestamptz not null default now(),
+  unique(alumno_id, ciclo, year)
+);
+
+create table if not exists public.installments (
+  id              uuid primary key default gen_random_uuid(),
+  plan_id         uuid not null references public.payment_plans(id) on delete cascade,
+  tipo            text not null check (tipo in ('matricula','cuota')),
+  numero          integer not null default 1,
+  monto           numeric(10,2) not null,
+  monto_original  numeric(10,2) not null,
+  fecha_vencimiento date not null,
+  estado          text not null default 'pendiente' check (estado in ('pendiente','pagado','vencido')),
+  fecha_pago      timestamptz,
+  observacion     text,
+  created_at      timestamptz not null default now(),
+  updated_at      timestamptz not null default now()
+);
+
+alter table public.payment_plans enable row level security;
+alter table public.installments enable row level security;
+
+create policy "alumno_read_own_plans" on public.payment_plans
+  for select using (auth.uid() = alumno_id);
+create policy "admin_all_plans" on public.payment_plans
+  for all using (auth.role() = 'authenticated' and exists (
+    select 1 from public.profiles where id = auth.uid() and rol in ('super_admin')
+  ));
+
+create policy "alumno_read_own_installments" on public.installments
+  for select using (exists (
+    select 1 from public.payment_plans where id = installments.plan_id and alumno_id = auth.uid()
+  ));
+create policy "admin_all_installments" on public.installments
+  for all using (auth.role() = 'authenticated' and exists (
+    select 1 from public.profiles where id = auth.uid() and rol in ('super_admin')
+  ));
+
+drop trigger if exists set_installments_updated_at on public.installments;
+create trigger set_installments_updated_at
+  before update on public.installments
+  for each row execute function public.set_updated_at();

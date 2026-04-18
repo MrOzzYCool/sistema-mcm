@@ -2,11 +2,12 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useAuth } from "@/lib/auth-context";
+import { useRouter } from "next/navigation";
 import RouteGuard from "@/components/RouteGuard";
 import { supabase } from "@/lib/supabase";
 import {
   UserPlus, RefreshCw, Loader2, Search, Download, Upload,
-  CheckCircle, XCircle, Key, X, UserX, GraduationCap,
+  CheckCircle, XCircle, Key, X, UserX, GraduationCap, CreditCard,
 } from "lucide-react";
 import clsx from "clsx";
 
@@ -17,6 +18,7 @@ interface Profile {
 
 function UsuariosContent() {
   const { user } = useAuth();
+  const router = useRouter();
   const [profiles, setProfiles]   = useState<Profile[]>([]);
   const [loading, setLoading]     = useState(true);
   const [error, setError]         = useState("");
@@ -310,6 +312,10 @@ function UsuariosContent() {
                         {p.rol === "alumno" && (
                           <button onClick={() => openEnrollModal(p)} title="Asignar carrera/ciclo"
                             className="text-mcm-muted hover:text-blue-600"><GraduationCap size={14} /></button>
+                        )}
+                        {p.rol === "alumno" && (
+                          <button onClick={() => router.push(`/dashboard/pagos-alumno?alumno_id=${p.id}&nombre=${encodeURIComponent(p.nombre_completo)}`)}
+                            title="Gestionar pagos" className="text-mcm-muted hover:text-green-600"><CreditCard size={14} /></button>
                         )}
                         {p.id !== user?.id && (
                           <button onClick={() => handlePurge(p)} title="Eliminar usuario de prueba (irreversible)"
