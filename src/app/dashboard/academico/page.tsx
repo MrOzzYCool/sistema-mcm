@@ -1,9 +1,10 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
+import { useRouter } from "next/navigation";
 import RouteGuard from "@/components/RouteGuard";
 import { supabase } from "@/lib/supabase";
-import { Plus, RefreshCw, Loader2, X, BookOpen, GraduationCap, Link2, Pencil, Upload, Download, Trash2, Search } from "lucide-react";
+import { Plus, RefreshCw, Loader2, X, BookOpen, GraduationCap, Link2, Pencil, Upload, Download, Trash2, Search, Settings } from "lucide-react";
 import clsx from "clsx";
 
 interface Carrera { id: string; nombre_carrera: string; codigo: string; duracion_ciclos: number; malla_curricular?: { curso_id: string; cursos: { id: string; nombre_curso: string; ciclo_perteneciente: number; creditos: number } }[] }
@@ -13,6 +14,7 @@ type Tab = "carreras" | "cursos";
 type ModalType = "carrera" | "curso" | "editCurso" | "importCSV" | null;
 
 function AcademicoContent() {
+  const router = useRouter();
   const [tab, setTab]             = useState<Tab>("carreras");
   const [carreras, setCarreras]   = useState<Carrera[]>([]);
   const [cursos, setCursos]       = useState<Curso[]>([]);
@@ -306,9 +308,11 @@ function AcademicoContent() {
                           </td>
                           <td className="py-3 px-4">
                             <div className="flex gap-2">
-                              <button onClick={() => openEdit(c)} className="text-mcm-muted hover:text-[#a93526]"><Pencil size={14} /></button>
+                              <button onClick={() => openEdit(c)} title="Editar curso" className="text-mcm-muted hover:text-[#a93526]"><Pencil size={14} /></button>
+                              <button onClick={() => router.push(`/dashboard/academico/evaluaciones?curso_id=${c.id}&nombre=${encodeURIComponent(c.nombre_curso)}`)}
+                                title="Configurar evaluaciones" className="text-mcm-muted hover:text-blue-600"><Settings size={14} /></button>
                               <button onClick={() => setDeleteTarget({ tipo: "curso", id: c.id, nombre: c.nombre_curso })}
-                                className="text-mcm-muted hover:text-red-600 transition-colors"><Trash2 size={14} /></button>
+                                title="Eliminar curso" className="text-mcm-muted hover:text-red-600 transition-colors"><Trash2 size={14} /></button>
                             </div>
                           </td>
                         </tr>
