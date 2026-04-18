@@ -12,10 +12,10 @@ import clsx from "clsx";
 
 interface Installment {
   id: string; tipo: string; numero: number; monto: number; monto_original: number;
-  fecha_vencimiento: string; estado: string; fecha_pago: string | null; observacion: string | null;
+  fecha_vencimiento: string; status: string; fecha_pago: string | null; observacion: string | null;
 }
 interface Plan {
-  id: string; ciclo: number; year: number; estado: string;
+  id: string; ciclo: number; year: number; status: string;
   installments: Installment[];
 }
 
@@ -168,7 +168,7 @@ function PagosAlumnoContent() {
               <div className="flex items-center gap-2">
                 <CreditCard size={16} className="text-mcm-muted" />
                 <h2 className="font-semibold text-mcm-text">Ciclo {plan.ciclo} — {plan.year}</h2>
-                <span className={plan.estado === "activo" ? "badge-blue" : "badge-green"}>{plan.estado}</span>
+                <span className={plan.status === "activo" ? "badge-blue" : "badge-green"}>{plan.status}</span>
               </div>
               <span className="text-xs text-mcm-muted">
                 Total: S/ {plan.installments.reduce((s, i) => s + Number(i.monto), 0).toFixed(2)}
@@ -200,22 +200,22 @@ function PagosAlumnoContent() {
                       </td>
                       <td className="py-3 px-4 text-mcm-muted text-xs">S/ {Number(inst.monto_original).toFixed(2)}</td>
                       <td className={clsx("py-3 px-4 text-xs",
-                        inst.estado === "vencido" ? "text-red-600 font-bold" : "text-mcm-muted")}>
+                        inst.status === "vencido" ? "text-red-600 font-bold" : "text-mcm-muted")}>
                         {new Date(inst.fecha_vencimiento + "T00:00:00").toLocaleDateString("es-PE", { day: "2-digit", month: "short", year: "numeric" })}
                       </td>
                       <td className="py-3 px-4">
                         <span className={
-                          inst.estado === "pagado" ? "badge-green" :
-                          inst.estado === "vencido" ? "badge-red" : "badge-yellow"
+                          inst.status === "pagado" ? "badge-green" :
+                          inst.status === "vencido" ? "badge-red" : "badge-yellow"
                         }>
-                          {inst.estado === "pagado" ? "Pagado" : inst.estado === "vencido" ? "Vencido" : "Pendiente"}
+                          {inst.status === "pagado" ? "Pagado" : inst.status === "vencido" ? "Vencido" : "Pendiente"}
                         </span>
                       </td>
                       <td className="py-3 px-4 text-mcm-muted text-xs">
                         {inst.fecha_pago ? new Date(inst.fecha_pago).toLocaleDateString("es-PE", { day: "2-digit", month: "short" }) : "—"}
                       </td>
                       <td className="py-3 px-4">
-                        {inst.estado !== "pagado" && (
+                        {inst.status !== "pagado" && (
                           <div className="flex gap-2">
                             <button onClick={() => handleMarkPaid(inst.id)} title="Marcar pagado"
                               className="text-mcm-muted hover:text-green-600"><CheckCircle size={14} /></button>

@@ -7,10 +7,10 @@ import clsx from "clsx";
 
 interface Installment {
   id: string; tipo: string; numero: number; monto: number; monto_original: number;
-  fecha_vencimiento: string; estado: string; fecha_pago: string | null; observacion: string | null;
+  fecha_vencimiento: string; status: string; fecha_pago: string | null; observacion: string | null;
 }
 interface Plan {
-  id: string; ciclo: number; year: number; estado: string;
+  id: string; ciclo: number; year: number; status: string;
   installments: Installment[];
 }
 
@@ -57,9 +57,9 @@ export default function PagosAlumnoPage() {
   }
 
   const allInstallments = plans.flatMap(p => p.installments).sort((a, b) => a.fecha_vencimiento.localeCompare(b.fecha_vencimiento));
-  const totalDeuda = allInstallments.filter(i => i.estado !== "pagado").reduce((s, i) => s + Number(i.monto), 0);
-  const totalPagado = allInstallments.filter(i => i.estado === "pagado").reduce((s, i) => s + Number(i.monto), 0);
-  const pendientes = allInstallments.filter(i => i.estado === "pendiente").length;
+  const totalDeuda = allInstallments.filter(i => i.status !== "pagado").reduce((s, i) => s + Number(i.monto), 0);
+  const totalPagado = allInstallments.filter(i => i.status === "pagado").reduce((s, i) => s + Number(i.monto), 0);
+  const pendientes = allInstallments.filter(i => i.status === "pendiente").length;
 
   return (
     <div className="p-6 w-full space-y-6">
@@ -99,7 +99,7 @@ export default function PagosAlumnoPage() {
               </thead>
               <tbody>
                 {allInstallments.map(inst => {
-                  const isOverdue = inst.estado === "pendiente" && new Date(inst.fecha_vencimiento) < new Date();
+                  const isOverdue = inst.status === "pendiente" && new Date(inst.fecha_vencimiento) < new Date();
                   return (
                     <tr key={inst.id} className="border-t border-mcm-border hover:bg-slate-50">
                       <td className="py-3.5 px-4 font-medium text-mcm-text">
@@ -112,7 +112,7 @@ export default function PagosAlumnoPage() {
                         {isOverdue && <span className="ml-1 badge-red text-xs">Vencido</span>}
                       </td>
                       <td className="py-3.5 px-4">
-                        {inst.estado === "pagado" ? (
+                        {inst.status === "pagado" ? (
                           <span className="badge-green flex items-center gap-1 w-fit"><CheckCircle size={12} /> Pagado</span>
                         ) : isOverdue ? (
                           <span className="badge-red flex items-center gap-1 w-fit"><AlertCircle size={12} /> Vencido</span>

@@ -373,8 +373,10 @@ create table if not exists public.payment_plans (
   alumno_id   uuid not null references public.profiles(id) on delete cascade,
   ciclo       integer not null,
   year        integer not null,
-  estado      text not null default 'activo' check (estado in ('activo','completado','cancelado')),
+  description text,
+  status      text not null default 'activo' check (status in ('activo','completado','cancelado')),
   created_at  timestamptz not null default now(),
+  updated_at  timestamptz not null default now(),
   unique(alumno_id, ciclo, year)
 );
 
@@ -386,7 +388,7 @@ create table if not exists public.installments (
   monto           numeric(10,2) not null,
   monto_original  numeric(10,2) not null,
   fecha_vencimiento date not null,
-  estado          text not null default 'pendiente' check (estado in ('pendiente','pagado','vencido')),
+  status          text not null default 'pendiente' check (status in ('pendiente','pagado','vencido')),
   fecha_pago      timestamptz,
   observacion     text,
   created_at      timestamptz not null default now(),

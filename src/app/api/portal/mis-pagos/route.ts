@@ -13,7 +13,7 @@ export async function GET(req: NextRequest) {
     .from("payment_plans")
     .select("*, installments(*)")
     .eq("alumno_id", user.id)
-    .eq("estado", "activo")
+    .eq("status", "activo")
     .order("year", { ascending: false });
 
   return NextResponse.json({ plans: plans ?? [] });

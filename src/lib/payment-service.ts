@@ -34,7 +34,7 @@ export async function generateStudentPaymentPlan(
   // Create payment plan
   const { data: plan, error: planErr } = await supabaseAdmin
     .from("payment_plans")
-    .insert({ alumno_id: alumnoId, ciclo, year, estado: "activo" })
+    .insert({ alumno_id: alumnoId, ciclo, year, status: "activo" })
     .select("id")
     .single();
 
@@ -53,7 +53,7 @@ export async function generateStudentPaymentPlan(
     monto: MONTO_MATRICULA,
     monto_original: MONTO_MATRICULA,
     fecha_vencimiento: `${year}-${String(mesInicio + 1).padStart(2, "0")}-05`,
-    estado: "pendiente",
+    status: "pendiente",
   });
 
   // 2. Cuotas mensuales — vencen el 05 de cada mes
@@ -66,7 +66,7 @@ export async function generateStudentPaymentPlan(
       monto: MONTO_CUOTA,
       monto_original: MONTO_CUOTA,
       fecha_vencimiento: `${year}-${String(mes + 1).padStart(2, "0")}-05`,
-      estado: "pendiente",
+      status: "pendiente",
     });
   }
 
