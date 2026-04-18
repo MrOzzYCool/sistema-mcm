@@ -322,3 +322,46 @@ create trigger set_alumno_cursos_updated_at
 -- Campo fecha_matricula separado de fecha_inicio_ciclo
 alter table public.inscripciones
   add column if not exists fecha_matricula timestamptz default now();
+
+-- ─── Sistema de Calificaciones ────────────────────────────────────────────────
+
+-- Configuración de evaluación por curso (esquema de pesos)
+create table if not exists public.evaluacion_config (
+  id               uuid primary key default gen_random_uuid(),
+  curso_id         uuid not null references public.cursos(id) on delete cascade,
+  nombre_concepto  text not null,
+  porcentaje       integer not null check (porcentaje > 0 and porcentaje <= 100),
+  orden            integer not null default 1,
+  created_at       timestamptz not null default now()
+);
+
+alter table public.evaluacion_config enable row level security;
+create policy "read_evaluacion_config" on public.evaluacion_config for select using (true);
+create policy "admin_write_evaluacion_config" on public.evaluacion_config
+  for all using (auth.role() = 'authenticated' and exists (
+    select 1 from public.profiles where id = auth.uid() and rol in ('super_admin')
+  ));
+
+-- Notas del alumno por concepto de evaluación
+create table if not exists public.alumno_notas (
+  id                    uuid primary key default gen_random_uuid(),
+  alumno_id             uuid not null references public.profiles(id) on delete cascade,
+  evaluacion_config_id  uuid not null references public.evaluacion_config(id) on delete cascade,
+  nota                  numeric(5,2) check (nota >= 0 and nota <= 20),
+  created_at            timestamptz not null default now(),
+  updated_at            timestamptz not null default now(),
+  unique(alumno_id, evaluacion_config_id)
+);
+
+alter table public.alumno_notas enable row level security;
+create policy "alumno_read_own_notas" on public.alumno_notas
+  for select using (auth.uid() = alumno_id);
+create policy "admin_all_notas" on public.alumno_notas
+  for all using (auth.role() = 'authenticated' and exists (
+    select 1 from public.profiles where id = auth.uid() and rol in ('super_admin')
+  ));
+
+drop trigger if exists set_alumno_notas_updated_at on public.alumno_notas;
+create trigger set_alumno_notas_updated_at
+  before update on public.alumno_notas
+  for each row execute function public.set_updated_at();
