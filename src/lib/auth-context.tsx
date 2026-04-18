@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useEffect, useState, ReactNode } from "react";
+import { createContext, useContext, useEffect, useState, useRef, ReactNode } from "react";
 import { User as SupabaseUser } from "@supabase/supabase-js";
 import { supabase } from "./supabase";
 
@@ -26,7 +26,7 @@ export interface AppUser {
 interface AuthCtx {
   user: AppUser | null;
   initializing: boolean;
-  forceReady: () => void;  // Emergency: force initializing=false
+  forceReady: () => void;
   login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
 }
@@ -60,27 +60,18 @@ async function resolveUser(su: SupabaseUser): Promise<AppUser> {
     if (profile) {
       const name = profile.nombre_completo ?? email.split("@")[0];
       const initials = name.split(" ").map((w: string) => w[0]).join("").toUpperCase().slice(0, 2);
+      log(`👤 Profile found: ${name} (${profile.rol})`);
       return { id: su.id, email, name, role: (profile.rol as AppRole) ?? "alumno", avatar: initials };
     }
-  } catch {
-    // fall through
+  } catch (err) {
+    log(`⚠️ Profile query failed: ${err}`);
   }
 
+  // Fallback — use metadata
   const name = su.user_metadata?.full_name ?? email.split("@")[0];
   const initials = name.split(" ").map((w: string) => w[0]).join("").toUpperCase().slice(0, 2);
+  log(`👤 Using fallback profile: ${name}`);
   return { id: su.id, email, name, role: "alumno", avatar: initials };
-}
-
-// ─── Timeout helper ──────────────────────────────────────────────────────────
-
-function withTimeout<T>(promise: Promise<T>, ms: number, fallback: T): Promise<T> {
-  return Promise.race([
-    promise,
-    new Promise<T>((resolve) => setTimeout(() => {
-      log(`⚠️ Timeout after ${ms}ms — using fallback`);
-      resolve(fallback);
-    }, ms)),
-  ]);
 }
 
 // ─── Provider ─────────────────────────────────────────────────────────────────
@@ -88,17 +79,42 @@ function withTimeout<T>(promise: Promise<T>, ms: number, fallback: T): Promise<T
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AppUser | null>(null);
   const [initializing, setInitializing] = useState(true);
+  const userRef = useRef<AppUser | null>(null); // Always holds the latest valid user
 
-  // Emergency escape hatch
+  // Safe setter: never replace a good user with a worse one
+  function safeSetUser(newUser: AppUser | null) {
+    if (!newUser) {
+      // Only clear if explicitly signing out
+      userRef.current = null;
+      setUser(null);
+      log("👤 User cleared");
+      return;
+    }
+
+    const current = userRef.current;
+    // If we already have a valid user with a real name, don't replace with a fallback
+    if (current && current.id === newUser.id && current.name && current.name !== current.email.split("@")[0]) {
+      // Current user has a real name from profiles
+      if (!newUser.name || newUser.name === newUser.email.split("@")[0]) {
+        // New user only has email-derived name — keep the better one
+        log(`👤 Keeping existing profile (${current.name}) over fallback (${newUser.name})`);
+        return;
+      }
+    }
+
+    userRef.current = newUser;
+    setUser(newUser);
+    log(`👤 User set: ${newUser.name} (${newUser.role}) avatar=${newUser.avatar}`);
+  }
+
   function forceReady() {
-    log("🚨 forceReady called — clearing auth state");
+    log("🚨 forceReady called");
+    userRef.current = null;
     setUser(null);
     setInitializing(false);
-    // Clear Supabase localStorage to allow fresh login
     try {
       const keys = Object.keys(localStorage).filter(k => k.startsWith("sb-"));
       keys.forEach(k => localStorage.removeItem(k));
-      log(`Cleared ${keys.length} Supabase localStorage keys`);
     } catch { /* ignore */ }
   }
 
@@ -110,81 +126,64 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (!initDone && mounted) {
         initDone = true;
         setInitializing(false);
-        log("✅ Initialization complete");
+        log("✅ Init complete");
       }
     }
 
-    log("🔄 Starting auth initialization...");
+    log("🔄 Starting auth init...");
 
-    // HARD TIMEOUT: No matter what, initializing MUST end after 5 seconds
+    // HARD TIMEOUT
     const hardTimeout = setTimeout(() => {
       if (!initDone) {
-        log("⏰ HARD TIMEOUT 5s — forcing initializing=false");
+        log("⏰ HARD TIMEOUT 5s");
         finishInit();
       }
     }, 5000);
 
-    // 1. Check existing session with timeout
-    const sessionPromise = supabase.auth.getSession();
-    log("📡 Calling getSession()...");
-
-    withTimeout(sessionPromise, 4000, { data: { session: null }, error: null })
+    // 1. Check existing session
+    supabase.auth.getSession()
       .then(async ({ data: { session } }) => {
         if (!mounted) return;
-        log(`📡 getSession responded — session: ${session ? "YES" : "NO"}`);
+        log(`📡 getSession: ${session ? "has session" : "no session"}`);
 
         if (session?.user) {
-          log(`👤 Resolving user: ${session.user.email}`);
-          const appUser = await withTimeout(
-            resolveUser(session.user),
-            3000,
-            { id: session.user.id, email: session.user.email ?? "", name: session.user.email?.split("@")[0] ?? "User", role: "alumno" as AppRole, avatar: "??" }
-          );
-          if (mounted) {
-            setUser(appUser);
-            log(`👤 User resolved: ${appUser.name} (${appUser.role})`);
+          try {
+            const appUser = await resolveUser(session.user);
+            if (mounted) safeSetUser(appUser);
+          } catch (err) {
+            log(`❌ resolveUser failed: ${err}`);
           }
         }
-
         finishInit();
       })
       .catch((err) => {
         log(`❌ getSession error: ${err}`);
-        finishInit();
+        if (mounted) finishInit();
       });
 
-    // 2. Listen for auth changes (post-initialization)
+    // 2. Auth state changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         if (!mounted) return;
-        log(`🔔 onAuthStateChange: ${event}`);
+        log(`🔔 ${event}`);
 
         if (event === "SIGNED_OUT") {
-          setUser(null);
+          safeSetUser(null);
           return;
         }
 
         if (event === "SIGNED_IN" && session?.user) {
-          log(`🔔 SIGNED_IN — resolving ${session.user.email}`);
-          const appUser = await withTimeout(
-            resolveUser(session.user),
-            3000,
-            { id: session.user.id, email: session.user.email ?? "", name: session.user.email?.split("@")[0] ?? "User", role: "alumno" as AppRole, avatar: "??" }
-          );
-          if (mounted) {
-            setUser(appUser);
-            log(`🔔 User set: ${appUser.name}`);
+          try {
+            const appUser = await resolveUser(session.user);
+            if (mounted) safeSetUser(appUser);
+          } catch (err) {
+            log(`❌ SIGNED_IN resolveUser failed: ${err}`);
           }
-          // If init hasn't finished yet (login during init), finish it
           finishInit();
           return;
         }
 
-        // TOKEN_REFRESHED: do nothing — user data hasn't changed
-        if (event === "TOKEN_REFRESHED") {
-          log("🔔 TOKEN_REFRESHED — no action needed");
-          return;
-        }
+        // TOKEN_REFRESHED — do nothing, user data hasn't changed
       }
     );
 
@@ -192,42 +191,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       mounted = false;
       clearTimeout(hardTimeout);
       subscription.unsubscribe();
-      log("🧹 Auth cleanup");
     };
   }, []);
 
   async function login(email: string, password: string) {
-    log(`🔑 Login attempt: ${email}`);
+    log(`🔑 Login: ${email}`);
     const { error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) {
-      log(`🔑 Login failed: ${error.message}`);
-      throw new Error(error.message);
-    }
-    log("🔑 signInWithPassword OK — waiting for onAuthStateChange...");
-    // Wait for onAuthStateChange to set the user (max 5s)
+    if (error) throw new Error(error.message);
+
+    // Wait for onAuthStateChange to set user (max 5s)
     await new Promise<void>((resolve) => {
-      let elapsed = 0;
-      const interval = setInterval(() => {
-        elapsed += 100;
-        if (elapsed >= 5000) { clearInterval(interval); resolve(); }
-      }, 100);
-      // Also resolve early via a one-time subscription check
+      const timeout = setTimeout(resolve, 5000);
       const unsub = supabase.auth.onAuthStateChange((event) => {
         if (event === "SIGNED_IN") {
-          clearInterval(interval);
+          clearTimeout(timeout);
           unsub.data.subscription.unsubscribe();
-          // Small delay to let the main listener process first
           setTimeout(resolve, 50);
         }
       });
     });
-    log("🔑 Login flow complete");
+    log("🔑 Login complete");
   }
 
   async function logout() {
     log("🚪 Logout");
     await supabase.auth.signOut();
-    setUser(null);
+    safeSetUser(null);
   }
 
   return (
