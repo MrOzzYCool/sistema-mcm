@@ -418,3 +418,60 @@ drop trigger if exists set_installments_updated_at on public.installments;
 create trigger set_installments_updated_at
   before update on public.installments
   for each row execute function public.set_updated_at();
+
+-- ─── Horarios de Clases ───────────────────────────────────────────────────────
+
+create table if not exists public.class_schedules (
+  id            uuid primary key default gen_random_uuid(),
+  profesor_id   uuid not null references public.profiles(id) on delete cascade,
+  curso_id      uuid not null references public.cursos(id) on delete cascade,
+  ciclo         integer not null,
+  dia_semana    text not null check (dia_semana in ('lunes','martes','miercoles','jueves','viernes','sabado')),
+  hora_inicio   time not null,
+  hora_fin      time not null,
+  aula          text,
+  created_at    timestamptz not null default now(),
+  updated_at    timestamptz not null default now(),
+  check (hora_fin > hora_inicio)
+);
+
+alter table public.class_schedules enable row level security;
+
+create policy "read_schedules" on public.class_schedules for select using (true);
+create policy "admin_write_schedules" on public.class_schedules
+  for all using (auth.role() = 'authenticated' and exists (
+    select 1 from public.profiles where id = auth.uid() and rol in ('super_admin')
+  ));
+
+create index if not exists idx_schedules_profesor on public.class_schedules(profesor_id);
+create index if not exists idx_schedules_curso on public.class_schedules(curso_id);
+
+drop trigger if exists set_schedules_updated_at on public.class_schedules;
+create trigger set_schedules_updated_at
+  before update on public.class_schedules
+  for each row execute function public.set_updated_at();
+
+-- ─── Apertura de Ciclos ───────────────────────────────────────────────────────
+
+create table if not exists public.cycle_openings (
+  id            uuid primary key default gen_random_uuid(),
+  cycle_number  integer not null,
+  start_date    date not null,
+  status        text not null default 'activo' check (status in ('activo','cerrado')),
+  created_by    uuid references auth.users(id),
+  created_at    timestamptz not null default now(),
+  updated_at    timestamptz not null default now(),
+  unique(cycle_number, start_date)
+);
+
+alter table public.cycle_openings enable row level security;
+create policy "read_cycle_openings" on public.cycle_openings for select using (true);
+create policy "admin_write_cycle_openings" on public.cycle_openings
+  for all using (auth.role() = 'authenticated' and exists (
+    select 1 from public.profiles where id = auth.uid() and rol in ('super_admin','cycle_manager')
+  ));
+
+-- Agregar cycle_manager al constraint de roles
+alter table public.profiles drop constraint if exists profiles_rol_check;
+alter table public.profiles add constraint profiles_rol_check
+  check (rol in ('alumno','profesor','super_admin','staff_tramites','gestor','actualizacion','cycle_manager'));

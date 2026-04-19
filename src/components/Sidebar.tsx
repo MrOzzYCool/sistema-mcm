@@ -4,12 +4,10 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import {
-  LayoutDashboard, BookOpen, FileText,
+  LayoutDashboard, BookOpen, FileText, Calendar,
   Settings, LogOut, ChevronRight, BarChart2, RefreshCw, UserCog,
 } from "lucide-react";
 import clsx from "clsx";
-
-const ADMIN_ROLES = ["super_admin", "staff_tramites", "gestor", "actualizacion"];
 
 const NAV_ITEMS = [
   { href: "/dashboard",                   label: "Inicio",              icon: LayoutDashboard, roles: ["super_admin", "staff_tramites", "gestor"] },
@@ -17,6 +15,7 @@ const NAV_ITEMS = [
   { href: "/dashboard/actualizacion",     label: "Actualización",       icon: RefreshCw,       roles: ["super_admin", "actualizacion"] },
   { href: "/dashboard/usuarios",          label: "Usuarios",            icon: UserCog,         roles: ["super_admin"] },
   { href: "/dashboard/academico",         label: "Académico",           icon: BookOpen,        roles: ["super_admin"] },
+  { href: "/dashboard/ciclos",            label: "Ciclos y Horarios",   icon: Calendar,        roles: ["super_admin", "cycle_manager"] },
   { href: "/dashboard/reportes",          label: "Reportes",            icon: BarChart2,       roles: ["super_admin", "gestor"] },
   { href: "/dashboard/config",            label: "Configuración",       icon: Settings,        roles: ["super_admin"] },
 ];

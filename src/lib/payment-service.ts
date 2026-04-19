@@ -2,8 +2,10 @@ import { supabaseAdmin } from "./supabase-admin";
 
 /**
  * generateStudentPaymentPlan
- * Regla: startMonthIndex = ((ciclo - 1) % 3) * 4
- *        startYear = year + Math.floor((ciclo - 1) / 3)
+ * 1. Busca si hay una cycle_opening activa para el ciclo → usa su start_date
+ * 2. Si no hay apertura, calcula con la fórmula:
+ *    startMonthIndex = ((ciclo - 1) % 3) * 4
+ *    startYear = year + Math.floor((ciclo - 1) / 3)
  */
 export async function generateStudentPaymentPlan(
   { alumnoId, ciclo, year }: { alumnoId: string; ciclo: number; year: number }
@@ -11,7 +13,7 @@ export async function generateStudentPaymentPlan(
   if (!alumnoId || !ciclo || !year) throw new Error("alumnoId, ciclo y year son requeridos");
   if (!Number.isInteger(ciclo) || ciclo <= 0) throw new Error("ciclo inválido");
 
-  // Prevenir duplicados exactos (alumno/ciclo/year_base)
+  // Prevenir duplicados
   const { data: existing } = await supabaseAdmin
     .from("payment_plans")
     .select("id")
@@ -30,14 +32,34 @@ export async function generateStudentPaymentPlan(
     .single();
   if (planError) throw planError;
 
-  // Cálculo del mes/año de inicio basado en ciclo secuencial
-  const startMonthIndex = ((ciclo - 1) % 3) * 4; // 0, 4, 8 (0=>Ene, 4=>May, 8=>Sep)
-  const yearOffset = Math.floor((ciclo - 1) / 3);
-  const startYear = year + yearOffset;
+  // Buscar cycle_opening activa para determinar fecha de inicio
+  let startMonthIndex: number;
+  let startYear: number;
+
+  const { data: opening } = await supabaseAdmin
+    .from("cycle_openings")
+    .select("start_date")
+    .eq("cycle_number", ciclo)
+    .eq("status", "activo")
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .single();
+
+  if (opening?.start_date) {
+    // Usar la fecha de la apertura
+    const d = new Date(opening.start_date + "T00:00:00");
+    startMonthIndex = d.getMonth(); // 0-indexed
+    startYear = d.getFullYear();
+  } else {
+    // Fallback: cálculo por fórmula
+    startMonthIndex = ((ciclo - 1) % 3) * 4;
+    const yearOffset = Math.floor((ciclo - 1) / 3);
+    startYear = year + yearOffset;
+  }
 
   const items: Record<string, unknown>[] = [];
 
-  // Matrícula
+  // Matrícula — día 01 del mes de inicio
   items.push({
     plan_id: plan.id,
     tipo: "matricula",
@@ -49,7 +71,7 @@ export async function generateStudentPaymentPlan(
     status: "pending",
   });
 
-  // Cuotas 1..4 (día 01 de cada mes, cruzando año si hace falta)
+  // Cuotas 1..4 — día 01 de cada mes consecutivo
   for (let i = 0; i < 4; i++) {
     const monthIndex = startMonthIndex + i;
     const addYears = Math.floor(monthIndex / 12);
