@@ -14,7 +14,6 @@ async function verifyAdmin(req: NextRequest) {
 
 /**
  * GET /api/admin/payments?alumno_id=xxx
- * Returns payment plans and installments for a student.
  */
 export async function GET(req: NextRequest) {
   const admin = await verifyAdmin(req);
@@ -49,20 +48,27 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "alumno_id, ciclo y year son requeridos" }, { status: 400 });
     }
 
-    const { generateStudentPaymentPlan } = await import("@/lib/payment-service");
-    const result = await generateStudentPaymentPlan(alumno_id, ciclo, year);
+    try {
+      const { generateStudentPaymentPlan } = await import("@/lib/payment-service");
+      const plan = await generateStudentPaymentPlan({
+        alumnoId: alumno_id,
+        ciclo: parseInt(ciclo),
+        year: parseInt(year),
+      });
 
-    if (result.error) {
-      return NextResponse.json({ error: result.error }, { status: 400 });
+      await supabaseAdmin.from("historial_auditoria").insert({
+        accion: "generar_plan_pagos",
+        admin_id: admin.id, admin_email: admin.email, target_id: alumno_id,
+        detalle: { ciclo, year, plan_id: plan.id },
+      });
+
+      return NextResponse.json({ success: true, planId: plan.id });
+    } catch (err) {
+      return NextResponse.json(
+        { error: err instanceof Error ? err.message : "Error generando plan" },
+        { status: 400 },
+      );
     }
-
-    await supabaseAdmin.from("historial_auditoria").insert({
-      accion: "generar_plan_pagos",
-      admin_id: admin.id, admin_email: admin.email, target_id: alumno_id,
-      detalle: { ciclo, year, plan_id: result.planId, installments: result.installments },
-    });
-
-    return NextResponse.json({ success: true, ...result });
   }
 
   if (action === "mark-paid") {
@@ -71,7 +77,7 @@ export async function POST(req: NextRequest) {
 
     const { error } = await supabaseAdmin
       .from("installments")
-      .update({ status: "pagado", fecha_pago: new Date().toISOString() })
+      .update({ status: "paid", fecha_pago: new Date().toISOString() })
       .eq("id", installment_id);
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });

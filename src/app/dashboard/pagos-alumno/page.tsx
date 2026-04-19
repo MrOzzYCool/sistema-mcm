@@ -165,19 +165,19 @@ function PagosAlumnoContent() {
                         {Number(inst.amount) !== Number(inst.amount_original) && <span className="text-xs text-amber-600 ml-1">(beca)</span>}
                       </td>
                       <td className="py-3 px-4 text-mcm-muted text-xs">S/ {Number(inst.amount_original).toFixed(2)}</td>
-                      <td className={clsx("py-3 px-4 text-xs", inst.status === "vencido" ? "text-red-600 font-bold" : "text-mcm-muted")}>
+                      <td className={clsx("py-3 px-4 text-xs", inst.status === "overdue" ? "text-red-600 font-bold" : "text-mcm-muted")}>
                         {new Date(inst.due_date + "T00:00:00").toLocaleDateString("es-PE", { day: "2-digit", month: "short", year: "numeric" })}
                       </td>
                       <td className="py-3 px-4">
-                        <span className={inst.status === "pagado" ? "badge-green" : inst.status === "vencido" ? "badge-red" : "badge-yellow"}>
-                          {inst.status === "pagado" ? "Pagado" : inst.status === "vencido" ? "Vencido" : "Pendiente"}
+                        <span className={inst.status === "paid" ? "badge-green" : inst.status === "overdue" ? "badge-red" : "badge-yellow"}>
+                          {inst.status === "paid" ? "Pagado" : inst.status === "overdue" ? "Vencido" : "Pendiente"}
                         </span>
                       </td>
                       <td className="py-3 px-4 text-mcm-muted text-xs">
                         {inst.fecha_pago ? new Date(inst.fecha_pago).toLocaleDateString("es-PE", { day: "2-digit", month: "short" }) : "—"}
                       </td>
                       <td className="py-3 px-4">
-                        {inst.status !== "pagado" && (
+                        {inst.status !== "paid" && (
                           <div className="flex gap-2">
                             <button onClick={() => handleMarkPaid(inst.id)} title="Marcar pagado" className="text-mcm-muted hover:text-green-600"><CheckCircle size={14} /></button>
                             <button onClick={() => openEdit(inst)} title="Editar monto" className="text-mcm-muted hover:text-blue-600"><Pencil size={14} /></button>

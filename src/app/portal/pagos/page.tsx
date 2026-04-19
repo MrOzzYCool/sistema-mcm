@@ -44,9 +44,9 @@ export default function PagosAlumnoPage() {
   }
 
   const all = plans.flatMap(p => p.installments).sort((a, b) => a.due_date.localeCompare(b.due_date));
-  const totalDeuda = all.filter(i => i.status !== "pagado").reduce((s, i) => s + Number(i.amount), 0);
-  const totalPagado = all.filter(i => i.status === "pagado").reduce((s, i) => s + Number(i.amount), 0);
-  const pendientes = all.filter(i => i.status === "pendiente").length;
+  const totalDeuda = all.filter(i => i.status !== "paid").reduce((s, i) => s + Number(i.amount), 0);
+  const totalPagado = all.filter(i => i.status === "paid").reduce((s, i) => s + Number(i.amount), 0);
+  const pendientes = all.filter(i => i.status === "pending").length;
 
   return (
     <div className="p-6 w-full space-y-6">
@@ -85,7 +85,7 @@ export default function PagosAlumnoPage() {
               </thead>
               <tbody>
                 {all.map(inst => {
-                  const isOverdue = inst.status === "pendiente" && new Date(inst.due_date) < new Date();
+                  const isOverdue = inst.status === "pending" && new Date(inst.due_date) < new Date();
                   return (
                     <tr key={inst.id} className="border-t border-mcm-border hover:bg-slate-50">
                       <td className="py-3.5 px-4 font-medium text-mcm-text">
@@ -98,7 +98,7 @@ export default function PagosAlumnoPage() {
                         {isOverdue && <span className="ml-1 badge-red text-xs">Vencido</span>}
                       </td>
                       <td className="py-3.5 px-4">
-                        {inst.status === "pagado" ? (
+                        {inst.status === "paid" ? (
                           <span className="badge-green flex items-center gap-1 w-fit"><CheckCircle size={12} /> Pagado</span>
                         ) : isOverdue ? (
                           <span className="badge-red flex items-center gap-1 w-fit"><AlertCircle size={12} /> Vencido</span>
