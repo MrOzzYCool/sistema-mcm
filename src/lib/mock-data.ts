@@ -201,6 +201,7 @@ export const TRAMITES_EXTERNOS_CATALOGO = [
   { id: "te9",  label: "9. EXAMEN DE SUFICIENCIA PROFESIONAL / SUSTENTACIÓN (2013 A LA ACTUALIDAD)", nombre: "Examen de Suficiencia Profesional / Sustentación (Alumnas que estudiaron de 2013 a la actualidad) INSTITUTO",                   costo: 1000  },
   { id: "te10", label: "10. TRÁMITE DE TÍTULO A NOMBRE DE LA NACIÓN (2013 A LA ACTUALIDAD)",       nombre: "Trámite de Titulo a Nombre de la Nacion (Alumnas que estudiaron de 2013 a la actualidad) INSTITUTO",                              costo: 2000  },
   { id: "te11", label: "11. SÍLABO POR CURSO",                                                     nombre: "Sílabo por Curso",                                                                                                                costo: 350   },
+  { id: "te12", label: "12. CONSTANCIA DE MATRÍCULA",                                              nombre: "Constancia de Matrícula",                                                                                                         costo: 50    },
 ] as const;
 
 export const SILABO_CARRERAS = [] as const; // ya no se usa
@@ -270,6 +271,7 @@ export const NUBEFACT_MAP: Record<string, NubefactItem> = {
   "te9":  { codigo:  3, descripcion: "EXAMEN DE SUFICIENCIA PROFESIONAL / SUSTENTACIÓN",         monto: 1000 },
   "te10": { codigo:  8, descripcion: "TRÁMITE DE TÍTULO A NOMBRE DE LA NACIÓN",                  monto: 2000 },
   "te11": { codigo:  4, descripcion: "SILABO POR CURSO",                                         monto: 5    }, // × cantidad
+  "te12": { codigo: 18, descripcion: "CONSTANCIA DE MATRÍCULA",                                  monto: 50   },
 };
 
 // ─── Catálogo de Actualizaciones ──────────────────────────────────────────────
