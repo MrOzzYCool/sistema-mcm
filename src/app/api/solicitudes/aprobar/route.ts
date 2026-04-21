@@ -59,9 +59,6 @@ export async function POST(req: NextRequest) {
     const precioUnit = esSilabo ? 5 : nubefactItem!.monto;
     const montoTotal = Math.round(precioUnit * cantidad * 100) / 100;
 
-    // Forzar tipoIgv=10 si el monto es 400 o 350 (actualizaciones con IGV)
-    const tipoIgvForzado = (montoTotal === 400 || montoTotal === 350) ? 10 : undefined;
-
     console.log("Código Nubefact:", nubefactItem.codigo, "| Desc:", nubefactItem.descripcion);
     console.log("Cantidad:", cantidad, "| Precio unit:", precioUnit, "| Total:", montoTotal);
 
@@ -70,7 +67,9 @@ export async function POST(req: NextRequest) {
 
     if (montoTotal > 0) {
       try {
-        console.log("tipo_tramite BD:", sol.tipo_tramite, "| actualizacion:", actualizacion?.label ?? "null", "| tipoIgvForzado:", tipoIgvForzado ?? "N/A");
+        // IGV solo aplica para actualizaciones, NUNCA para trámites externos
+        const esActualizacion = !!actualizacion;
+        console.log("tipo_tramite BD:", sol.tipo_tramite, "| esActualizacion:", esActualizacion);
         const boleta = await generarBoleta({
           codigoProducto:  nubefactItem.codigo,
           descripcion:     nubefactItem.descripcion,
@@ -78,12 +77,13 @@ export async function POST(req: NextRequest) {
           nombreCliente:   `${sol.nombres} ${sol.apellidos}`,
           cantidad,
           precioUnitario:  precioUnit,
-          // tipoIgv: actualizacion o forzado por monto, lo que aplique
-          ...(actualizacion && {
+          // Solo actualizaciones llevan IGV (gravado)
+          ...(esActualizacion && {
             valorUnitario: actualizacion.valorUnitario,
             tipoIgv:       actualizacion.tipoIgv,
           }),
-          ...(tipoIgvForzado && !actualizacion && { tipoIgv: tipoIgvForzado }),
+          // Trámites externos siempre inafectos (sin IGV)
+          ...(!esActualizacion && { tipoIgv: 9 }),
           codigoUnico:     id,
           tipoComprobante: (sol.tipo_comprobante === "factura" ? "factura" : "boleta") as "boleta" | "factura",
           ruc:             sol.ruc ?? undefined,
