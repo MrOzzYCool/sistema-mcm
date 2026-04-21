@@ -260,7 +260,7 @@ export interface NubefactItem {
 
 export const NUBEFACT_MAP: Record<string, NubefactItem> = {
   "te1":  { codigo: 31, descripcion: "CONSTANCIA DE ESTUDIO",                                    monto: 50   },
-  "te2":  { codigo:  9, descripcion: "CERTIFICADO DE ESTUDIO",                                   monto: 350  },
+  "te2":  { codigo:  9, descripcion: "CERTIFICADO DE ESTUDIO",                                   monto: 250  },
   "te3":  { codigo: 31, descripcion: "CONSTANCIA DE ESTUDIO",                                    monto: 50   },
   "te4":  { codigo:  6, descripcion: "CERTIFICADO MODULAR POR MODULO",                           monto: 200  },
   "te5":  { codigo: 28, descripcion: "CERTIFICADO OFICIAL DE NOTAS",                             monto: 200  },
