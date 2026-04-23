@@ -53,7 +53,7 @@ export async function POST(req: NextRequest) {
 
   // ── RESET PASSWORD ──────────────────────────────────────────────────────
   if (action === "reset-password") {
-    const tempPw = "mcm2026";
+    const tempPw = "123456";
 
     const { error: authErr } = await supabaseAdmin.auth.admin.updateUserById(staffId, {
       password: tempPw,
@@ -63,7 +63,7 @@ export async function POST(req: NextRequest) {
     await supabaseAdmin.from("profiles").update({ force_password_reset: true }).eq("id", staffId);
     await logAction(staffId, "reset_password", admin.id, { email: staffEmail });
 
-    return NextResponse.json({ success: true, message: `Contraseña de ${staff.nombre_completo} restablecida a: mcm2026` });
+    return NextResponse.json({ success: true, message: `Contraseña de ${staff.nombre_completo} restablecida a: 123456` });
   }
 
   // ── SET PASSWORD ────────────────────────────────────────────────────────
