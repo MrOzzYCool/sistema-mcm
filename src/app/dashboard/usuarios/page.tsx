@@ -56,7 +56,8 @@ function UsuariosContent() {
       const data = await res.json();
       console.log("Usuarios cargados:", data);
       if (!res.ok) throw new Error(data.error);
-      setProfiles(data);
+      // Solo mostrar alumnos y profesores en este módulo
+      setProfiles(data.filter((p: Profile) => p.rol === "alumno" || p.rol === "profesor"));
     } catch (e) {
       setError(e instanceof Error ? e.message : "Error");
     } finally {
@@ -229,8 +230,8 @@ function UsuariosContent() {
     <div className="p-6 w-full space-y-5">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-mcm-text">Gestión de Usuarios</h1>
-          <p className="text-mcm-muted text-sm">{profiles.length} usuarios registrados · {profiles.filter(p => p.estado === "activo").length} activos</p>
+          <h1 className="text-2xl font-bold text-mcm-text">Alumnos y Profesores</h1>
+          <p className="text-mcm-muted text-sm">{profiles.length} registrados · {profiles.filter(p => p.estado === "activo").length} activos</p>
         </div>
         <div className="flex items-center gap-2">
           <button onClick={() => setShowModal(true)} className="btn-primary flex items-center gap-2 text-sm">

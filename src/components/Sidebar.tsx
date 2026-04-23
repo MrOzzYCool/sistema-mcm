@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import {
-  LayoutDashboard, BookOpen, FileText, Calendar,
+  LayoutDashboard, BookOpen, FileText, Calendar, Users,
   Settings, LogOut, ChevronRight, BarChart2, RefreshCw, UserCog,
 } from "lucide-react";
 import clsx from "clsx";
@@ -13,7 +13,8 @@ const NAV_ITEMS = [
   { href: "/dashboard",                   label: "Inicio",              icon: LayoutDashboard, roles: ["super_admin", "staff_tramites", "gestor"] },
   { href: "/dashboard/tramites-externos", label: "Gestión de Trámites", icon: FileText,        roles: ["super_admin", "staff_tramites", "gestor"] },
   { href: "/dashboard/actualizacion",     label: "Actualización",       icon: RefreshCw,       roles: ["super_admin", "actualizacion"] },
-  { href: "/dashboard/usuarios",          label: "Usuarios",            icon: UserCog,         roles: ["super_admin"] },
+  { href: "/dashboard/usuarios",          label: "Alumnos y Profesores",icon: UserCog,         roles: ["super_admin"] },
+  { href: "/dashboard/staff",             label: "Gestión de Staff",    icon: Users,           roles: ["super_admin"] },
   { href: "/dashboard/academico",         label: "Académico",           icon: BookOpen,        roles: ["super_admin"] },
   { href: "/dashboard/ciclos",            label: "Ciclos y Horarios",   icon: Calendar,        roles: ["super_admin", "cycle_manager"] },
   { href: "/dashboard/reportes",          label: "Reportes",            icon: BarChart2,       roles: ["super_admin", "gestor"] },

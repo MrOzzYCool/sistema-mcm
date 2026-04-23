@@ -6,7 +6,7 @@ import { supabase } from "./supabase";
 
 // ─── Roles hardcodeados (admins) ─────────────────────────────────────────────
 
-type AppRole = "super_admin" | "staff_tramites" | "gestor" | "actualizacion" | "profesor" | "alumno" | "cycle_manager";
+type AppRole = "super_admin" | "staff_tramites" | "gestor" | "actualizacion" | "profesor" | "alumno" | "cycle_manager" | "administradora" | "secretaria_academica" | "secretaria_atencion_academica" | "coordinacion_academica";
 
 const ADMIN_ROLES: Record<string, AppRole> = {
   "admin@margaritacabrera.edu.pe":      "super_admin",
