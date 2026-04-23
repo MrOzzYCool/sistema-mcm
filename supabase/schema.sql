@@ -475,3 +475,23 @@ create policy "admin_write_cycle_openings" on public.cycle_openings
 alter table public.profiles drop constraint if exists profiles_rol_check;
 alter table public.profiles add constraint profiles_rol_check
   check (rol in ('alumno','profesor','super_admin','staff_tramites','gestor','actualizacion','cycle_manager'));
+
+-- ─── Staff: force password reset flag ─────────────────────────────────────────
+alter table public.profiles
+  add column if not exists force_password_reset boolean default false;
+
+-- ─── Staff Actions Log ────────────────────────────────────────────────────────
+create table if not exists public.staff_actions_log (
+  id            uuid primary key default gen_random_uuid(),
+  staff_id      uuid not null references public.profiles(id) on delete cascade,
+  action        text not null,
+  performed_by  uuid references auth.users(id),
+  payload       jsonb,
+  created_at    timestamptz not null default now()
+);
+
+alter table public.staff_actions_log enable row level security;
+create policy "admin_all_staff_log" on public.staff_actions_log
+  for all using (auth.role() = 'authenticated' and exists (
+    select 1 from public.profiles where id = auth.uid() and rol in ('super_admin')
+  ));
