@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { supabase } from "@/lib/supabase";
-import { generatePassword } from "@/lib/password-utils";
+
+const TEMP_PASSWORD = "mcm2026";
 
 export async function POST(req: NextRequest) {
-  // Verificar admin
   const authHeader = req.headers.get("authorization") ?? "";
   const token = authHeader.replace("Bearer ", "");
   const { data: { user: admin } } = await supabase.auth.getUser(token);
@@ -12,13 +12,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "No autorizado" }, { status: 403 });
   }
 
-  const { userId, notify_email } = await req.json();
+  const { userId } = await req.json();
   if (!userId) return NextResponse.json({ error: "userId requerido" }, { status: 400 });
 
-  const tempPassword = generatePassword();
-
   const { error } = await supabaseAdmin.auth.admin.updateUserById(userId, {
-    password: tempPassword,
+    password: TEMP_PASSWORD,
   });
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
@@ -28,23 +26,5 @@ export async function POST(req: NextRequest) {
     accion: "reset_password", admin_id: admin.id, admin_email: admin.email, target_id: userId,
   });
 
-  // Obtener email del usuario para notificar
-  if (notify_email) {
-    const { data: profile } = await supabaseAdmin.from("profiles").select("nombre_completo").eq("id", userId).single();
-    const { data: { user: targetUser } } = await supabaseAdmin.auth.admin.getUserById(userId);
-    if (targetUser?.email) {
-      try {
-        const { Resend } = await import("resend");
-        const resend = new Resend(process.env.RESEND_API_KEY);
-        await resend.emails.send({
-          from: "I.E.S. Privada Margarita Cabrera <tramites@margaritacabrera.edu.pe>",
-          to: targetUser.email,
-          subject: "Tu contraseña ha sido restablecida",
-          html: `<p>Hola ${profile?.nombre_completo ?? ""},</p><p>Tu nueva contraseña temporal es: <strong style="font-family:monospace;font-size:16px;">${tempPassword}</strong></p><p>Cámbiala al iniciar sesión.</p>`,
-        });
-      } catch (e) { console.error("Error email reset:", e); }
-    }
-  }
-
-  return NextResponse.json({ success: true });
+  return NextResponse.json({ success: true, message: `Contraseña restablecida a: ${TEMP_PASSWORD}` });
 }

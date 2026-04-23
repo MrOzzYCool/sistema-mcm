@@ -53,43 +53,17 @@ export async function POST(req: NextRequest) {
 
   // ── RESET PASSWORD ──────────────────────────────────────────────────────
   if (action === "reset-password") {
-    const tempPw = generateTempPassword();
+    const tempPw = "mcm2026";
 
     const { error: authErr } = await supabaseAdmin.auth.admin.updateUserById(staffId, {
       password: tempPw,
     });
     if (authErr) return NextResponse.json({ error: `Error Auth: ${authErr.message}` }, { status: 500 });
 
-    // Mark force_password_reset
     await supabaseAdmin.from("profiles").update({ force_password_reset: true }).eq("id", staffId);
-
     await logAction(staffId, "reset_password", admin.id, { email: staffEmail });
 
-    // Send email with temp password
-    try {
-      const { Resend } = await import("resend");
-      const resend = new Resend(process.env.RESEND_API_KEY);
-      await resend.emails.send({
-        from: "I.E.S. Privada Margarita Cabrera <tramites@margaritacabrera.edu.pe>",
-        to: staffEmail,
-        subject: "Contraseña temporal — Sistema MCM",
-        html: `
-          <div style="font-family:Arial,sans-serif;max-width:500px;margin:0 auto;">
-            <h2 style="color:#a93526;">Contraseña temporal</h2>
-            <p>Hola <strong>${staff.nombre_completo}</strong>,</p>
-            <p>Tu contraseña ha sido reseteada. Usa esta contraseña temporal para ingresar:</p>
-            <div style="background:#f8f5f5;border-left:4px solid #a93526;padding:16px;margin:16px 0;font-family:monospace;font-size:18px;font-weight:bold;">
-              ${tempPw}
-            </div>
-            <p style="color:#dc2626;font-weight:600;">Deberás cambiar tu contraseña al iniciar sesión.</p>
-          </div>
-        `,
-      });
-    } catch (emailErr) {
-      console.error("Error enviando email de reset:", emailErr);
-    }
-
-    return NextResponse.json({ success: true, message: `Contraseña temporal enviada a ${staffEmail}` });
+    return NextResponse.json({ success: true, message: `Contraseña de ${staff.nombre_completo} restablecida a: mcm2026` });
   }
 
   // ── SET PASSWORD ────────────────────────────────────────────────────────
