@@ -33,7 +33,9 @@ export default function CambiarContrasenaPage() {
       const json = await res.json();
       if (!res.ok) throw new Error(json.error);
 
-      // Redirect to appropriate page
+      // Force auth to re-resolve user (flag is now false)
+      // Sign out and back in to refresh the user state
+      await supabase.auth.signOut();
       router.replace("/");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error al cambiar contraseña");

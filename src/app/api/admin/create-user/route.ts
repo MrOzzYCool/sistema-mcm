@@ -70,6 +70,7 @@ export async function POST(req: NextRequest) {
         estado: "activo",
         dni: dni || null,
         created_by: admin.id,
+        force_password_reset: !!force_change,
       }, { onConflict: "id" })
       .select()
       .single();
