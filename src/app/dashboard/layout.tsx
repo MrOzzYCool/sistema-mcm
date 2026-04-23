@@ -19,6 +19,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   useEffect(() => {
     if (initializing) return;
     if (!user) router.replace("/");
+    else if (user.forcePasswordReset) router.replace("/cambiar-contrasena");
     else if (user.role === "alumno") router.replace("/portal");
   }, [user, initializing, router]);
 

@@ -21,6 +21,7 @@ export interface AppUser {
   name: string;
   role: AppRole;
   avatar: string;
+  forcePasswordReset?: boolean;
 }
 
 interface AuthCtx {
@@ -53,7 +54,7 @@ async function resolveUser(su: SupabaseUser): Promise<AppUser> {
   try {
     const { data: profile } = await supabase
       .from("profiles")
-      .select("nombre_completo, rol, estado")
+      .select("nombre_completo, rol, estado, force_password_reset")
       .eq("id", su.id)
       .single();
 
@@ -61,7 +62,7 @@ async function resolveUser(su: SupabaseUser): Promise<AppUser> {
       const name = profile.nombre_completo ?? email.split("@")[0];
       const initials = name.split(" ").map((w: string) => w[0]).join("").toUpperCase().slice(0, 2);
       log(`👤 Profile found: ${name} (${profile.rol})`);
-      return { id: su.id, email, name, role: (profile.rol as AppRole) ?? "alumno", avatar: initials };
+      return { id: su.id, email, name, role: (profile.rol as AppRole) ?? "alumno", avatar: initials, forcePasswordReset: !!profile.force_password_reset };
     }
   } catch (err) {
     log(`⚠️ Profile query failed: ${err}`);

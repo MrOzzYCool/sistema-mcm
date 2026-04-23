@@ -20,6 +20,7 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
   useEffect(() => {
     if (initializing) return;
     if (!user) router.replace("/");
+    else if (user.forcePasswordReset) router.replace("/cambiar-contrasena");
     else if (user.role !== "alumno") router.replace("/dashboard");
   }, [user, initializing, router]);
 

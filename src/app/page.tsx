@@ -29,7 +29,11 @@ export default function LoginPage() {
   // If already logged in, redirect
   useEffect(() => {
     if (!initializing && user) {
-      router.replace(getDestination(user.email, user.role));
+      if (user.forcePasswordReset) {
+        router.replace("/cambiar-contrasena");
+      } else {
+        router.replace(getDestination(user.email, user.role));
+      }
     }
   }, [user, initializing, router]);
 
