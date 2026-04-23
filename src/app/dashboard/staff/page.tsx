@@ -49,10 +49,10 @@ function StaffContent() {
   const [saving, setSaving] = useState(false);
   const [createForm, setCreateForm] = useState({
     nombres: "", apellidos: "", email: "", dni: "", rol: "administradora",
-    password: "", auto_password: true,
+    password: "", auto_password: true, force_change: true,
   });
   const [editTarget, setEditTarget] = useState<StaffProfile | null>(null);
-  const [editForm, setEditForm] = useState({ nombre_completo: "", rol: "", estado: "" });
+  const [editForm, setEditForm] = useState({ nombre_completo: "", rol: "", estado: "", force_change: false });
   const [editSaving, setEditSaving] = useState(false);
   const [setPwTarget, setSetPwTarget] = useState<StaffProfile | null>(null);
   const [newPassword, setNewPassword] = useState("");
@@ -99,14 +99,14 @@ function StaffContent() {
         body: JSON.stringify({
           tipo: createForm.rol, nombre_completo, email: createForm.email,
           dni: createForm.dni, password: createForm.password,
-          auto_password: createForm.auto_password, force_change: true, notify_email: true,
+          auto_password: createForm.auto_password, force_change: createForm.force_change, notify_email: true,
         }),
       });
       const json = await res.json();
       if (!res.ok && res.status !== 207) throw new Error(json.error);
       setSuccess(`Personal "${nombre_completo}" creado.`);
       setShowCreate(false);
-      setCreateForm({ nombres: "", apellidos: "", email: "", dni: "", rol: "administradora", password: "", auto_password: true });
+      setCreateForm({ nombres: "", apellidos: "", email: "", dni: "", rol: "administradora", password: "", auto_password: true, force_change: true });
       cargar();
     } catch (e) { setError(e instanceof Error ? e.message : "Error"); }
     finally { setSaving(false); }
@@ -160,7 +160,7 @@ function StaffContent() {
 
   function openEdit(p: StaffProfile) {
     setEditTarget(p);
-    setEditForm({ nombre_completo: p.nombre_completo, rol: p.rol, estado: p.estado });
+    setEditForm({ nombre_completo: p.nombre_completo, rol: p.rol, estado: p.estado, force_change: !!p.force_password_reset });
   }
 
   async function handleEdit() {
@@ -180,6 +180,10 @@ function StaffContent() {
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ userId: editTarget.id, nombre_completo: editForm.nombre_completo, rol: editForm.rol }),
       });
+      // Update force_password_reset if changed
+      if (editForm.force_change !== !!editTarget.force_password_reset) {
+        await staffAction("toggle-force-reset", editTarget.id, { value: editForm.force_change });
+      }
       setEditTarget(null); setSuccess("Personal actualizado."); cargar();
     } catch (e) { setError(e instanceof Error ? e.message : "Error"); }
     finally { setEditSaving(false); }
@@ -315,6 +319,11 @@ function StaffContent() {
                 <input value={createForm.password} onChange={e => setCreateForm({...createForm, password: e.target.value})}
                   placeholder="Contraseña (mín. 6)" className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#a93526]" />
               )}
+              <label className="flex items-center gap-2 text-sm cursor-pointer">
+                <input type="checkbox" checked={createForm.force_change}
+                  onChange={e => setCreateForm({...createForm, force_change: e.target.checked})} className="accent-[#a93526]" />
+                Forzar cambio de contraseña al primer ingreso
+              </label>
             </div>
             <div className="flex gap-3 mt-5">
               <button onClick={() => setShowCreate(false)} className="btn-secondary flex-1 text-sm">Cancelar</button>
@@ -357,6 +366,11 @@ function StaffContent() {
                   <option value="inactivo">Inactivo</option>
                 </select>
               </div>
+              <label className="flex items-center gap-2 text-sm cursor-pointer">
+                <input type="checkbox" checked={editForm.force_change}
+                  onChange={e => setEditForm({...editForm, force_change: e.target.checked})} className="accent-[#a93526]" />
+                Forzar cambio de contraseña al próximo ingreso
+              </label>
             </div>
             <div className="flex gap-3 mt-5">
               <button onClick={() => setEditTarget(null)} className="btn-secondary flex-1 text-sm">Cancelar</button>
