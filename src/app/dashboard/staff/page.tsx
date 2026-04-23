@@ -21,22 +21,18 @@ const ROLE_LABELS: Record<string, string> = {
   gestor: "GESTOR",
   actualizacion: "ACTUALIZACIÓN",
   cycle_manager: "CYCLE MANAGER",
-  administradora: "ADMINISTRADORA",
-  secretaria_academica: "SECRETARIA ACADÉMICA",
-  secretaria_atencion_academica: "SECRETARIA ATENCIÓN ACADÉMICA",
+  administradora: "GERENTE GENERAL",
+  secretaria_academica: "SECRETARÍA ACADÉMICA",
+  secretaria_atencion_academica: "SECRETARÍA ATENCIÓN ACADÉMICA",
   coordinacion_academica: "COORDINACIÓN ACADÉMICA",
 };
 
 // Roles disponibles para asignar a nuevo staff
 const ASSIGNABLE_ROLES = [
-  { value: "administradora", label: "Administradora" },
-  { value: "secretaria_academica", label: "Secretaria Académica" },
-  { value: "secretaria_atencion_academica", label: "Secretaria Atención Académica" },
+  { value: "administradora", label: "Gerente General" },
+  { value: "secretaria_academica", label: "Secretaría Académica" },
+  { value: "secretaria_atencion_academica", label: "Secretaría Atención Académica" },
   { value: "coordinacion_academica", label: "Coordinación Académica" },
-  { value: "staff_tramites", label: "Staff Trámites" },
-  { value: "gestor", label: "Gestor" },
-  { value: "actualizacion", label: "Actualización" },
-  { value: "cycle_manager", label: "Cycle Manager" },
 ];
 
 interface StaffProfile {
@@ -316,7 +312,6 @@ function StaffContent() {
                 <select value={editForm.rol} onChange={e => setEditForm({...editForm, rol: e.target.value})}
                   className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#a93526]">
                   {ASSIGNABLE_ROLES.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
-                  <option value="super_admin">Super Admin</option>
                 </select>
               </div>
               <div>
