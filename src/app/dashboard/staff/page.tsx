@@ -249,10 +249,7 @@ function StaffContent() {
                     <td className="py-3 px-4">
                       <div className="flex gap-1.5">
                         <button onClick={() => openEdit(p)} title="Editar" className="text-mcm-muted hover:text-[#a93526]"><Pencil size={14} /></button>
-                        <button onClick={() => handleResetPw(p)} title="Reset contraseña" className="text-mcm-muted hover:text-amber-600"><Key size={14} /></button>
-                        <button onClick={() => { setSetPwTarget(p); setNewPassword(""); }} title="Asignar contraseña" className="text-mcm-muted hover:text-blue-600"><Lock size={14} /></button>
-                        <button onClick={() => handleToggleForceReset(p)} title={p.force_password_reset ? "Quitar forzar cambio" : "Forzar cambio"}
-                          className={p.force_password_reset ? "text-amber-500 hover:text-amber-700" : "text-mcm-muted hover:text-amber-500"}><Shield size={14} /></button>
+                        <button onClick={() => handleResetPw(p)} title="Restablecer contraseña" className="text-mcm-muted hover:text-amber-600"><Key size={14} /></button>
                         {p.estado === "activo" && p.id !== user?.id && (
                           <button onClick={() => handleDeactivate(p)} title="Desactivar" className="text-mcm-muted hover:text-red-500"><XCircle size={14} /></button>
                         )}
