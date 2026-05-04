@@ -381,7 +381,7 @@ export default function TramitesExternosPage() {
                   <div className="flex items-center justify-between bg-[#a93526] rounded-xl px-5 py-4">
                     <span className="text-white font-medium text-sm">Monto a pagar:</span>
                     <span className="text-white font-bold text-2xl">
-                      S/ {(tramiteSeleccionado.costo as number).toLocaleString("es-PE", { minimumFractionDigits: 2 })}
+                      S/ {montoFinal.toLocaleString("es-PE", { minimumFractionDigits: 2 })}
                     </span>
                   </div>
                 )}
