@@ -5,7 +5,7 @@ import { getSolicitudes, actualizarEstado, getPublicUrl, borrarTodasLasSolicitud
 import { SolicitudDB } from "@/lib/supabase";
 import { useAuth } from "@/lib/auth-context";
 import RouteGuard from "@/components/RouteGuard";
-import { CheckCircle, XCircle, AlertTriangle, Eye, X, ExternalLink, RefreshCw, Loader2 } from "lucide-react";
+import { CheckCircle, XCircle, AlertTriangle, Eye, X, ExternalLink, RefreshCw, Loader2, Trash2 } from "lucide-react";
 import clsx from "clsx";
 
 type Estado = SolicitudDB["estado"];
@@ -87,6 +87,21 @@ function TramitesExternosContent() {
       setModalObs(null);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Error actualizando estado");
+    } finally {
+      setSaving(null);
+    }
+  }
+
+  async function handleEliminar(id: string, nombre: string) {
+    if (!confirm(`¿Estás seguro de eliminar el trámite de "${nombre}"?\n\nEsta acción no se puede deshacer.`)) return;
+    setSaving(id);
+    try {
+      const { supabase: sb } = await import("@/lib/supabase");
+      const { error: delErr } = await sb.from("solicitudes").delete().eq("id", id);
+      if (delErr) throw new Error(delErr.message);
+      setSolicitudes((prev) => prev.filter((s) => s.id !== id));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Error eliminando trámite");
     } finally {
       setSaving(null);
     }
@@ -322,6 +337,12 @@ function TramitesExternosContent() {
                             <button onClick={() => { setModalObs(s); setObservacion(""); setObsFields({ voucher: "", dni_anverso: "", dni_reverso: "" }); }}
                               className="flex items-center gap-1 text-xs text-red-500 hover:text-red-700 font-medium whitespace-nowrap">
                               <XCircle size={12} /> Rechazar
+                            </button>
+                          )}
+                          {esSuperAdmin && (
+                            <button onClick={() => handleEliminar(s.id!, `${s.nombres} ${s.apellidos}`)}
+                              className="flex items-center gap-1 text-xs text-red-400 hover:text-red-700 font-medium whitespace-nowrap mt-1">
+                              <Trash2 size={12} /> Eliminar
                             </button>
                           )}
                         </div>

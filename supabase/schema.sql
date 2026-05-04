@@ -495,3 +495,9 @@ create policy "admin_all_staff_log" on public.staff_actions_log
   for all using (auth.role() = 'authenticated' and exists (
     select 1 from public.profiles where id = auth.uid() and rol in ('super_admin')
   ));
+
+-- ─── Política de eliminación de solicitudes (solo admin) ──────────────────────
+create policy "delete_solicitudes_admin" on public.solicitudes
+  for delete using (auth.role() = 'authenticated' and exists (
+    select 1 from public.profiles where id = auth.uid() and rol in ('super_admin')
+  ));
