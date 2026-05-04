@@ -55,7 +55,8 @@ export async function POST(req: NextRequest) {
     }
 
     const esSilabo   = tramite?.id === "te11";
-    const cantidad   = esSilabo ? 70 : 1;
+    const esCertModular = tramite?.id === "te4";
+    const cantidad   = esSilabo ? 70 : esCertModular ? (sol.cantidad_silabos ?? 1) : 1;
     const precioUnit = esSilabo ? 5 : nubefactItem!.monto;
     const montoTotal = Math.round(precioUnit * cantidad * 100) / 100;
 

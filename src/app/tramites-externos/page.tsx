@@ -35,6 +35,7 @@ type FormState = {
   nombres: string; apellidos: string; dni: string;
   email: string; emailConfirm: string; celular: string; anioEgreso: string;
   tipoTramiteId: string;
+  cantidadModulos: number;
   tipoComprobante: "boleta" | "factura" | "";
   ruc: string; razonSocial: string; direccionFiscal: string;
 };
@@ -42,6 +43,7 @@ type FormState = {
 const INIT: FormState = {
   nombres: "", apellidos: "", dni: "", email: "", emailConfirm: "",
   celular: "", anioEgreso: "", tipoTramiteId: "",
+  cantidadModulos: 1,
   tipoComprobante: "", ruc: "", razonSocial: "", direccionFiscal: "",
 };
 
@@ -60,7 +62,10 @@ export default function TramitesExternosPage() {
   const dniReversoRef = useRef<HTMLInputElement>(null);
 
   const tramiteSeleccionado = TRAMITES_EXTERNOS_CATALOGO.find((t) => t.id === form.tipoTramiteId);
-  const montoFinal          = tramiteSeleccionado?.costo ?? 0;
+  const esCertModular = form.tipoTramiteId === "te4";
+  const montoFinal = esCertModular
+    ? (tramiteSeleccionado?.costo ?? 0) * form.cantidadModulos
+    : (tramiteSeleccionado?.costo ?? 0);
 
   const anioActual   = new Date().getFullYear();
   const anioNum      = parseInt(form.anioEgreso) || 0;
@@ -117,6 +122,7 @@ export default function TramitesExternosPage() {
               tipo_tramite:    tramiteSeleccionado!.nombre,
               costo_tramite:   montoFinal,
               monto_pagado:    montoFinal,
+              ...(esCertModular && { cantidad_silabos: form.cantidadModulos }),
               tipo_comprobante: form.tipoComprobante,
               ...(form.tipoComprobante === "factura" && {
                 ruc:              form.ruc,
@@ -341,6 +347,34 @@ export default function TramitesExternosPage() {
                     ))}
                   </select>
                 </div>
+
+                {/* Selector de cantidad — solo para Certificado Modular por Módulo */}
+                {esCertModular && (
+                  <div>
+                    <label className="block text-sm font-medium text-mcm-text mb-1.5">
+                      ¿Cuántos módulos necesitas?
+                    </label>
+                    <div className="grid grid-cols-3 gap-3">
+                      {[1, 2, 3].map((n) => (
+                        <button
+                          key={n}
+                          type="button"
+                          onClick={() => setForm(p => ({ ...p, cantidadModulos: n }))}
+                          className={`py-3 rounded-xl border-2 text-sm font-bold transition-all ${
+                            form.cantidadModulos === n
+                              ? "border-[#a93526] bg-red-50 text-[#a93526]"
+                              : "border-mcm-border text-mcm-muted hover:border-[#a93526]"
+                          }`}
+                        >
+                          {n} {n === 1 ? "módulo" : "módulos"}
+                          <span className="block text-xs font-normal mt-0.5">
+                            S/ {((tramiteSeleccionado?.costo ?? 200) * n).toLocaleString("es-PE", { minimumFractionDigits: 2 })}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
                 {/* Monto automático para todos los trámites */}
                 {tramiteSeleccionado && tramiteSeleccionado.costo !== null && (
