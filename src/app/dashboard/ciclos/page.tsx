@@ -6,7 +6,7 @@ import { useAuth } from "@/lib/auth-context";
 import RouteGuard from "@/components/RouteGuard";
 import {
   Loader2, Plus, Calendar, Clock, X, RefreshCw, CheckCircle,
-  AlertCircle, Trash2, Save,
+  AlertCircle, Trash2, Save, Pencil,
 } from "lucide-react";
 import clsx from "clsx";
 
@@ -38,6 +38,8 @@ function CiclosContent() {
   // Modals
   const [showOpeningModal, setShowOpeningModal] = useState(false);
   const [showScheduleModal, setShowScheduleModal] = useState(false);
+  const [editOpeningModal, setEditOpeningModal] = useState<{ show: boolean; target: CycleOpening | null }>({ show: false, target: null });
+  const [editOpeningForm, setEditOpeningForm] = useState({ cycle_number: "1", start_date: "", fecha_fin: "" });
   const [saving, setSaving] = useState(false);
 
   // Forms
@@ -144,6 +146,38 @@ function CiclosContent() {
     } catch (err) { setError(err instanceof Error ? err.message : "Error"); }
   }
 
+  function openEditOpening(o: CycleOpening) {
+    setEditOpeningForm({
+      cycle_number: String(o.cycle_number),
+      start_date: o.start_date,
+      fecha_fin: o.fecha_fin ?? "",
+    });
+    setEditOpeningModal({ show: true, target: o });
+  }
+
+  async function handleEditOpening() {
+    if (!editOpeningModal.target) return;
+    setSaving(true); setError(""); setSuccess("");
+    try {
+      const res = await fetch("/api/admin/cycle-openings", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${await getToken()}` },
+        body: JSON.stringify({
+          id: editOpeningModal.target.id,
+          cycle_number: parseInt(editOpeningForm.cycle_number),
+          start_date: editOpeningForm.start_date,
+          fecha_fin: editOpeningForm.fecha_fin || null,
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error);
+      setSuccess("Apertura actualizada.");
+      setEditOpeningModal({ show: false, target: null });
+      cargar();
+    } catch (err) { setError(err instanceof Error ? err.message : "Error"); }
+    finally { setSaving(false); }
+  }
+
   const DAYS = ["lunes", "martes", "miercoles", "jueves", "viernes", "sabado"];
   const DAY_LABELS: Record<string, string> = { lunes: "Lun", martes: "Mar", miercoles: "Mié", jueves: "Jue", viernes: "Vie", sabado: "Sáb" };
 
@@ -211,8 +245,12 @@ function CiclosContent() {
                     <td className="py-3 px-4 text-mcm-muted text-xs">{new Date(o.created_at).toLocaleDateString("es-PE", { day: "2-digit", month: "short" })}</td>
                     {canDelete && (
                       <td className="py-3 px-4">
-                        <button onClick={() => handleDeleteOpening(o.id, o.cycle_number)} title="Eliminar apertura"
-                          className="text-mcm-muted hover:text-red-600"><Trash2 size={14} /></button>
+                        <div className="flex gap-2">
+                          <button onClick={() => openEditOpening(o)} title="Editar apertura"
+                            className="text-mcm-muted hover:text-[#a93526]"><Pencil size={14} /></button>
+                          <button onClick={() => handleDeleteOpening(o.id, o.cycle_number)} title="Eliminar apertura"
+                            className="text-mcm-muted hover:text-red-600"><Trash2 size={14} /></button>
+                        </div>
                       </td>
                     )}
                   </tr>
@@ -418,6 +456,45 @@ function CiclosContent() {
                 className="btn-primary flex-1 text-sm disabled:opacity-50 flex items-center justify-center gap-2">
                 {saving && <Loader2 size={14} className="animate-spin" />}
                 {saving ? "Creando..." : "Crear Horario"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal editar apertura */}
+      {editOpeningModal.show && editOpeningModal.target && (
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-sm">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-bold text-mcm-text text-lg">Editar Apertura</h3>
+              <button onClick={() => setEditOpeningModal({ show: false, target: null })}><X size={20} className="text-mcm-muted" /></button>
+            </div>
+            <div className="space-y-3">
+              <div>
+                <label className="block text-sm font-medium text-mcm-text mb-1">Ciclo</label>
+                <select value={editOpeningForm.cycle_number} onChange={e => setEditOpeningForm({...editOpeningForm, cycle_number: e.target.value})}
+                  className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#a93526]">
+                  {[1,2,3,4,5,6].map(n => <option key={n} value={String(n)}>Ciclo {n}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-mcm-text mb-1">Fecha de inicio</label>
+                <input type="date" value={editOpeningForm.start_date} onChange={e => setEditOpeningForm({...editOpeningForm, start_date: e.target.value})}
+                  className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#a93526]" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-mcm-text mb-1">Fecha de culminación</label>
+                <input type="date" value={editOpeningForm.fecha_fin} onChange={e => setEditOpeningForm({...editOpeningForm, fecha_fin: e.target.value})}
+                  className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#a93526]" />
+              </div>
+            </div>
+            <div className="flex gap-3 mt-5">
+              <button onClick={() => setEditOpeningModal({ show: false, target: null })} className="btn-secondary flex-1 text-sm">Cancelar</button>
+              <button onClick={handleEditOpening} disabled={saving || !editOpeningForm.start_date}
+                className="btn-primary flex-1 text-sm disabled:opacity-50 flex items-center justify-center gap-2">
+                {saving && <Loader2 size={14} className="animate-spin" />}
+                {saving ? "Guardando..." : "Guardar cambios"}
               </button>
             </div>
           </div>

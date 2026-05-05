@@ -85,21 +85,38 @@ export async function POST(req: NextRequest) {
 
 /**
  * PUT /api/admin/cycle-openings
- * Body: { id, status } — to close a cycle opening
+ * Body: { id, cycle_number?, start_date?, fecha_fin?, status? }
  */
 export async function PUT(req: NextRequest) {
   const admin = await verifyAccess(req);
   if (!admin) return NextResponse.json({ error: "No autorizado" }, { status: 403 });
 
-  const { id, status } = await req.json();
-  if (!id || !status) return NextResponse.json({ error: "id y status requeridos" }, { status: 400 });
+  const { id, cycle_number, start_date, fecha_fin, status } = await req.json();
+  if (!id) return NextResponse.json({ error: "id requerido" }, { status: 400 });
+
+  const updateData: Record<string, unknown> = {};
+  if (cycle_number !== undefined) updateData.cycle_number = cycle_number;
+  if (start_date !== undefined) updateData.start_date = start_date;
+  if (fecha_fin !== undefined) updateData.fecha_fin = fecha_fin;
+  if (status !== undefined) updateData.status = status;
+
+  if (Object.keys(updateData).length === 0) {
+    return NextResponse.json({ error: "No hay campos para actualizar" }, { status: 400 });
+  }
 
   const { error } = await supabaseAdmin
     .from("cycle_openings")
-    .update({ status })
+    .update(updateData)
     .eq("id", id);
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  await supabaseAdmin.from("historial_auditoria").insert({
+    accion: "editar_apertura_ciclo",
+    admin_id: admin.id, admin_email: admin.email,
+    detalle: { opening_id: id, ...updateData },
+  });
+
   return NextResponse.json({ success: true });
 }
 
