@@ -449,6 +449,8 @@ create table if not exists public.class_schedules (
   dia_semana    text not null check (dia_semana in ('lunes','martes','miercoles','jueves','viernes','sabado')),
   hora_inicio   time not null,
   hora_fin      time not null,
+  start_date    date not null,
+  end_date      date not null,
   aula          text,
   created_at    timestamptz not null default now(),
   updated_at    timestamptz not null default now(),

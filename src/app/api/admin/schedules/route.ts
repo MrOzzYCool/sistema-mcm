@@ -133,6 +133,26 @@ export async function POST(req: NextRequest) {
 
   // ── Insert ────────────────────────────────────────────────────────────────
 
+  // Obtener fechas del ciclo seleccionado
+  const { data: cycleOpening } = await supabaseAdmin
+    .from("cycle_openings")
+    .select("start_date, fecha_fin")
+    .eq("cycle_number", parseInt(ciclo))
+    .eq("status", "activo")
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .single();
+
+  if (!cycleOpening || !cycleOpening.start_date) {
+    return NextResponse.json(
+      { error: `No se encontró una apertura activa para el Ciclo ${ciclo}. Debes aperturar el ciclo primero.` },
+      { status: 400 },
+    );
+  }
+
+  const startDate = cycleOpening.start_date;
+  const endDate = cycleOpening.fecha_fin ?? cycleOpening.start_date; // fallback si no tiene fecha_fin
+
   // Objeto que se enviará a Supabase — verificar que ningún campo sea null
   const insertPayload = {
     professor_id: profesor_id,
@@ -142,6 +162,8 @@ export async function POST(req: NextRequest) {
     hora_inicio,
     hora_fin,
     aula: aula || null,
+    start_date: startDate,
+    end_date: endDate,
   };
 
   console.log("[schedules POST] Payload completo para INSERT:", JSON.stringify(insertPayload, null, 2));
