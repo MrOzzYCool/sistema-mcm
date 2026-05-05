@@ -14,7 +14,7 @@ interface CycleOpening {
   id: string; cycle_number: number; start_date: string; fecha_fin: string | null; status: string; created_at: string;
 }
 interface Schedule {
-  id: string; profesor_id: string; curso_id: string; ciclo: number;
+  id: string; profesor_id: string; course_id: string; ciclo: number;
   dia_semana: string; hora_inicio: string; hora_fin: string; aula: string | null;
   profiles: { nombre_completo: string };
   cursos: { nombre_curso: string };
@@ -107,12 +107,29 @@ function CiclosContent() {
   }
 
   async function handleCreateSchedule() {
+    if (!scheduleForm.curso_id) {
+      setError("Debes seleccionar un curso antes de crear el horario.");
+      return;
+    }
+    if (!scheduleForm.profesor_id) {
+      setError("Debes seleccionar un profesor.");
+      return;
+    }
     setSaving(true); setError(""); setSuccess("");
     try {
+      console.log("[handleCreateSchedule] Enviando:", scheduleForm);
       const res = await fetch("/api/admin/schedules", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${await getToken()}` },
-        body: JSON.stringify(scheduleForm),
+        body: JSON.stringify({
+          profesor_id: scheduleForm.profesor_id,
+          curso_id: scheduleForm.curso_id,
+          ciclo: scheduleForm.ciclo,
+          dia_semana: scheduleForm.dia_semana,
+          hora_inicio: scheduleForm.hora_inicio,
+          hora_fin: scheduleForm.hora_fin,
+          aula: scheduleForm.aula || null,
+        }),
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error);

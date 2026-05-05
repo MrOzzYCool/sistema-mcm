@@ -28,7 +28,7 @@ export async function GET(req: NextRequest) {
 
   let query = supabaseAdmin
     .from("class_schedules")
-    .select("*, profiles!profesor_id(nombre_completo, rol), cursos!curso_id(nombre_curso, ciclo_perteneciente)")
+    .select("*, profiles!profesor_id(nombre_completo, rol), cursos!course_id(nombre_curso, ciclo_perteneciente)")
     .order("dia_semana")
     .order("hora_inicio");
 
@@ -37,7 +37,7 @@ export async function GET(req: NextRequest) {
   const ciclo = req.nextUrl.searchParams.get("ciclo");
 
   if (profesorId) query = query.eq("profesor_id", profesorId);
-  if (cursoId) query = query.eq("curso_id", cursoId);
+  if (cursoId) query = query.eq("course_id", cursoId);
   if (ciclo) query = query.eq("ciclo", parseInt(ciclo));
 
   const { data, error } = await query;
@@ -111,7 +111,7 @@ export async function POST(req: NextRequest) {
 
   const { data: overlaps } = await supabaseAdmin
     .from("class_schedules")
-    .select("id, hora_inicio, hora_fin, cursos!curso_id(nombre_curso)")
+    .select("id, hora_inicio, hora_fin, cursos!course_id(nombre_curso)")
     .eq("profesor_id", profesor_id)
     .eq("dia_semana", dia_semana.toLowerCase());
 
@@ -132,11 +132,20 @@ export async function POST(req: NextRequest) {
 
   // ── Insert ────────────────────────────────────────────────────────────────
 
+  console.log("[schedules POST] Insertando:", {
+    profesor_id, curso_id, ciclo, dia_semana, hora_inicio, hora_fin, aula,
+  });
+
+  // Validación extra: curso_id no puede ser vacío
+  if (!curso_id || curso_id === "undefined" || curso_id === "null") {
+    return NextResponse.json({ error: "curso_id es obligatorio y debe ser un UUID válido" }, { status: 400 });
+  }
+
   const { data: schedule, error: insertErr } = await supabaseAdmin
     .from("class_schedules")
     .insert({
       profesor_id,
-      curso_id,
+      course_id: curso_id,
       ciclo: parseInt(ciclo),
       dia_semana: dia_semana.toLowerCase(),
       hora_inicio,
@@ -147,6 +156,7 @@ export async function POST(req: NextRequest) {
     .single();
 
   if (insertErr) {
+    console.error("[schedules POST] Error insert:", insertErr.message);
     return NextResponse.json({ error: insertErr.message }, { status: 500 });
   }
 
