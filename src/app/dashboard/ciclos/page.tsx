@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/auth-context";
 import RouteGuard from "@/components/RouteGuard";
@@ -26,6 +26,70 @@ interface Schedule {
 interface Profesor { id: string; nombre_completo: string; }
 interface Curso { id: string; nombre_curso: string; ciclo_perteneciente: number; malla_curricular?: { carrera_id: string }[]; }
 interface Carrera { id: string; nombre_carrera: string; }
+
+// ─── Combobox de Profesor (buscador predictivo) ─────────────────────────────
+
+function ProfesorCombobox({
+  value,
+  onChange,
+  profesores,
+}: {
+  value: string;
+  onChange: (id: string) => void;
+  profesores: Profesor[];
+}) {
+  const [search, setSearch] = useState("");
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  const selected = profesores.find(p => p.id === value);
+  const filtered = profesores.filter(p =>
+    p.nombre_completo.toLowerCase().includes(search.toLowerCase())
+  );
+
+  // Cerrar al hacer click fuera
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, []);
+
+  return (
+    <div ref={ref} className="relative">
+      <input
+        type="text"
+        value={open ? search : (selected?.nombre_completo ?? "")}
+        onChange={e => { setSearch(e.target.value); setOpen(true); }}
+        onFocus={() => { setOpen(true); setSearch(""); }}
+        placeholder="Buscar profesor..."
+        className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#a93526] focus:outline-none"
+      />
+      {open && (
+        <div className="absolute z-50 mt-1 w-full bg-white border border-mcm-border rounded-lg shadow-lg max-h-48 overflow-y-auto">
+          {filtered.length === 0 ? (
+            <div className="px-3 py-2 text-sm text-mcm-muted">No se encontraron resultados</div>
+          ) : (
+            filtered.map(p => (
+              <button
+                key={p.id}
+                type="button"
+                onClick={() => { onChange(p.id); setSearch(""); setOpen(false); }}
+                className={clsx(
+                  "w-full text-left px-3 py-2 text-sm hover:bg-slate-50 transition-colors",
+                  p.id === value && "bg-blue-50 text-blue-700 font-medium"
+                )}
+              >
+                {p.nombre_completo}
+              </button>
+            ))
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
 
 function CiclosContent() {
   const { user } = useAuth();
@@ -513,11 +577,11 @@ function CiclosContent() {
             <div className="space-y-3">
               <div>
                 <label className="block text-sm font-medium text-mcm-text mb-1">Profesor</label>
-                <select value={scheduleForm.profesor_id} onChange={e => setScheduleForm({...scheduleForm, profesor_id: e.target.value})}
-                  className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#a93526]">
-                  <option value="">Seleccionar...</option>
-                  {profesores.map(p => <option key={p.id} value={p.id}>{p.nombre_completo}</option>)}
-                </select>
+                <ProfesorCombobox
+                  value={scheduleForm.profesor_id}
+                  onChange={(id) => setScheduleForm({...scheduleForm, profesor_id: id})}
+                  profesores={profesores}
+                />
               </div>
               <div>
                 <label className="block text-sm font-medium text-mcm-text mb-1">Carrera</label>
@@ -644,11 +708,11 @@ function CiclosContent() {
             <div className="space-y-3">
               <div>
                 <label className="block text-sm font-medium text-mcm-text mb-1">Profesor</label>
-                <select value={editScheduleForm.profesor_id} onChange={e => setEditScheduleForm({...editScheduleForm, profesor_id: e.target.value})}
-                  className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#a93526]">
-                  <option value="">Seleccionar...</option>
-                  {profesores.map(p => <option key={p.id} value={p.id}>{p.nombre_completo}</option>)}
-                </select>
+                <ProfesorCombobox
+                  value={editScheduleForm.profesor_id}
+                  onChange={(id) => setEditScheduleForm({...editScheduleForm, profesor_id: id})}
+                  profesores={profesores}
+                />
               </div>
               <div>
                 <label className="block text-sm font-medium text-mcm-text mb-1">Ciclo</label>
