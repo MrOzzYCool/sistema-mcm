@@ -4,7 +4,14 @@ import { supabase } from "@/lib/supabase";
 
 const ADMIN_EMAIL = "admin@margaritacabrera.edu.pe";
 const ALLOWED_ROLES = ["super_admin", "cycle_manager"];
-const VALID_DAYS = ["lunes", "martes", "miercoles", "jueves", "viernes", "sabado"];
+
+// Mapeo: nombre del día (frontend) → número (BD: 1=Lunes ... 6=Sábado)
+const DAY_MAP: Record<string, number> = {
+  lunes: 1, martes: 2, miercoles: 3, jueves: 4, viernes: 5, sabado: 6,
+};
+const DAY_REVERSE: Record<number, string> = {
+  1: "lunes", 2: "martes", 3: "miercoles", 4: "jueves", 5: "viernes", 6: "sabado",
+};
 
 async function verifyAdmin(req: NextRequest) {
   const token = (req.headers.get("authorization") ?? "").replace("Bearer ", "");
@@ -18,39 +25,63 @@ async function verifyAdmin(req: NextRequest) {
   return user;
 }
 
+/** Calcula duración en minutos entre dos tiempos HH:MM */
+function calcDurationMinutes(start: string, end: string): number {
+  const [sh, sm] = start.split(":").map(Number);
+  const [eh, em] = end.split(":").map(Number);
+  return (eh * 60 + em) - (sh * 60 + sm);
+}
+
 /**
- * GET /api/admin/schedules?profesor_id=xxx  OR  ?curso_id=xxx  OR  ?ciclo=x
- * Returns class schedules with profesor and curso details.
+ * GET /api/admin/schedules
  */
 export async function GET(req: NextRequest) {
   const admin = await verifyAdmin(req);
   if (!admin) return NextResponse.json({ error: "No autorizado" }, { status: 403 });
 
-  let query = supabaseAdmin
+  // Diagnóstico: devolver estructura de la tabla
+  if (req.nextUrl.searchParams.get("diagnostico") === "1") {
+    const { data, error } = await supabaseAdmin
+      .from("class_schedules")
+      .select("*")
+      .limit(1);
+    if (error) return NextResponse.json({ error: error.message, columns: null }, { status: 500 });
+    const columns = data && data.length > 0 ? Object.keys(data[0]) : "tabla vacía";
+    return NextResponse.json({ columns, sample: data?.[0] ?? null });
+  }
+
+  const { data, error } = await supabaseAdmin
     .from("class_schedules")
-    .select("*, profiles!professor_id(nombre_completo, rol), cursos!course_id(nombre_curso, ciclo_perteneciente)")
-    .order("dia_semana")
-    .order("hora_inicio");
+    .select("*, profiles!professor_id(nombre_completo), cursos!course_id(nombre_curso, ciclo_perteneciente)")
+    .order("day_of_week")
+    .order("start_time");
 
-  const profesorId = req.nextUrl.searchParams.get("profesor_id");
-  const cursoId = req.nextUrl.searchParams.get("curso_id");
-  const ciclo = req.nextUrl.searchParams.get("ciclo");
+  if (error) {
+    console.error("[schedules GET] Error:", error.message);
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
 
-  if (profesorId) query = query.eq("professor_id", profesorId);
-  if (cursoId) query = query.eq("course_id", cursoId);
-  if (ciclo) query = query.eq("cycle_number", parseInt(ciclo));
+  // Transformar para el frontend (agregar campos legibles)
+  const schedules = (data ?? []).map(s => ({
+    ...s,
+    // Campos de compatibilidad para el frontend
+    dia_semana: DAY_REVERSE[s.day_of_week] ?? "lunes",
+    hora_inicio: s.start_time,
+    hora_fin: s.end_time,
+    aula: s.location,
+    ciclo: s.cycle_number,
+  }));
 
-  const { data, error } = await query;
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-
-  return NextResponse.json({ schedules: data ?? [] });
+  return NextResponse.json({ schedules });
 }
 
 /**
  * POST /api/admin/schedules
- * Creates a new class schedule. Validates overlap for the same profesor.
- *
  * Body: { profesor_id, curso_id, ciclo, dia_semana, hora_inicio, hora_fin, aula? }
+ *
+ * Columnas reales en class_schedules:
+ *   professor_id, course_id, cycle_number, day_of_week, start_time, end_time,
+ *   duration_minutes, location, start_date, end_date
  */
 export async function POST(req: NextRequest) {
   const admin = await verifyAdmin(req);
@@ -68,9 +99,10 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  if (!VALID_DAYS.includes(dia_semana.toLowerCase())) {
+  const dayNumber = DAY_MAP[dia_semana.toLowerCase()];
+  if (!dayNumber) {
     return NextResponse.json(
-      { error: `Día inválido. Valores permitidos: ${VALID_DAYS.join(", ")}` },
+      { error: `Día inválido: "${dia_semana}". Valores: lunes, martes, miercoles, jueves, viernes, sabado` },
       { status: 400 },
     );
   }
@@ -85,7 +117,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "hora_fin debe ser mayor que hora_inicio" }, { status: 400 });
   }
 
-  // Verify profesor exists and is a profesor
+  // Calcular duración en minutos
+  const durationMinutes = calcDurationMinutes(hora_inicio, hora_fin);
+
+  // Verify profesor exists
   const { data: profesor } = await supabaseAdmin
     .from("profiles")
     .select("id, nombre_completo, rol")
@@ -107,33 +142,29 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Curso no encontrado" }, { status: 400 });
   }
 
-  // ── Check for overlapping schedules (same profesor, same day) ─────────────
+  // ── Check for overlapping schedules (same profesor, same day, same cycle) ──
 
   const { data: overlaps } = await supabaseAdmin
     .from("class_schedules")
-    .select("id, hora_inicio, hora_fin, cursos!course_id(nombre_curso)")
+    .select("id, start_time, end_time, cursos!course_id(nombre_curso)")
     .eq("professor_id", profesor_id)
-    .eq("dia_semana", dia_semana.toLowerCase())
+    .eq("day_of_week", dayNumber)
     .eq("cycle_number", parseInt(ciclo));
 
   const conflicto = (overlaps ?? []).find(s => {
-    // Two time ranges overlap if: start1 < end2 AND start2 < end1
-    return hora_inicio < s.hora_fin && s.hora_inicio < hora_fin;
+    return hora_inicio < s.end_time && s.start_time < hora_fin;
   });
 
   if (conflicto) {
     const cursoConflicto = (conflicto.cursos as unknown as { nombre_curso: string })?.nombre_curso ?? "otro curso";
     return NextResponse.json(
-      {
-        error: `Conflicto de horario: ${profesor.nombre_completo} ya tiene clase de "${cursoConflicto}" el ${dia_semana} de ${conflicto.hora_inicio} a ${conflicto.hora_fin}`,
-      },
+      { error: `Conflicto: ${profesor.nombre_completo} ya tiene "${cursoConflicto}" ese día de ${conflicto.start_time} a ${conflicto.end_time}` },
       { status: 409 },
     );
   }
 
-  // ── Insert ────────────────────────────────────────────────────────────────
+  // ── Obtener fechas del ciclo ──────────────────────────────────────────────
 
-  // Obtener fechas del ciclo seleccionado
   const { data: cycleOpening } = await supabaseAdmin
     .from("cycle_openings")
     .select("start_date, fecha_fin")
@@ -145,45 +176,33 @@ export async function POST(req: NextRequest) {
 
   if (!cycleOpening || !cycleOpening.start_date) {
     return NextResponse.json(
-      { error: `No se encontró una apertura activa para el Ciclo ${ciclo}. Debes aperturar el ciclo primero.` },
+      { error: `No hay apertura activa para el Ciclo ${ciclo}. Apertura el ciclo primero.` },
       { status: 400 },
     );
   }
 
-  const startDate = cycleOpening.start_date;
-  const endDate = cycleOpening.fecha_fin ?? cycleOpening.start_date; // fallback si no tiene fecha_fin
+  // ── INSERT con nombres EXACTOS de columnas ────────────────────────────────
 
-  // Objeto que se enviará a Supabase — verificar que ningún campo sea null
   const insertPayload = {
-    professor_id: profesor_id,
-    course_id: curso_id,
-    cycle_number: parseInt(ciclo),
-    dia_semana: dia_semana.toLowerCase(),
-    hora_inicio,
-    hora_fin,
-    aula: aula || null,
-    start_date: startDate,
-    end_date: endDate,
+    professor_id:     profesor_id,
+    course_id:        curso_id,
+    cycle_number:     parseInt(ciclo),
+    day_of_week:      dayNumber,
+    start_time:       hora_inicio,
+    end_time:         hora_fin,
+    duration_minutes: durationMinutes,
+    location:         aula || null,
+    start_date:       cycleOpening.start_date,
+    end_date:         cycleOpening.fecha_fin ?? cycleOpening.start_date,
   };
 
-  console.log("[schedules POST] Payload completo para INSERT:", JSON.stringify(insertPayload, null, 2));
+  console.log("[schedules POST] INSERT payload:", JSON.stringify(insertPayload, null, 2));
 
-  // Validación final: ningún campo obligatorio puede ser nulo
-  if (!insertPayload.professor_id) {
-    return NextResponse.json({ error: "professor_id es obligatorio (UUID del profesor)" }, { status: 400 });
-  }
-  if (!insertPayload.course_id) {
-    return NextResponse.json({ error: "course_id es obligatorio (UUID del curso)" }, { status: 400 });
-  }
-  if (!insertPayload.cycle_number || isNaN(insertPayload.cycle_number)) {
-    return NextResponse.json({ error: "cycle_number es obligatorio (número de ciclo)" }, { status: 400 });
-  }
-  if (!insertPayload.dia_semana) {
-    return NextResponse.json({ error: "dia_semana es obligatorio" }, { status: 400 });
-  }
-  if (!insertPayload.hora_inicio || !insertPayload.hora_fin) {
-    return NextResponse.json({ error: "hora_inicio y hora_fin son obligatorios" }, { status: 400 });
-  }
+  // Validación final
+  if (!insertPayload.professor_id) return NextResponse.json({ error: "professor_id vacío" }, { status: 400 });
+  if (!insertPayload.course_id) return NextResponse.json({ error: "course_id vacío" }, { status: 400 });
+  if (!insertPayload.start_date) return NextResponse.json({ error: "start_date vacío" }, { status: 400 });
+  if (!insertPayload.end_date) return NextResponse.json({ error: "end_date vacío" }, { status: 400 });
 
   const { data: schedule, error: insertErr } = await supabaseAdmin
     .from("class_schedules")
@@ -192,7 +211,7 @@ export async function POST(req: NextRequest) {
     .single();
 
   if (insertErr) {
-    console.error("[schedules POST] Error insert:", insertErr.message, "| Payload:", JSON.stringify(insertPayload));
+    console.error("[schedules POST] INSERT ERROR:", insertErr.message, "| Payload:", JSON.stringify(insertPayload));
     return NextResponse.json({ error: insertErr.message }, { status: 500 });
   }
 
@@ -202,15 +221,7 @@ export async function POST(req: NextRequest) {
     admin_id: admin.id,
     admin_email: admin.email,
     target_id: profesor_id,
-    detalle: {
-      profesor: profesor.nombre_completo,
-      curso: curso.nombre_curso,
-      dia_semana,
-      hora_inicio,
-      hora_fin,
-      aula,
-      ciclo,
-    },
+    detalle: { profesor: profesor.nombre_completo, curso: curso.nombre_curso, ...insertPayload },
   });
 
   return NextResponse.json({ success: true, schedule }, { status: 201 });

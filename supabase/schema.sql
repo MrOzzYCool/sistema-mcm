@@ -442,19 +442,20 @@ create trigger set_installments_updated_at
 -- ─── Horarios de Clases ───────────────────────────────────────────────────────
 
 create table if not exists public.class_schedules (
-  id            uuid primary key default gen_random_uuid(),
-  professor_id  uuid not null references public.profiles(id) on delete cascade,
-  course_id     uuid not null references public.cursos(id) on delete cascade,
-  cycle_number  integer not null,
-  dia_semana    text not null check (dia_semana in ('lunes','martes','miercoles','jueves','viernes','sabado')),
-  hora_inicio   time not null,
-  hora_fin      time not null,
-  start_date    date not null,
-  end_date      date not null,
-  aula          text,
-  created_at    timestamptz not null default now(),
-  updated_at    timestamptz not null default now(),
-  check (hora_fin > hora_inicio)
+  id                uuid primary key default gen_random_uuid(),
+  professor_id      uuid not null references public.profiles(id) on delete cascade,
+  course_id         uuid not null references public.cursos(id) on delete cascade,
+  cycle_number      integer not null,
+  day_of_week       smallint not null check (day_of_week between 1 and 6),
+  start_time        time not null,
+  end_time          time not null,
+  duration_minutes  integer not null,
+  location          text,
+  start_date        date not null,
+  end_date          date not null,
+  created_at        timestamptz not null default now(),
+  updated_at        timestamptz not null default now(),
+  check (end_time > start_time)
 );
 
 alter table public.class_schedules enable row level security;

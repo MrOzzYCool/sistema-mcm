@@ -15,7 +15,11 @@ interface CycleOpening {
 }
 interface Schedule {
   id: string; professor_id: string; course_id: string; cycle_number: number;
-  dia_semana: string; hora_inicio: string; hora_fin: string; aula: string | null;
+  day_of_week: number; start_time: string; end_time: string;
+  duration_minutes: number; location: string | null;
+  start_date: string; end_date: string;
+  // Campos de compatibilidad agregados por el GET
+  dia_semana: string; hora_inicio: string; hora_fin: string; aula: string | null; ciclo: number;
   profiles: { nombre_completo: string };
   cursos: { nombre_curso: string };
 }
