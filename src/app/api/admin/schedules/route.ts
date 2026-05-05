@@ -52,7 +52,7 @@ export async function GET(req: NextRequest) {
 
   const { data, error } = await supabaseAdmin
     .from("class_schedules")
-    .select("*, profiles!professor_id(nombre_completo), cursos!course_id(nombre_curso, ciclo_perteneciente)")
+    .select("*")
     .order("day_of_week")
     .order("start_time");
 
@@ -61,7 +61,23 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  // Transformar para el frontend (agregar campos legibles)
+  // Obtener profesores y cursos para enriquecer los datos
+  const profesorIds = [...new Set((data ?? []).map(s => s.professor_id).filter(Boolean))];
+  const cursoIds = [...new Set((data ?? []).map(s => s.course_id).filter(Boolean))];
+
+  const [profRes, cursoRes] = await Promise.all([
+    profesorIds.length > 0
+      ? supabaseAdmin.from("profiles").select("id, nombre_completo").in("id", profesorIds)
+      : Promise.resolve({ data: [] }),
+    cursoIds.length > 0
+      ? supabaseAdmin.from("cursos").select("id, nombre_curso, ciclo_perteneciente").in("id", cursoIds)
+      : Promise.resolve({ data: [] }),
+  ]);
+
+  const profMap = new Map((profRes.data ?? []).map(p => [p.id, p]));
+  const cursoMap = new Map((cursoRes.data ?? []).map(c => [c.id, c]));
+
+  // Transformar para el frontend
   const schedules = (data ?? []).map(s => ({
     ...s,
     // Campos de compatibilidad para el frontend
@@ -70,6 +86,9 @@ export async function GET(req: NextRequest) {
     hora_fin: s.end_time,
     aula: s.location,
     ciclo: s.cycle_number,
+    // Datos enriquecidos
+    profiles: profMap.get(s.professor_id) ?? { nombre_completo: "—" },
+    cursos: cursoMap.get(s.course_id) ?? { nombre_curso: "—" },
   }));
 
   return NextResponse.json({ schedules });
@@ -146,7 +165,7 @@ export async function POST(req: NextRequest) {
 
   const { data: overlaps } = await supabaseAdmin
     .from("class_schedules")
-    .select("id, start_time, end_time, cursos!course_id(nombre_curso)")
+    .select("id, start_time, end_time, course_id")
     .eq("professor_id", profesor_id)
     .eq("day_of_week", dayNumber)
     .eq("cycle_number", parseInt(ciclo));
@@ -156,9 +175,8 @@ export async function POST(req: NextRequest) {
   });
 
   if (conflicto) {
-    const cursoConflicto = (conflicto.cursos as unknown as { nombre_curso: string })?.nombre_curso ?? "otro curso";
     return NextResponse.json(
-      { error: `Conflicto: ${profesor.nombre_completo} ya tiene "${cursoConflicto}" ese día de ${conflicto.start_time} a ${conflicto.end_time}` },
+      { error: `Conflicto: ${profesor.nombre_completo} ya tiene clase ese día de ${conflicto.start_time} a ${conflicto.end_time}` },
       { status: 409 },
     );
   }
