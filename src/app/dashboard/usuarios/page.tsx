@@ -7,7 +7,7 @@ import RouteGuard from "@/components/RouteGuard";
 import { supabase } from "@/lib/supabase";
 import {
   UserPlus, RefreshCw, Loader2, Search, Download, Upload,
-  CheckCircle, XCircle, Key, X, UserX, GraduationCap, CreditCard,
+  CheckCircle, XCircle, Key, X, UserX, GraduationCap, CreditCard, Pencil,
 } from "lucide-react";
 import clsx from "clsx";
 
@@ -33,6 +33,14 @@ function UsuariosContent() {
   const [enrollModal, setEnrollModal] = useState<{ show: boolean; target: Profile | null }>({ show: false, target: null });
   const [enrollForm, setEnrollForm] = useState({ carrera_id: "", ciclo: "1", fecha_inicio_ciclo: "" });
   const [enrollSaving, setEnrollSaving] = useState(false);
+
+  // Edit modal state
+  const [editModal, setEditModal] = useState<{ show: boolean; target: Profile | null }>({ show: false, target: null });
+  const [editForm, setEditForm] = useState({ nombre_completo: "", email: "", rol: "", estado: "", dni: "" });
+  const [editSaving, setEditSaving] = useState(false);
+
+  // Roles que pueden ver el botón Editar
+  const canEdit = user?.role && ["super_admin", "staff_tramites", "gestor"].includes(user.role);
 
   // Form state
   const [form, setForm] = useState({
@@ -183,6 +191,44 @@ function UsuariosContent() {
     }
   }
 
+  function openEditModal(p: Profile) {
+    setEditForm({
+      nombre_completo: p.nombre_completo,
+      email: p.email,
+      rol: p.rol,
+      estado: p.estado,
+      dni: p.dni ?? "",
+    });
+    setEditModal({ show: true, target: p });
+  }
+
+  async function handleEdit() {
+    if (!editModal.target) return;
+    setEditSaving(true); setError("");
+    try {
+      const res = await fetch("/api/admin/users", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${await getToken()}` },
+        body: JSON.stringify({
+          userId: editModal.target.id,
+          nombre_completo: editForm.nombre_completo,
+          email: editForm.email !== editModal.target.email ? editForm.email : undefined,
+          rol: editForm.rol,
+          estado: editForm.estado,
+          dni: editForm.dni,
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error);
+      setEditModal({ show: false, target: null });
+      cargar();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Error");
+    } finally {
+      setEditSaving(false);
+    }
+  }
+
   async function handleCSV(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -304,6 +350,10 @@ function UsuariosContent() {
                     </td>
                     <td className="py-3 px-4">
                       <div className="flex gap-2">
+                        {canEdit && (
+                          <button onClick={() => openEditModal(p)} title="Editar usuario"
+                            className="text-mcm-muted hover:text-[#a93526]"><Pencil size={14} /></button>
+                        )}
                         <button onClick={() => handleReset(p.id)} title="Restablecer contraseña"
                           className="text-mcm-muted hover:text-[#a93526]"><Key size={14} /></button>
                         <button onClick={() => handleToggle(p.id, p.estado)} title={p.estado === "activo" ? "Desactivar" : "Activar"}
@@ -504,13 +554,69 @@ function UsuariosContent() {
           </div>
         </div>
       )}
+      {/* Modal editar usuario */}
+      {editModal.show && editModal.target && (
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-md">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-bold text-mcm-text text-lg">Editar usuario</h3>
+              <button onClick={() => setEditModal({ show: false, target: null })}><X size={20} className="text-mcm-muted" /></button>
+            </div>
+            <div className="space-y-3">
+              <div>
+                <label className="block text-sm font-medium text-mcm-text mb-1">Nombre completo</label>
+                <input value={editForm.nombre_completo} onChange={e => setEditForm({...editForm, nombre_completo: e.target.value.toUpperCase()})}
+                  style={{ textTransform: "uppercase" }}
+                  className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#a93526]" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-mcm-text mb-1">Email</label>
+                <input type="email" value={editForm.email} onChange={e => setEditForm({...editForm, email: e.target.value})}
+                  className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#a93526]" />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm font-medium text-mcm-text mb-1">Rol</label>
+                  <select value={editForm.rol} onChange={e => setEditForm({...editForm, rol: e.target.value})}
+                    className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#a93526]">
+                    <option value="alumno">Alumno</option>
+                    <option value="profesor">Profesor</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-mcm-text mb-1">Estado</label>
+                  <select value={editForm.estado} onChange={e => setEditForm({...editForm, estado: e.target.value})}
+                    className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#a93526]">
+                    <option value="activo">Activo</option>
+                    <option value="inactivo">Inactivo</option>
+                  </select>
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-mcm-text mb-1">DNI</label>
+                <input value={editForm.dni} onChange={e => setEditForm({...editForm, dni: e.target.value.replace(/\D/g,"").slice(0,8)})}
+                  placeholder="12345678" maxLength={8}
+                  className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#a93526]" />
+              </div>
+            </div>
+            <div className="flex gap-3 mt-5">
+              <button onClick={() => setEditModal({ show: false, target: null })} className="btn-secondary flex-1 text-sm">Cancelar</button>
+              <button onClick={handleEdit} disabled={editSaving || !editForm.nombre_completo}
+                className="btn-primary flex-1 text-sm disabled:opacity-50 flex items-center justify-center gap-2">
+                {editSaving && <Loader2 size={14} className="animate-spin" />}
+                {editSaving ? "Guardando..." : "Guardar cambios"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
 export default function UsuariosPage() {
   return (
-    <RouteGuard allowedRoles={["super_admin"]}>
+    <RouteGuard allowedRoles={["super_admin", "staff_tramites", "gestor"]}>
       <UsuariosContent />
     </RouteGuard>
   );

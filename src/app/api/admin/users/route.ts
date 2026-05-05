@@ -4,11 +4,23 @@ import { supabase } from "@/lib/supabase";
 
 const ALLOWED_ROLES = ["super_admin", "staff_tramites", "gestor"];
 
+// Emails que siempre tienen acceso admin (fallback si profiles no tiene el rol correcto)
+const ADMIN_EMAILS = [
+  "admin@margaritacabrera.edu.pe",
+  "staff@margaritacabrera.edu.pe",
+  "nvasquez@margaritacabrera.edu.pe",
+];
+
 async function checkAdmin(req: NextRequest) {
   const authHeader = req.headers.get("authorization") ?? "";
   const token = authHeader.replace("Bearer ", "");
   const { data: { user } } = await supabase.auth.getUser(token);
   if (!user) return null;
+
+  // Fallback: emails conocidos siempre tienen acceso
+  if (user.email && ADMIN_EMAILS.includes(user.email.toLowerCase())) {
+    return user;
+  }
 
   // Verificar rol en la tabla profiles
   const { data: profile } = await supabaseAdmin
