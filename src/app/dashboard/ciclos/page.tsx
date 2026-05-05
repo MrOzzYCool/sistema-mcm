@@ -20,7 +20,8 @@ interface Schedule {
   cursos: { nombre_curso: string };
 }
 interface Profesor { id: string; nombre_completo: string; }
-interface Curso { id: string; nombre_curso: string; ciclo_perteneciente: number; }
+interface Curso { id: string; nombre_curso: string; ciclo_perteneciente: number; malla_curricular?: { carrera_id: string }[]; }
+interface Carrera { id: string; nombre_carrera: string; }
 
 function CiclosContent() {
   const { user } = useAuth();
@@ -31,6 +32,7 @@ function CiclosContent() {
   const [schedules, setSchedules] = useState<Schedule[]>([]);
   const [profesores, setProfesores] = useState<Profesor[]>([]);
   const [cursos, setCursos] = useState<Curso[]>([]);
+  const [carreras, setCarreras] = useState<Carrera[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
@@ -45,7 +47,7 @@ function CiclosContent() {
   // Forms
   const [openingForm, setOpeningForm] = useState({ cycle_number: "1", start_date: "", fecha_fin: "" });
   const [scheduleForm, setScheduleForm] = useState({
-    profesor_id: "", curso_id: "", ciclo: "1",
+    profesor_id: "", carrera_id: "", curso_id: "", ciclo: "1",
     dia_semana: "lunes", hora_inicio: "18:00", hora_fin: "20:00", aula: "",
   });
   const [filterCiclo, setFilterCiclo] = useState("todos");
@@ -61,11 +63,12 @@ function CiclosContent() {
       const token = await getToken();
       const headers = { Authorization: `Bearer ${token}` };
 
-      const [resO, resS, resP, resC] = await Promise.all([
+      const [resO, resS, resP, resC, resCarreras] = await Promise.all([
         fetch("/api/admin/cycle-openings", { headers }),
         fetch("/api/admin/schedules", { headers }),
         fetch("/api/admin/users", { headers }),
         fetch("/api/admin/academico?tipo=cursos", { headers }),
+        fetch("/api/admin/academico", { headers }),
       ]);
 
       if (resO.ok) setOpenings((await resO.json()).openings ?? []);
@@ -75,6 +78,7 @@ function CiclosContent() {
         setProfesores(users.filter((u: { rol: string }) => u.rol === "profesor"));
       }
       if (resC.ok) setCursos(await resC.json());
+      if (resCarreras.ok) setCarreras(await resCarreras.json());
     } catch { /* ignore */ }
     finally { setLoading(false); }
   }, []);
@@ -407,6 +411,14 @@ function CiclosContent() {
                 </select>
               </div>
               <div>
+                <label className="block text-sm font-medium text-mcm-text mb-1">Carrera</label>
+                <select value={scheduleForm.carrera_id} onChange={e => setScheduleForm({...scheduleForm, carrera_id: e.target.value, curso_id: ""})}
+                  className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#a93526]">
+                  <option value="">Seleccionar...</option>
+                  {carreras.map(c => <option key={c.id} value={c.id}>{c.nombre_carrera}</option>)}
+                </select>
+              </div>
+              <div>
                 <label className="block text-sm font-medium text-mcm-text mb-1">Ciclo</label>
                 <select value={scheduleForm.ciclo} onChange={e => setScheduleForm({...scheduleForm, ciclo: e.target.value, curso_id: ""})}
                   className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#a93526]">
@@ -415,16 +427,22 @@ function CiclosContent() {
               </div>
               <div>
                 <label className="block text-sm font-medium text-mcm-text mb-1">Curso</label>
-                <select value={scheduleForm.curso_id} onChange={e => setScheduleForm({...scheduleForm, curso_id: e.target.value})}
-                  className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#a93526]">
-                  <option value="">Seleccionar...</option>
-                  {cursos.filter(c => c.ciclo_perteneciente === parseInt(scheduleForm.ciclo)).length === 0
-                    ? <option value="" disabled>No hay cursos disponibles para este ciclo</option>
-                    : cursos.filter(c => c.ciclo_perteneciente === parseInt(scheduleForm.ciclo)).map(c => (
-                        <option key={c.id} value={c.id}>{c.nombre_curso}</option>
-                      ))
-                  }
-                </select>
+                {(() => {
+                  const cursosFiltrados = cursos.filter(c =>
+                    c.ciclo_perteneciente === parseInt(scheduleForm.ciclo) &&
+                    (!scheduleForm.carrera_id || c.malla_curricular?.some(m => m.carrera_id === scheduleForm.carrera_id))
+                  );
+                  return (
+                    <select value={scheduleForm.curso_id} onChange={e => setScheduleForm({...scheduleForm, curso_id: e.target.value})}
+                      className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#a93526]">
+                      <option value="">Seleccionar...</option>
+                      {cursosFiltrados.length === 0
+                        ? <option value="" disabled>No hay cursos disponibles para esta carrera y ciclo</option>
+                        : cursosFiltrados.map(c => <option key={c.id} value={c.id}>{c.nombre_curso}</option>)
+                      }
+                    </select>
+                  );
+                })()}
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
@@ -446,12 +464,12 @@ function CiclosContent() {
                   <input type="time" value={scheduleForm.hora_fin} onChange={e => setScheduleForm({...scheduleForm, hora_fin: e.target.value})}
                     className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#a93526]" />
                 </div>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-mcm-text mb-1">Aula (opcional)</label>
-                <input value={scheduleForm.aula} onChange={e => setScheduleForm({...scheduleForm, aula: e.target.value})}
-                  placeholder="Ej: A-201"
-                  className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#a93526]" />
+                <div>
+                  <label className="block text-sm font-medium text-mcm-text mb-1">Aula (opcional)</label>
+                  <input value={scheduleForm.aula} onChange={e => setScheduleForm({...scheduleForm, aula: e.target.value})}
+                    placeholder="Ej: A-201"
+                    className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#a93526]" />
+                </div>
               </div>
             </div>
             <div className="flex gap-3 mt-5">
