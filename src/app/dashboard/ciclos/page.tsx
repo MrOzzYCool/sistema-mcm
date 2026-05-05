@@ -46,6 +46,11 @@ function CiclosContent() {
   const [showScheduleModal, setShowScheduleModal] = useState(false);
   const [editOpeningModal, setEditOpeningModal] = useState<{ show: boolean; target: CycleOpening | null }>({ show: false, target: null });
   const [editOpeningForm, setEditOpeningForm] = useState({ cycle_number: "1", start_date: "", fecha_fin: "" });
+  const [editScheduleModal, setEditScheduleModal] = useState<{ show: boolean; target: Schedule | null }>({ show: false, target: null });
+  const [editScheduleForm, setEditScheduleForm] = useState({
+    profesor_id: "", carrera_id: "", curso_id: "", ciclo: "1",
+    dia_semana: "lunes", hora_inicio: "18:00", hora_fin: "20:00", aula: "",
+  });
   const [saving, setSaving] = useState(false);
 
   // Forms
@@ -155,6 +160,51 @@ function CiclosContent() {
       if (!res.ok) throw new Error((await res.json()).error);
       cargar();
     } catch (err) { setError(err instanceof Error ? err.message : "Error"); }
+  }
+
+  function openEditSchedule(s: Schedule) {
+    setEditScheduleForm({
+      profesor_id: s.professor_id,
+      carrera_id: "",
+      curso_id: s.course_id,
+      ciclo: String(s.cycle_number),
+      dia_semana: s.dia_semana,
+      hora_inicio: s.hora_inicio?.slice(0, 5) ?? "18:00",
+      hora_fin: s.hora_fin?.slice(0, 5) ?? "20:00",
+      aula: s.aula ?? "",
+    });
+    setEditScheduleModal({ show: true, target: s });
+  }
+
+  async function handleEditSchedule() {
+    if (!editScheduleModal.target) return;
+    if (!editScheduleForm.profesor_id || !editScheduleForm.curso_id) {
+      setError("Profesor y Curso son obligatorios.");
+      return;
+    }
+    setSaving(true); setError(""); setSuccess("");
+    try {
+      const res = await fetch("/api/admin/schedules", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${await getToken()}` },
+        body: JSON.stringify({
+          schedule_id: editScheduleModal.target.id,
+          profesor_id: editScheduleForm.profesor_id,
+          curso_id: editScheduleForm.curso_id,
+          ciclo: editScheduleForm.ciclo,
+          dia_semana: editScheduleForm.dia_semana,
+          hora_inicio: editScheduleForm.hora_inicio,
+          hora_fin: editScheduleForm.hora_fin,
+          aula: editScheduleForm.aula || null,
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error);
+      setSuccess("Horario actualizado.");
+      setEditScheduleModal({ show: false, target: null });
+      cargar();
+    } catch (err) { setError(err instanceof Error ? err.message : "Error"); }
+    finally { setSaving(false); }
   }
 
   async function handleDeleteOpening(id: string, cycleNumber: number) {
@@ -301,43 +351,76 @@ function CiclosContent() {
           {/* Weekly grid view */}
           <div className="card overflow-hidden p-0">
             <div className="overflow-x-auto">
-              <table className="w-full text-xs">
-                <thead className="bg-slate-50">
-                  <tr>
-                    <th className="py-3 px-3 text-mcm-muted font-medium uppercase tracking-wide w-20">Hora</th>
-                    {DAYS.map(d => (
-                      <th key={d} className="py-3 px-3 text-mcm-muted font-medium uppercase tracking-wide text-center">{DAY_LABELS[d]}</th>
+              {(() => {
+                const HOURS = ["18:00", "19:00", "20:00", "21:00", "22:00"];
+                const HOUR_HEIGHT = 80; // px por hora
+                const START_HOUR = 18;
+                const TOTAL_HOURS = HOURS.length;
+
+                function getTop(time: string): number {
+                  const [h, m] = time.split(":").map(Number);
+                  return ((h - START_HOUR) + m / 60) * HOUR_HEIGHT;
+                }
+                function getHeight(start: string, end: string): number {
+                  const [sh, sm] = start.split(":").map(Number);
+                  const [eh, em] = end.split(":").map(Number);
+                  const hours = (eh * 60 + em - sh * 60 - sm) / 60;
+                  return hours * HOUR_HEIGHT;
+                }
+
+                return (
+                  <div className="flex">
+                    {/* Columna de horas */}
+                    <div className="w-16 flex-shrink-0 border-r border-mcm-border">
+                      <div className="h-10 border-b border-mcm-border" /> {/* header spacer */}
+                      {HOURS.map(h => (
+                        <div key={h} className="border-b border-mcm-border flex items-start justify-center pt-1 text-xs text-mcm-muted font-mono" style={{ height: HOUR_HEIGHT }}>
+                          {h}
+                        </div>
+                      ))}
+                    </div>
+                    {/* Columnas de días */}
+                    {DAYS.map(dia => (
+                      <div key={dia} className="flex-1 min-w-[120px] border-r border-mcm-border last:border-r-0">
+                        <div className="h-10 border-b border-mcm-border flex items-center justify-center text-xs font-medium text-mcm-muted uppercase">
+                          {DAY_LABELS[dia]}
+                        </div>
+                        <div className="relative" style={{ height: TOTAL_HOURS * HOUR_HEIGHT }}>
+                          {/* Líneas de hora */}
+                          {HOURS.map((_, i) => (
+                            <div key={i} className="absolute w-full border-b border-mcm-border/50" style={{ top: (i + 1) * HOUR_HEIGHT }} />
+                          ))}
+                          {/* Bloques de horario */}
+                          {filteredSchedules
+                            .filter(s => s.dia_semana === dia)
+                            .map(s => {
+                              const startTime = (s.hora_inicio ?? "").slice(0, 5);
+                              const endTime = (s.hora_fin ?? "").slice(0, 5);
+                              if (!startTime || !endTime) return null;
+                              const top = getTop(startTime);
+                              const height = getHeight(startTime, endTime);
+                              return (
+                                <div key={s.id}
+                                  className="absolute left-1 right-1 bg-blue-50 border border-blue-200 rounded-lg p-1.5 overflow-hidden group cursor-pointer hover:bg-blue-100 transition-colors"
+                                  style={{ top, height, minHeight: 30 }}
+                                  onClick={() => openEditSchedule(s)}
+                                >
+                                  <p className="font-semibold text-blue-800 truncate text-[10px] leading-tight">{s.cursos?.nombre_curso}</p>
+                                  <p className="text-blue-600 truncate text-[10px] leading-tight">{s.profiles?.nombre_completo}</p>
+                                  <p className="text-blue-400 text-[9px]">{startTime}-{endTime}{s.aula ? ` · ${s.aula}` : ""}</p>
+                                  <button onClick={(e) => { e.stopPropagation(); handleDeleteSchedule(s.id); }}
+                                    className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-600 transition-opacity">
+                                    <Trash2 size={10} />
+                                  </button>
+                                </div>
+                              );
+                            })}
+                        </div>
+                      </div>
                     ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {["18:00", "19:00", "20:00", "21:00"].map(hora => (
-                    <tr key={hora} className="border-t border-mcm-border">
-                      <td className="py-4 px-3 font-mono text-mcm-muted">{hora}</td>
-                      {DAYS.map(dia => {
-                        const matches = filteredSchedules.filter(s =>
-                          s.dia_semana === dia && s.hora_inicio <= hora && s.hora_fin > hora
-                        );
-                        return (
-                          <td key={dia} className="py-2 px-1 text-center align-top">
-                            {matches.map(s => (
-                              <div key={s.id} className="bg-blue-50 border border-blue-200 rounded-lg p-1.5 mb-1 text-left group relative">
-                                <p className="font-semibold text-blue-800 truncate">{s.cursos?.nombre_curso}</p>
-                                <p className="text-blue-600 truncate">{s.profiles?.nombre_completo}</p>
-                                <p className="text-blue-400">{s.hora_inicio}-{s.hora_fin} {s.aula && `· ${s.aula}`}</p>
-                                <button onClick={() => handleDeleteSchedule(s.id)}
-                                  className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-600 transition-opacity">
-                                  <Trash2 size={12} />
-                                </button>
-                              </div>
-                            ))}
-                          </td>
-                        );
-                      })}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </div>
+                );
+              })()}
             </div>
           </div>
 
@@ -363,7 +446,12 @@ function CiclosContent() {
                       <td className="py-3 px-4 font-mono text-xs">{s.hora_inicio} - {s.hora_fin}</td>
                       <td className="py-3 px-4 text-mcm-muted">{s.aula ?? "—"}</td>
                       <td className="py-3 px-4">
-                        <button onClick={() => handleDeleteSchedule(s.id)} className="text-mcm-muted hover:text-red-600"><Trash2 size={14} /></button>
+                        <div className="flex gap-2">
+                          <button onClick={() => openEditSchedule(s)} title="Editar horario"
+                            className="text-mcm-muted hover:text-[#a93526]"><Pencil size={14} /></button>
+                          <button onClick={() => handleDeleteSchedule(s.id)} title="Eliminar horario"
+                            className="text-mcm-muted hover:text-red-600"><Trash2 size={14} /></button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -536,6 +624,88 @@ function CiclosContent() {
             <div className="flex gap-3 mt-5">
               <button onClick={() => setEditOpeningModal({ show: false, target: null })} className="btn-secondary flex-1 text-sm">Cancelar</button>
               <button onClick={handleEditOpening} disabled={saving || !editOpeningForm.start_date}
+                className="btn-primary flex-1 text-sm disabled:opacity-50 flex items-center justify-center gap-2">
+                {saving && <Loader2 size={14} className="animate-spin" />}
+                {saving ? "Guardando..." : "Guardar cambios"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal editar horario */}
+      {editScheduleModal.show && editScheduleModal.target && (
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-md">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-bold text-mcm-text text-lg">Editar Horario</h3>
+              <button onClick={() => setEditScheduleModal({ show: false, target: null })}><X size={20} className="text-mcm-muted" /></button>
+            </div>
+            <div className="space-y-3">
+              <div>
+                <label className="block text-sm font-medium text-mcm-text mb-1">Profesor</label>
+                <select value={editScheduleForm.profesor_id} onChange={e => setEditScheduleForm({...editScheduleForm, profesor_id: e.target.value})}
+                  className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#a93526]">
+                  <option value="">Seleccionar...</option>
+                  {profesores.map(p => <option key={p.id} value={p.id}>{p.nombre_completo}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-mcm-text mb-1">Ciclo</label>
+                <select value={editScheduleForm.ciclo} onChange={e => setEditScheduleForm({...editScheduleForm, ciclo: e.target.value, curso_id: ""})}
+                  className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#a93526]">
+                  {[1,2,3,4,5,6].map(n => <option key={n} value={String(n)}>Ciclo {n}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-mcm-text mb-1">Curso</label>
+                {(() => {
+                  const cursosFiltrados = cursos.filter(c =>
+                    c.ciclo_perteneciente === parseInt(editScheduleForm.ciclo)
+                  );
+                  return (
+                    <select value={editScheduleForm.curso_id} onChange={e => setEditScheduleForm({...editScheduleForm, curso_id: e.target.value})}
+                      className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#a93526]">
+                      <option value="">Seleccionar...</option>
+                      {cursosFiltrados.length === 0
+                        ? <option value="" disabled>No hay cursos para este ciclo</option>
+                        : cursosFiltrados.map(c => <option key={c.id} value={c.id}>{c.nombre_curso}</option>)
+                      }
+                    </select>
+                  );
+                })()}
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-mcm-text mb-1">Día</label>
+                <select value={editScheduleForm.dia_semana} onChange={e => setEditScheduleForm({...editScheduleForm, dia_semana: e.target.value})}
+                  className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#a93526]">
+                  {["lunes","martes","miercoles","jueves","viernes","sabado"].map(d => (
+                    <option key={d} value={d}>{d.charAt(0).toUpperCase() + d.slice(1)}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm font-medium text-mcm-text mb-1">Hora inicio</label>
+                  <input type="time" value={editScheduleForm.hora_inicio} onChange={e => setEditScheduleForm({...editScheduleForm, hora_inicio: e.target.value})}
+                    className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#a93526]" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-mcm-text mb-1">Hora fin</label>
+                  <input type="time" value={editScheduleForm.hora_fin} onChange={e => setEditScheduleForm({...editScheduleForm, hora_fin: e.target.value})}
+                    className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#a93526]" />
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-mcm-text mb-1">Aula (opcional)</label>
+                <input value={editScheduleForm.aula} onChange={e => setEditScheduleForm({...editScheduleForm, aula: e.target.value})}
+                  placeholder="Ej: A-201"
+                  className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#a93526]" />
+              </div>
+            </div>
+            <div className="flex gap-3 mt-5">
+              <button onClick={() => setEditScheduleModal({ show: false, target: null })} className="btn-secondary flex-1 text-sm">Cancelar</button>
+              <button onClick={handleEditSchedule} disabled={saving || !editScheduleForm.profesor_id || !editScheduleForm.curso_id}
                 className="btn-primary flex-1 text-sm disabled:opacity-50 flex items-center justify-center gap-2">
                 {saving && <Loader2 size={14} className="animate-spin" />}
                 {saving ? "Guardando..." : "Guardar cambios"}
