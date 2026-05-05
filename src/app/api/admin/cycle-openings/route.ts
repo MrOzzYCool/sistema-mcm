@@ -102,3 +102,41 @@ export async function PUT(req: NextRequest) {
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ success: true });
 }
+
+/**
+ * DELETE /api/admin/cycle-openings
+ * Body: { id }
+ * Solo super_admin puede eliminar
+ */
+export async function DELETE(req: NextRequest) {
+  const admin = await verifyAccess(req);
+  if (!admin) return NextResponse.json({ error: "No autorizado" }, { status: 403 });
+
+  // Verificar que sea super_admin
+  const isSuperAdmin = admin.email?.toLowerCase() === "admin@margaritacabrera.edu.pe";
+  if (!isSuperAdmin) {
+    const { data: profile } = await supabaseAdmin
+      .from("profiles").select("rol").eq("id", admin.id).single();
+    if (!profile || profile.rol !== "super_admin") {
+      return NextResponse.json({ error: "Solo super_admin puede eliminar aperturas" }, { status: 403 });
+    }
+  }
+
+  const { id } = await req.json();
+  if (!id) return NextResponse.json({ error: "id requerido" }, { status: 400 });
+
+  const { error } = await supabaseAdmin
+    .from("cycle_openings")
+    .delete()
+    .eq("id", id);
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  await supabaseAdmin.from("historial_auditoria").insert({
+    accion: "eliminar_apertura_ciclo",
+    admin_id: admin.id, admin_email: admin.email,
+    detalle: { opening_id: id },
+  });
+
+  return NextResponse.json({ success: true });
+}

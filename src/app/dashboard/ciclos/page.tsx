@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/lib/supabase";
+import { useAuth } from "@/lib/auth-context";
 import RouteGuard from "@/components/RouteGuard";
 import {
   Loader2, Plus, Calendar, Clock, X, RefreshCw, CheckCircle,
@@ -22,6 +23,9 @@ interface Profesor { id: string; nombre_completo: string; }
 interface Curso { id: string; nombre_curso: string; ciclo_perteneciente: number; }
 
 function CiclosContent() {
+  const { user } = useAuth();
+  const canDelete = user?.role && ["super_admin"].includes(user.role);
+
   const [tab, setTab] = useState<"aperturas" | "horarios">("aperturas");
   const [openings, setOpenings] = useState<CycleOpening[]>([]);
   const [schedules, setSchedules] = useState<Schedule[]>([]);
@@ -125,6 +129,20 @@ function CiclosContent() {
     } catch (err) { setError(err instanceof Error ? err.message : "Error"); }
   }
 
+  async function handleDeleteOpening(id: string, cycleNumber: number) {
+    if (!confirm(`¿Estás seguro de eliminar la apertura del Ciclo ${cycleNumber}? Esta acción no se puede deshacer.`)) return;
+    try {
+      const res = await fetch("/api/admin/cycle-openings", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${await getToken()}` },
+        body: JSON.stringify({ id }),
+      });
+      if (!res.ok) throw new Error((await res.json()).error);
+      setSuccess(`Apertura del Ciclo ${cycleNumber} eliminada.`);
+      cargar();
+    } catch (err) { setError(err instanceof Error ? err.message : "Error"); }
+  }
+
   const DAYS = ["lunes", "martes", "miercoles", "jueves", "viernes", "sabado"];
   const DAY_LABELS: Record<string, string> = { lunes: "Lun", martes: "Mar", miercoles: "Mié", jueves: "Jue", viernes: "Vie", sabado: "Sáb" };
 
@@ -178,7 +196,7 @@ function CiclosContent() {
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="bg-slate-50">
-                <tr>{["Ciclo", "Fecha de Inicio", "Estado", "Creado"].map(h => (
+                <tr>{["Ciclo", "Fecha de Inicio", "Estado", "Creado", ...(canDelete ? ["Acciones"] : [])].map(h => (
                   <th key={h} className="text-left py-3 px-4 text-mcm-muted font-medium text-xs uppercase tracking-wide">{h}</th>
                 ))}</tr>
               </thead>
@@ -189,9 +207,15 @@ function CiclosContent() {
                     <td className="py-3 px-4">{new Date(o.start_date + "T00:00:00").toLocaleDateString("es-PE", { day: "2-digit", month: "long", year: "numeric" })}</td>
                     <td className="py-3 px-4"><span className={o.status === "activo" ? "badge-green" : "badge-gray"}>{o.status}</span></td>
                     <td className="py-3 px-4 text-mcm-muted text-xs">{new Date(o.created_at).toLocaleDateString("es-PE", { day: "2-digit", month: "short" })}</td>
+                    {canDelete && (
+                      <td className="py-3 px-4">
+                        <button onClick={() => handleDeleteOpening(o.id, o.cycle_number)} title="Eliminar apertura"
+                          className="text-mcm-muted hover:text-red-600"><Trash2 size={14} /></button>
+                      </td>
+                    )}
                   </tr>
                 ))}
-                {!openings.length && <tr><td colSpan={4} className="py-12 text-center text-mcm-muted text-sm">No hay aperturas de ciclo</td></tr>}
+                {!openings.length && <tr><td colSpan={canDelete ? 5 : 4} className="py-12 text-center text-mcm-muted text-sm">No hay aperturas de ciclo</td></tr>}
               </tbody>
             </table>
           </div>

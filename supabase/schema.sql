@@ -491,6 +491,14 @@ create policy "admin_write_cycle_openings" on public.cycle_openings
     select 1 from public.profiles where id = auth.uid() and rol in ('super_admin','cycle_manager')
   ));
 
+-- DELETE solo para super_admin
+create policy "delete_cycle_openings_admin" on public.cycle_openings
+  for delete using (
+    exists (
+      select 1 from public.profiles where id = auth.uid() and rol = 'super_admin'
+    )
+  );
+
 -- Agregar cycle_manager al constraint de roles
 alter table public.profiles drop constraint if exists profiles_rol_check;
 alter table public.profiles add constraint profiles_rol_check
