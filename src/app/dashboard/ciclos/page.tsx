@@ -11,7 +11,7 @@ import {
 import clsx from "clsx";
 
 interface CycleOpening {
-  id: string; cycle_number: number; start_date: string; status: string; created_at: string;
+  id: string; cycle_number: number; start_date: string; fecha_fin: string | null; status: string; created_at: string;
 }
 interface Schedule {
   id: string; profesor_id: string; curso_id: string; ciclo: number;
@@ -41,7 +41,7 @@ function CiclosContent() {
   const [saving, setSaving] = useState(false);
 
   // Forms
-  const [openingForm, setOpeningForm] = useState({ cycle_number: "1", start_date: "" });
+  const [openingForm, setOpeningForm] = useState({ cycle_number: "1", start_date: "", fecha_fin: "" });
   const [scheduleForm, setScheduleForm] = useState({
     profesor_id: "", curso_id: "", ciclo: "1",
     dia_semana: "lunes", hora_inicio: "18:00", hora_fin: "20:00", aula: "",
@@ -88,6 +88,7 @@ function CiclosContent() {
         body: JSON.stringify({
           cycle_number: parseInt(openingForm.cycle_number),
           start_date: openingForm.start_date,
+          fecha_fin: openingForm.fecha_fin || null,
         }),
       });
       const json = await res.json();
@@ -196,7 +197,7 @@ function CiclosContent() {
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="bg-slate-50">
-                <tr>{["Ciclo", "Fecha de Inicio", "Estado", "Creado", ...(canDelete ? ["Acciones"] : [])].map(h => (
+                <tr>{["Ciclo", "Fecha de Inicio", "Fecha de Culminación", "Estado", "Creado", ...(canDelete ? ["Acciones"] : [])].map(h => (
                   <th key={h} className="text-left py-3 px-4 text-mcm-muted font-medium text-xs uppercase tracking-wide">{h}</th>
                 ))}</tr>
               </thead>
@@ -205,6 +206,7 @@ function CiclosContent() {
                   <tr key={o.id} className="border-t border-mcm-border hover:bg-slate-50">
                     <td className="py-3 px-4 font-bold text-mcm-text">Ciclo {o.cycle_number}</td>
                     <td className="py-3 px-4">{new Date(o.start_date + "T00:00:00").toLocaleDateString("es-PE", { day: "2-digit", month: "long", year: "numeric" })}</td>
+                    <td className="py-3 px-4">{o.fecha_fin ? new Date(o.fecha_fin + "T00:00:00").toLocaleDateString("es-PE", { day: "2-digit", month: "long", year: "numeric" }) : "—"}</td>
                     <td className="py-3 px-4"><span className={o.status === "activo" ? "badge-green" : "badge-gray"}>{o.status}</span></td>
                     <td className="py-3 px-4 text-mcm-muted text-xs">{new Date(o.created_at).toLocaleDateString("es-PE", { day: "2-digit", month: "short" })}</td>
                     {canDelete && (
@@ -215,7 +217,7 @@ function CiclosContent() {
                     )}
                   </tr>
                 ))}
-                {!openings.length && <tr><td colSpan={canDelete ? 5 : 4} className="py-12 text-center text-mcm-muted text-sm">No hay aperturas de ciclo</td></tr>}
+                {!openings.length && <tr><td colSpan={canDelete ? 6 : 5} className="py-12 text-center text-mcm-muted text-sm">No hay aperturas de ciclo</td></tr>}
               </tbody>
             </table>
           </div>
@@ -329,6 +331,11 @@ function CiclosContent() {
               <div>
                 <label className="block text-sm font-medium text-mcm-text mb-1">Fecha de inicio</label>
                 <input type="date" value={openingForm.start_date} onChange={e => setOpeningForm({...openingForm, start_date: e.target.value})}
+                  className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#a93526]" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-mcm-text mb-1">Fecha de culminación</label>
+                <input type="date" value={openingForm.fecha_fin} onChange={e => setOpeningForm({...openingForm, fecha_fin: e.target.value})}
                   className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#a93526]" />
               </div>
             </div>

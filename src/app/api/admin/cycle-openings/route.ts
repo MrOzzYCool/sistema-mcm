@@ -44,7 +44,7 @@ export async function POST(req: NextRequest) {
   const admin = await verifyAccess(req);
   if (!admin) return NextResponse.json({ error: "No autorizado" }, { status: 403 });
 
-  const { cycle_number, start_date } = await req.json();
+  const { cycle_number, start_date, fecha_fin } = await req.json();
 
   if (!cycle_number || !start_date) {
     return NextResponse.json({ error: "cycle_number y start_date son requeridos" }, { status: 400 });
@@ -68,7 +68,7 @@ export async function POST(req: NextRequest) {
 
   const { data, error } = await supabaseAdmin
     .from("cycle_openings")
-    .insert({ cycle_number, start_date, status: "activo", created_by: admin.id })
+    .insert({ cycle_number, start_date, fecha_fin: fecha_fin || null, status: "activo", created_by: admin.id })
     .select()
     .single();
 

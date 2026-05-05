@@ -471,18 +471,27 @@ create trigger set_schedules_updated_at
   before update on public.class_schedules
   for each row execute function public.set_updated_at();
 
+-- Migración: agregar columna aula si no existe
+alter table public.class_schedules
+  add column if not exists aula text;
+
 -- ─── Apertura de Ciclos ───────────────────────────────────────────────────────
 
 create table if not exists public.cycle_openings (
   id            uuid primary key default gen_random_uuid(),
   cycle_number  integer not null,
   start_date    date not null,
+  fecha_fin     date,
   status        text not null default 'activo' check (status in ('activo','cerrado')),
   created_by    uuid references auth.users(id),
   created_at    timestamptz not null default now(),
   updated_at    timestamptz not null default now(),
   unique(cycle_number, start_date)
 );
+
+-- Migración: agregar columna fecha_fin si no existe
+alter table public.cycle_openings
+  add column if not exists fecha_fin date;
 
 alter table public.cycle_openings enable row level security;
 create policy "read_cycle_openings" on public.cycle_openings for select using (true);
