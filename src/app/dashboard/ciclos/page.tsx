@@ -407,21 +407,26 @@ function CiclosContent() {
                 </select>
               </div>
               <div>
+                <label className="block text-sm font-medium text-mcm-text mb-1">Ciclo</label>
+                <select value={scheduleForm.ciclo} onChange={e => setScheduleForm({...scheduleForm, ciclo: e.target.value, curso_id: ""})}
+                  className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#a93526]">
+                  {[1,2,3,4,5,6].map(n => <option key={n} value={String(n)}>Ciclo {n}</option>)}
+                </select>
+              </div>
+              <div>
                 <label className="block text-sm font-medium text-mcm-text mb-1">Curso</label>
                 <select value={scheduleForm.curso_id} onChange={e => setScheduleForm({...scheduleForm, curso_id: e.target.value})}
                   className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#a93526]">
                   <option value="">Seleccionar...</option>
-                  {cursos.map(c => <option key={c.id} value={c.id}>{c.nombre_curso} (Ciclo {c.ciclo_perteneciente})</option>)}
+                  {cursos.filter(c => c.ciclo_perteneciente === parseInt(scheduleForm.ciclo)).length === 0
+                    ? <option value="" disabled>No hay cursos disponibles para este ciclo</option>
+                    : cursos.filter(c => c.ciclo_perteneciente === parseInt(scheduleForm.ciclo)).map(c => (
+                        <option key={c.id} value={c.id}>{c.nombre_curso}</option>
+                      ))
+                  }
                 </select>
               </div>
               <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-sm font-medium text-mcm-text mb-1">Ciclo</label>
-                  <select value={scheduleForm.ciclo} onChange={e => setScheduleForm({...scheduleForm, ciclo: e.target.value})}
-                    className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#a93526]">
-                    {[1,2,3,4,5,6].map(n => <option key={n} value={String(n)}>Ciclo {n}</option>)}
-                  </select>
-                </div>
                 <div>
                   <label className="block text-sm font-medium text-mcm-text mb-1">Día</label>
                   <select value={scheduleForm.dia_semana} onChange={e => setScheduleForm({...scheduleForm, dia_semana: e.target.value})}
@@ -429,13 +434,13 @@ function CiclosContent() {
                     {DAYS.map(d => <option key={d} value={d}>{d.charAt(0).toUpperCase() + d.slice(1)}</option>)}
                   </select>
                 </div>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-sm font-medium text-mcm-text mb-1">Hora inicio</label>
                   <input type="time" value={scheduleForm.hora_inicio} onChange={e => setScheduleForm({...scheduleForm, hora_inicio: e.target.value})}
                     className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#a93526]" />
                 </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-sm font-medium text-mcm-text mb-1">Hora fin</label>
                   <input type="time" value={scheduleForm.hora_fin} onChange={e => setScheduleForm({...scheduleForm, hora_fin: e.target.value})}
