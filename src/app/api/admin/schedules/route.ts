@@ -38,7 +38,7 @@ export async function GET(req: NextRequest) {
 
   if (profesorId) query = query.eq("professor_id", profesorId);
   if (cursoId) query = query.eq("course_id", cursoId);
-  if (ciclo) query = query.eq("ciclo", parseInt(ciclo));
+  if (ciclo) query = query.eq("cycle_number", parseInt(ciclo));
 
   const { data, error } = await query;
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
@@ -113,7 +113,8 @@ export async function POST(req: NextRequest) {
     .from("class_schedules")
     .select("id, hora_inicio, hora_fin, cursos!course_id(nombre_curso)")
     .eq("professor_id", profesor_id)
-    .eq("dia_semana", dia_semana.toLowerCase());
+    .eq("dia_semana", dia_semana.toLowerCase())
+    .eq("cycle_number", parseInt(ciclo));
 
   const conflicto = (overlaps ?? []).find(s => {
     // Two time ranges overlap if: start1 < end2 AND start2 < end1
@@ -132,31 +133,44 @@ export async function POST(req: NextRequest) {
 
   // ── Insert ────────────────────────────────────────────────────────────────
 
-  console.log("[schedules POST] Insertando:", {
-    profesor_id, curso_id, ciclo, dia_semana, hora_inicio, hora_fin, aula,
-  });
+  // Objeto que se enviará a Supabase — verificar que ningún campo sea null
+  const insertPayload = {
+    professor_id: profesor_id,
+    course_id: curso_id,
+    cycle_number: parseInt(ciclo),
+    dia_semana: dia_semana.toLowerCase(),
+    hora_inicio,
+    hora_fin,
+    aula: aula || null,
+  };
 
-  // Validación extra: curso_id no puede ser vacío
-  if (!curso_id || curso_id === "undefined" || curso_id === "null") {
-    return NextResponse.json({ error: "curso_id es obligatorio y debe ser un UUID válido" }, { status: 400 });
+  console.log("[schedules POST] Payload completo para INSERT:", JSON.stringify(insertPayload, null, 2));
+
+  // Validación final: ningún campo obligatorio puede ser nulo
+  if (!insertPayload.professor_id) {
+    return NextResponse.json({ error: "professor_id es obligatorio (UUID del profesor)" }, { status: 400 });
+  }
+  if (!insertPayload.course_id) {
+    return NextResponse.json({ error: "course_id es obligatorio (UUID del curso)" }, { status: 400 });
+  }
+  if (!insertPayload.cycle_number || isNaN(insertPayload.cycle_number)) {
+    return NextResponse.json({ error: "cycle_number es obligatorio (número de ciclo)" }, { status: 400 });
+  }
+  if (!insertPayload.dia_semana) {
+    return NextResponse.json({ error: "dia_semana es obligatorio" }, { status: 400 });
+  }
+  if (!insertPayload.hora_inicio || !insertPayload.hora_fin) {
+    return NextResponse.json({ error: "hora_inicio y hora_fin son obligatorios" }, { status: 400 });
   }
 
   const { data: schedule, error: insertErr } = await supabaseAdmin
     .from("class_schedules")
-    .insert({
-      professor_id: profesor_id,
-      course_id: curso_id,
-      ciclo: parseInt(ciclo),
-      dia_semana: dia_semana.toLowerCase(),
-      hora_inicio,
-      hora_fin,
-      aula: aula ?? null,
-    })
+    .insert(insertPayload)
     .select()
     .single();
 
   if (insertErr) {
-    console.error("[schedules POST] Error insert:", insertErr.message);
+    console.error("[schedules POST] Error insert:", insertErr.message, "| Payload:", JSON.stringify(insertPayload));
     return NextResponse.json({ error: insertErr.message }, { status: 500 });
   }
 

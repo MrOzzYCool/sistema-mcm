@@ -445,7 +445,7 @@ create table if not exists public.class_schedules (
   id            uuid primary key default gen_random_uuid(),
   professor_id  uuid not null references public.profiles(id) on delete cascade,
   course_id     uuid not null references public.cursos(id) on delete cascade,
-  ciclo         integer not null,
+  cycle_number  integer not null,
   dia_semana    text not null check (dia_semana in ('lunes','martes','miercoles','jueves','viernes','sabado')),
   hora_inicio   time not null,
   hora_fin      time not null,

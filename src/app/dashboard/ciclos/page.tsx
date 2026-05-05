@@ -14,7 +14,7 @@ interface CycleOpening {
   id: string; cycle_number: number; start_date: string; fecha_fin: string | null; status: string; created_at: string;
 }
 interface Schedule {
-  id: string; professor_id: string; course_id: string; ciclo: number;
+  id: string; professor_id: string; course_id: string; cycle_number: number;
   dia_semana: string; hora_inicio: string; hora_fin: string; aula: string | null;
   profiles: { nombre_completo: string };
   cursos: { nombre_curso: string };
@@ -204,7 +204,7 @@ function CiclosContent() {
 
   const filteredSchedules = filterCiclo === "todos"
     ? schedules
-    : schedules.filter(s => s.ciclo === parseInt(filterCiclo));
+    : schedules.filter(s => s.cycle_number === parseInt(filterCiclo));
 
   return (
     <div className="p-6 w-full space-y-5">
@@ -354,7 +354,7 @@ function CiclosContent() {
                     <tr key={s.id} className="border-t border-mcm-border hover:bg-slate-50">
                       <td className="py-3 px-4 font-medium text-mcm-text">{s.profiles?.nombre_completo}</td>
                       <td className="py-3 px-4 text-mcm-text">{s.cursos?.nombre_curso}</td>
-                      <td className="py-3 px-4"><span className="badge-blue">{s.ciclo}</span></td>
+                      <td className="py-3 px-4"><span className="badge-blue">{s.cycle_number}</span></td>
                       <td className="py-3 px-4 capitalize">{s.dia_semana}</td>
                       <td className="py-3 px-4 font-mono text-xs">{s.hora_inicio} - {s.hora_fin}</td>
                       <td className="py-3 px-4 text-mcm-muted">{s.aula ?? "—"}</td>
