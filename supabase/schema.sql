@@ -443,7 +443,7 @@ create trigger set_installments_updated_at
 
 create table if not exists public.class_schedules (
   id            uuid primary key default gen_random_uuid(),
-  profesor_id   uuid not null references public.profiles(id) on delete cascade,
+  professor_id  uuid not null references public.profiles(id) on delete cascade,
   course_id     uuid not null references public.cursos(id) on delete cascade,
   ciclo         integer not null,
   dia_semana    text not null check (dia_semana in ('lunes','martes','miercoles','jueves','viernes','sabado')),
@@ -463,7 +463,7 @@ create policy "admin_write_schedules" on public.class_schedules
     select 1 from public.profiles where id = auth.uid() and rol in ('super_admin')
   ));
 
-create index if not exists idx_schedules_profesor on public.class_schedules(profesor_id);
+create index if not exists idx_schedules_profesor on public.class_schedules(professor_id);
 create index if not exists idx_schedules_curso on public.class_schedules(course_id);
 
 drop trigger if exists set_schedules_updated_at on public.class_schedules;

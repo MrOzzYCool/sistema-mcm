@@ -28,7 +28,7 @@ export async function GET(req: NextRequest) {
 
   let query = supabaseAdmin
     .from("class_schedules")
-    .select("*, profiles!profesor_id(nombre_completo, rol), cursos!course_id(nombre_curso, ciclo_perteneciente)")
+    .select("*, profiles!professor_id(nombre_completo, rol), cursos!course_id(nombre_curso, ciclo_perteneciente)")
     .order("dia_semana")
     .order("hora_inicio");
 
@@ -36,7 +36,7 @@ export async function GET(req: NextRequest) {
   const cursoId = req.nextUrl.searchParams.get("curso_id");
   const ciclo = req.nextUrl.searchParams.get("ciclo");
 
-  if (profesorId) query = query.eq("profesor_id", profesorId);
+  if (profesorId) query = query.eq("professor_id", profesorId);
   if (cursoId) query = query.eq("course_id", cursoId);
   if (ciclo) query = query.eq("ciclo", parseInt(ciclo));
 
@@ -112,7 +112,7 @@ export async function POST(req: NextRequest) {
   const { data: overlaps } = await supabaseAdmin
     .from("class_schedules")
     .select("id, hora_inicio, hora_fin, cursos!course_id(nombre_curso)")
-    .eq("profesor_id", profesor_id)
+    .eq("professor_id", profesor_id)
     .eq("dia_semana", dia_semana.toLowerCase());
 
   const conflicto = (overlaps ?? []).find(s => {
@@ -144,7 +144,7 @@ export async function POST(req: NextRequest) {
   const { data: schedule, error: insertErr } = await supabaseAdmin
     .from("class_schedules")
     .insert({
-      profesor_id,
+      professor_id: profesor_id,
       course_id: curso_id,
       ciclo: parseInt(ciclo),
       dia_semana: dia_semana.toLowerCase(),

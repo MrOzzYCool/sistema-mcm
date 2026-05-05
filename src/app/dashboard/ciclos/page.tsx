@@ -14,7 +14,7 @@ interface CycleOpening {
   id: string; cycle_number: number; start_date: string; fecha_fin: string | null; status: string; created_at: string;
 }
 interface Schedule {
-  id: string; profesor_id: string; course_id: string; ciclo: number;
+  id: string; professor_id: string; course_id: string; ciclo: number;
   dia_semana: string; hora_inicio: string; hora_fin: string; aula: string | null;
   profiles: { nombre_completo: string };
   cursos: { nombre_curso: string };
