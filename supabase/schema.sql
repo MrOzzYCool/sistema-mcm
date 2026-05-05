@@ -133,6 +133,26 @@ alter table public.profiles
   add column if not exists dni        text,
   add column if not exists created_by uuid;
 
+-- ─── RLS: Admins y staff pueden ver todos los perfiles ────────────────────────
+create policy "select_all_admin" on public.profiles
+  for select using (
+    exists (
+      select 1 from public.profiles p
+      where p.id = auth.uid()
+        and p.rol in ('super_admin', 'staff_tramites', 'gestor')
+    )
+  );
+
+-- ─── RLS: Admins y staff pueden actualizar cualquier perfil ───────────────────
+create policy "update_admin_staff" on public.profiles
+  for update using (
+    exists (
+      select 1 from public.profiles p
+      where p.id = auth.uid()
+        and p.rol in ('super_admin', 'staff_tramites', 'gestor')
+    )
+  );
+
 -- ─── Tabla de auditoría ───────────────────────────────────────────────────────
 create table if not exists public.historial_auditoria (
   id         uuid primary key default gen_random_uuid(),
