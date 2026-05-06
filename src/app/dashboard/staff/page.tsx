@@ -32,7 +32,7 @@ const ASSIGNABLE_ROLES = [
 
 interface StaffProfile {
   id: string; nombre_completo: string; email: string;
-  rol: string; estado: string; dni: string | null; created_at: string;
+  rol: string; estado: string; dni: string | null; es_profesor: boolean; created_at: string;
   force_password_reset?: boolean;
 }
 
@@ -52,7 +52,7 @@ function StaffContent() {
     password: "", auto_password: true, force_change: true,
   });
   const [editTarget, setEditTarget] = useState<StaffProfile | null>(null);
-  const [editForm, setEditForm] = useState({ nombre_completo: "", rol: "", estado: "", force_change: false });
+  const [editForm, setEditForm] = useState({ nombre_completo: "", rol: "", estado: "", force_change: false, es_profesor: false });
   const [editSaving, setEditSaving] = useState(false);
   const [setPwTarget, setSetPwTarget] = useState<StaffProfile | null>(null);
   const [newPassword, setNewPassword] = useState("");
@@ -160,7 +160,7 @@ function StaffContent() {
 
   function openEdit(p: StaffProfile) {
     setEditTarget(p);
-    setEditForm({ nombre_completo: p.nombre_completo, rol: p.rol, estado: p.estado, force_change: !!p.force_password_reset });
+    setEditForm({ nombre_completo: p.nombre_completo, rol: p.rol, estado: p.estado, force_change: !!p.force_password_reset, es_profesor: p.es_profesor ?? false });
   }
 
   async function handleEdit() {
@@ -175,10 +175,15 @@ function StaffContent() {
           body: JSON.stringify({ userId: editTarget.id, estado: editForm.estado }),
         });
       }
-      await fetch("/api/admin/staff-update", {
-        method: "POST",
+      await fetch("/api/admin/users", {
+        method: "PUT",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ userId: editTarget.id, nombre_completo: editForm.nombre_completo, rol: editForm.rol }),
+        body: JSON.stringify({
+          userId: editTarget.id,
+          nombre_completo: editForm.nombre_completo,
+          rol: editForm.rol,
+          es_profesor: editForm.es_profesor,
+        }),
       });
       // Update force_password_reset if changed
       if (editForm.force_change !== !!editTarget.force_password_reset) {
@@ -368,6 +373,12 @@ function StaffContent() {
                   onChange={e => setEditForm({...editForm, force_change: e.target.checked})} className="accent-[#a93526]" />
                 Forzar cambio de contraseña al próximo ingreso
               </label>
+              <label className="flex items-center gap-2 text-sm cursor-pointer">
+                <input type="checkbox" checked={editForm.es_profesor}
+                  onChange={e => setEditForm({...editForm, es_profesor: e.target.checked})} className="accent-[#a93526] w-4 h-4" />
+                <span className="font-medium text-mcm-text">También es profesor</span>
+              </label>
+              <p className="text-xs text-mcm-muted -mt-2 ml-6">Permite asignar horarios de clase a este trabajador</p>
             </div>
             <div className="flex gap-3 mt-5">
               <button onClick={() => setEditTarget(null)} className="btn-secondary flex-1 text-sm">Cancelar</button>
