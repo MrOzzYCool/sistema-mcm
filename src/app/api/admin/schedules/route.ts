@@ -246,6 +246,67 @@ export async function POST(req: NextRequest) {
 }
 
 /**
+ * PUT /api/admin/schedules
+ * Body: { schedule_id, profesor_id, curso_id, ciclo, dia_semana, hora_inicio, hora_fin, aula? }
+ */
+export async function PUT(req: NextRequest) {
+  const admin = await verifyAdmin(req);
+  if (!admin) return NextResponse.json({ error: "No autorizado" }, { status: 403 });
+
+  const body = await req.json();
+  const { schedule_id, profesor_id, curso_id, ciclo, dia_semana, hora_inicio, hora_fin, aula } = body;
+
+  if (!schedule_id) return NextResponse.json({ error: "schedule_id requerido" }, { status: 400 });
+  if (!profesor_id || !curso_id || !ciclo || !dia_semana || !hora_inicio || !hora_fin) {
+    return NextResponse.json({ error: "Todos los campos son requeridos" }, { status: 400 });
+  }
+
+  const dayNumber = DAY_MAP[dia_semana.toLowerCase()];
+  if (!dayNumber) return NextResponse.json({ error: `Día inválido: ${dia_semana}` }, { status: 400 });
+
+  const durationMinutes = calcDurationMinutes(hora_inicio, hora_fin);
+
+  // Obtener fechas del ciclo
+  const { data: cycleOpening } = await supabaseAdmin
+    .from("cycle_openings")
+    .select("start_date, fecha_fin")
+    .eq("cycle_number", parseInt(ciclo))
+    .eq("status", "activo")
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .single();
+
+  if (!cycleOpening || !cycleOpening.start_date) {
+    return NextResponse.json({ error: `No hay apertura activa para el Ciclo ${ciclo}.` }, { status: 400 });
+  }
+
+  const updatePayload = {
+    professor_id:     profesor_id,
+    course_id:        curso_id,
+    cycle_number:     parseInt(ciclo),
+    day_of_week:      dayNumber,
+    start_time:       hora_inicio,
+    end_time:         hora_fin,
+    duration_minutes: durationMinutes,
+    location:         aula || null,
+    start_date:       cycleOpening.start_date,
+    end_date:         cycleOpening.fecha_fin ?? cycleOpening.start_date,
+  };
+
+  const { error } = await supabaseAdmin
+    .from("class_schedules")
+    .update(updatePayload)
+    .eq("id", schedule_id);
+
+  if (error) {
+    console.error("[schedules PUT] Error:", error.message);
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  return NextResponse.json({ success: true });
+}
+
+/**
  * DELETE /api/admin/schedules
  * Body: { schedule_id }
  */

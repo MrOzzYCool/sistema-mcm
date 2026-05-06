@@ -13,7 +13,7 @@ import clsx from "clsx";
 
 interface Profile {
   id: string; nombre_completo: string; email: string;
-  rol: string; estado: string; dni: string | null; created_at: string;
+  rol: string; estado: string; dni: string | null; es_profesor: boolean; created_at: string;
 }
 
 function UsuariosContent() {
@@ -36,7 +36,7 @@ function UsuariosContent() {
 
   // Edit modal state
   const [editModal, setEditModal] = useState<{ show: boolean; target: Profile | null }>({ show: false, target: null });
-  const [editForm, setEditForm] = useState({ nombre_completo: "", email: "", rol: "", estado: "", dni: "" });
+  const [editForm, setEditForm] = useState({ nombre_completo: "", email: "", rol: "", estado: "", dni: "", es_profesor: false });
   const [editSaving, setEditSaving] = useState(false);
 
   // Roles que pueden ver el botón Editar
@@ -198,6 +198,7 @@ function UsuariosContent() {
       rol: p.rol,
       estado: p.estado,
       dni: p.dni ?? "",
+      es_profesor: p.es_profesor ?? false,
     });
     setEditModal({ show: true, target: p });
   }
@@ -216,6 +217,7 @@ function UsuariosContent() {
           rol: editForm.rol,
           estado: editForm.estado,
           dni: editForm.dni,
+          es_profesor: editForm.es_profesor,
         }),
       });
       const json = await res.json();
@@ -597,6 +599,15 @@ function UsuariosContent() {
                 <input value={editForm.dni} onChange={e => setEditForm({...editForm, dni: e.target.value.replace(/\D/g,"").slice(0,8)})}
                   placeholder="12345678" maxLength={8}
                   className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#a93526]" />
+              </div>
+              <div>
+                <label className="flex items-center gap-2 text-sm cursor-pointer">
+                  <input type="checkbox" checked={editForm.es_profesor}
+                    onChange={e => setEditForm({...editForm, es_profesor: e.target.checked})}
+                    className="accent-[#a93526] w-4 h-4" />
+                  <span className="font-medium text-mcm-text">También es profesor</span>
+                </label>
+                <p className="text-xs text-mcm-muted mt-1">Permite asignar horarios de clase a este usuario</p>
               </div>
             </div>
             <div className="flex gap-3 mt-5">

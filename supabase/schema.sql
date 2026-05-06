@@ -520,6 +520,10 @@ alter table public.profiles add constraint profiles_rol_check
 alter table public.profiles
   add column if not exists force_password_reset boolean default false;
 
+-- Campo para permitir que un usuario sea profesor además de su rol principal
+alter table public.profiles
+  add column if not exists es_profesor boolean default false;
+
 -- ─── Staff Actions Log ────────────────────────────────────────────────────────
 create table if not exists public.staff_actions_log (
   id            uuid primary key default gen_random_uuid(),

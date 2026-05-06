@@ -40,7 +40,7 @@ export async function GET(req: NextRequest) {
   if (!admin) return NextResponse.json({ error: "No autorizado" }, { status: 403 });
 
   const { data, error } = await supabaseAdmin.from("profiles")
-    .select("id, nombre_completo, rol, estado, dni, created_at")
+    .select("id, nombre_completo, rol, estado, dni, es_profesor, created_at")
     .order("created_at", { ascending: false });
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
@@ -61,16 +61,17 @@ export async function PUT(req: NextRequest) {
   const admin = await checkAdmin(req);
   if (!admin) return NextResponse.json({ error: "No autorizado" }, { status: 403 });
 
-  const { userId, nombre_completo, email, rol, estado, dni } = await req.json();
+  const { userId, nombre_completo, email, rol, estado, dni, es_profesor } = await req.json();
 
   if (!userId) return NextResponse.json({ error: "userId requerido" }, { status: 400 });
 
   // Actualizar profile en Supabase
-  const updateData: Record<string, string | null> = {};
+  const updateData: Record<string, string | boolean | null> = {};
   if (nombre_completo !== undefined) updateData.nombre_completo = nombre_completo.trim();
   if (rol !== undefined) updateData.rol = rol;
   if (estado !== undefined) updateData.estado = estado;
   if (dni !== undefined) updateData.dni = dni?.trim() || null;
+  if (es_profesor !== undefined) updateData.es_profesor = es_profesor;
 
   if (Object.keys(updateData).length > 0) {
     const { error } = await supabaseAdmin.from("profiles").update(updateData).eq("id", userId);

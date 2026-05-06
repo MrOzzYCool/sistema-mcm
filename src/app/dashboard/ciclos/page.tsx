@@ -148,7 +148,7 @@ function CiclosContent() {
       if (resS.ok) setSchedules((await resS.json()).schedules ?? []);
       if (resP.ok) {
         const users = await resP.json();
-        setProfesores(users.filter((u: { rol: string }) => u.rol === "profesor"));
+        setProfesores(users.filter((u: { rol: string; es_profesor?: boolean }) => u.rol === "profesor" || u.es_profesor === true));
       }
       if (resC.ok) setCursos(await resC.json());
       if (resCarreras.ok) setCarreras(await resCarreras.json());
