@@ -165,20 +165,42 @@ export async function POST(req: NextRequest) {
 
   const { data: overlaps } = await supabaseAdmin
     .from("class_schedules")
-    .select("id, start_time, end_time, course_id")
+    .select("id, start_time, end_time, course_id, location")
     .eq("professor_id", profesor_id)
     .eq("day_of_week", dayNumber)
     .eq("cycle_number", parseInt(ciclo));
 
-  const conflicto = (overlaps ?? []).find(s => {
+  const conflictoProfesor = (overlaps ?? []).find(s => {
     return hora_inicio < s.end_time && s.start_time < hora_fin;
   });
 
-  if (conflicto) {
+  if (conflictoProfesor) {
     return NextResponse.json(
-      { error: `Conflicto: ${profesor.nombre_completo} ya tiene clase ese día de ${conflicto.start_time} a ${conflicto.end_time}` },
+      { error: `El profesor ${profesor.nombre_completo} ya tiene una clase ese día de ${conflictoProfesor.start_time?.slice(0,5)} a ${conflictoProfesor.end_time?.slice(0,5)}` },
       { status: 409 },
     );
+  }
+
+  // ── Check for location (aula) overlap ─────────────────────────────────────
+
+  if (aula && aula.trim()) {
+    const { data: aulaOverlaps } = await supabaseAdmin
+      .from("class_schedules")
+      .select("id, start_time, end_time, professor_id")
+      .eq("location", aula.trim())
+      .eq("day_of_week", dayNumber)
+      .eq("cycle_number", parseInt(ciclo));
+
+    const conflictoAula = (aulaOverlaps ?? []).find(s => {
+      return hora_inicio < s.end_time && s.start_time < hora_fin;
+    });
+
+    if (conflictoAula) {
+      return NextResponse.json(
+        { error: `El aula "${aula}" ya está ocupada ese día de ${conflictoAula.start_time?.slice(0,5)} a ${conflictoAula.end_time?.slice(0,5)}` },
+        { status: 409 },
+      );
+    }
   }
 
   // ── Obtener fechas del ciclo ──────────────────────────────────────────────
@@ -195,6 +217,30 @@ export async function POST(req: NextRequest) {
   if (!cycleOpening || !cycleOpening.start_date) {
     return NextResponse.json(
       { error: `No hay apertura activa para el Ciclo ${ciclo}. Apertura el ciclo primero.` },
+      { status: 400 },
+    );
+  }
+
+  if (!cycleOpening.fecha_fin) {
+    return NextResponse.json(
+      { error: `El Ciclo ${ciclo} no tiene fecha de culminación. Edita la apertura para agregar la fecha fin.` },
+      { status: 400 },
+    );
+  }
+
+  // Validar que las fechas del ciclo sean coherentes
+  if (cycleOpening.fecha_fin < cycleOpening.start_date) {
+    return NextResponse.json(
+      { error: `Las fechas del Ciclo ${ciclo} son inválidas: la fecha fin es anterior a la fecha inicio.` },
+      { status: 400 },
+    );
+  }
+
+  // Validar que la fecha actual no sea posterior a la fecha fin del ciclo
+  const hoy = new Date().toISOString().split("T")[0];
+  if (hoy > cycleOpening.fecha_fin) {
+    return NextResponse.json(
+      { error: `El Ciclo ${ciclo} ya finalizó (${cycleOpening.fecha_fin}). No se pueden crear horarios fuera del rango del ciclo.` },
       { status: 400 },
     );
   }
@@ -265,6 +311,50 @@ export async function PUT(req: NextRequest) {
   if (!dayNumber) return NextResponse.json({ error: `Día inválido: ${dia_semana}` }, { status: 400 });
 
   const durationMinutes = calcDurationMinutes(hora_inicio, hora_fin);
+
+  // ── Check for professor overlap (excluding current schedule) ───────────────
+
+  const { data: profOverlaps } = await supabaseAdmin
+    .from("class_schedules")
+    .select("id, start_time, end_time")
+    .eq("professor_id", profesor_id)
+    .eq("day_of_week", dayNumber)
+    .eq("cycle_number", parseInt(ciclo))
+    .neq("id", schedule_id);
+
+  const conflictoProf = (profOverlaps ?? []).find(s => {
+    return hora_inicio < s.end_time && s.start_time < hora_fin;
+  });
+
+  if (conflictoProf) {
+    return NextResponse.json(
+      { error: `El profesor ya tiene una clase ese día de ${conflictoProf.start_time?.slice(0,5)} a ${conflictoProf.end_time?.slice(0,5)}` },
+      { status: 409 },
+    );
+  }
+
+  // ── Check for location overlap (excluding current schedule) ────────────────
+
+  if (aula && aula.trim()) {
+    const { data: aulaOverlaps } = await supabaseAdmin
+      .from("class_schedules")
+      .select("id, start_time, end_time")
+      .eq("location", aula.trim())
+      .eq("day_of_week", dayNumber)
+      .eq("cycle_number", parseInt(ciclo))
+      .neq("id", schedule_id);
+
+    const conflictoAula = (aulaOverlaps ?? []).find(s => {
+      return hora_inicio < s.end_time && s.start_time < hora_fin;
+    });
+
+    if (conflictoAula) {
+      return NextResponse.json(
+        { error: `El aula "${aula}" ya está ocupada ese día de ${conflictoAula.start_time?.slice(0,5)} a ${conflictoAula.end_time?.slice(0,5)}` },
+        { status: 409 },
+      );
+    }
+  }
 
   // Obtener fechas del ciclo
   const { data: cycleOpening } = await supabaseAdmin

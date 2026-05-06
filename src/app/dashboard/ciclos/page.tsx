@@ -9,6 +9,7 @@ import {
   AlertCircle, Trash2, Save, Pencil,
 } from "lucide-react";
 import clsx from "clsx";
+import ClockTimePicker from "@/components/ClockTimePicker";
 
 interface CycleOpening {
   id: string; cycle_number: number; start_date: string; fecha_fin: string | null; status: string; created_at: string;
@@ -179,6 +180,37 @@ function CiclosContent() {
     finally { setSaving(false); }
   }
 
+  // ── Validación local de solapamiento ──────────────────────────────────────
+  function checkOverlapLocal(
+    profesorId: string, dia: string, inicio: string, fin: string,
+    aula: string, ciclo: number, excludeId?: string
+  ): string | null {
+    const candidatos = schedules.filter(s =>
+      s.dia_semana === dia && s.cycle_number === ciclo && s.id !== excludeId
+    );
+
+    // Check profesor overlap
+    const profConflicto = candidatos.find(s =>
+      s.professor_id === profesorId && inicio < (s.hora_fin ?? "").slice(0, 5) && (s.hora_inicio ?? "").slice(0, 5) < fin
+    );
+    if (profConflicto) {
+      const nombre = profConflicto.profiles?.nombre_completo ?? "El profesor";
+      return `${nombre} ya tiene una clase el ${dia} de ${(profConflicto.hora_inicio ?? "").slice(0,5)} a ${(profConflicto.hora_fin ?? "").slice(0,5)}`;
+    }
+
+    // Check aula overlap
+    if (aula && aula.trim()) {
+      const aulaConflicto = candidatos.find(s =>
+        s.aula === aula.trim() && inicio < (s.hora_fin ?? "").slice(0, 5) && (s.hora_inicio ?? "").slice(0, 5) < fin
+      );
+      if (aulaConflicto) {
+        return `El aula "${aula}" ya está ocupada el ${dia} de ${(aulaConflicto.hora_inicio ?? "").slice(0,5)} a ${(aulaConflicto.hora_fin ?? "").slice(0,5)}`;
+      }
+    }
+
+    return null;
+  }
+
   async function handleCreateSchedule() {
     if (!scheduleForm.curso_id) {
       setError("Debes seleccionar un curso antes de crear el horario.");
@@ -188,9 +220,20 @@ function CiclosContent() {
       setError("Debes seleccionar un profesor.");
       return;
     }
+
+    // ── Validación de solapamiento en frontend ──
+    const conflicto = checkOverlapLocal(
+      scheduleForm.profesor_id,
+      scheduleForm.dia_semana,
+      scheduleForm.hora_inicio,
+      scheduleForm.hora_fin,
+      scheduleForm.aula,
+      parseInt(scheduleForm.ciclo),
+    );
+    if (conflicto) { setError(conflicto); return; }
+
     setSaving(true); setError(""); setSuccess("");
     try {
-      console.log("[handleCreateSchedule] Enviando:", scheduleForm);
       const res = await fetch("/api/admin/schedules", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${await getToken()}` },
@@ -246,6 +289,19 @@ function CiclosContent() {
       setError("Profesor y Curso son obligatorios.");
       return;
     }
+
+    // ── Validación de solapamiento en frontend (excluir el horario actual) ──
+    const conflicto = checkOverlapLocal(
+      editScheduleForm.profesor_id,
+      editScheduleForm.dia_semana,
+      editScheduleForm.hora_inicio,
+      editScheduleForm.hora_fin,
+      editScheduleForm.aula,
+      parseInt(editScheduleForm.ciclo),
+      editScheduleModal.target.id,
+    );
+    if (conflicto) { setError(conflicto); return; }
+
     setSaving(true); setError(""); setSuccess("");
     try {
       const res = await fetch("/api/admin/schedules", {
@@ -402,7 +458,7 @@ function CiclosContent() {
       ) : (
         /* ── Horarios ── */
         <>
-          <div className="flex gap-2 items-center">
+          <div className="flex gap-2 items-center flex-wrap">
             {["todos", "1", "2", "3", "4", "5", "6"].map(c => (
               <button key={c} onClick={() => setFilterCiclo(c)}
                 className={clsx("px-3 py-1.5 rounded-full text-xs font-semibold transition-colors",
@@ -411,6 +467,44 @@ function CiclosContent() {
               </button>
             ))}
           </div>
+
+          {/* Info del ciclo seleccionado */}
+          {filterCiclo !== "todos" && (() => {
+            const cicloActivo = openings.find(o => String(o.cycle_number) === filterCiclo && o.status === "activo");
+            if (!cicloActivo) return (
+              <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-3 text-sm text-yellow-800 flex items-center gap-2">
+                <AlertCircle size={16} /> No hay apertura activa para el Ciclo {filterCiclo}
+              </div>
+            );
+            const hoy = new Date().toISOString().split("T")[0];
+            const enRango = hoy >= cicloActivo.start_date && (!cicloActivo.fecha_fin || hoy <= cicloActivo.fecha_fin);
+            const finalizado = cicloActivo.fecha_fin && hoy > cicloActivo.fecha_fin;
+            const porIniciar = hoy < cicloActivo.start_date;
+            return (
+              <div className={clsx("rounded-xl p-3 text-sm flex items-center gap-3 border",
+                enRango ? "bg-green-50 border-green-200 text-green-800" :
+                finalizado ? "bg-gray-50 border-gray-200 text-gray-600" :
+                "bg-blue-50 border-blue-200 text-blue-800"
+              )}>
+                <Calendar size={16} />
+                <span>
+                  <strong>Ciclo {filterCiclo}</strong>
+                  {" · "}
+                  {new Date(cicloActivo.start_date + "T00:00:00").toLocaleDateString("es-PE", { day: "2-digit", month: "short", year: "numeric" })}
+                  {cicloActivo.fecha_fin && (
+                    <> → {new Date(cicloActivo.fecha_fin + "T00:00:00").toLocaleDateString("es-PE", { day: "2-digit", month: "short", year: "numeric" })}</>
+                  )}
+                  {" · "}
+                  {enRango && <span className="font-semibold text-green-700">En curso</span>}
+                  {finalizado && <span className="font-semibold text-gray-500">Finalizado</span>}
+                  {porIniciar && <span className="font-semibold text-blue-700">Por iniciar</span>}
+                </span>
+                <span className="text-xs ml-auto opacity-70">
+                  Los horarios se repiten semanalmente dentro de este rango
+                </span>
+              </div>
+            );
+          })()}
 
           {/* Weekly grid view */}
           <div className="card overflow-hidden p-0">
@@ -463,15 +557,25 @@ function CiclosContent() {
                               if (!startTime || !endTime) return null;
                               const top = getTop(startTime);
                               const height = getHeight(startTime, endTime);
+                              const hoyStr = new Date().toISOString().split("T")[0];
+                              const activo = s.start_date && s.end_date && hoyStr >= s.start_date && hoyStr <= s.end_date;
+                              const finalizado = s.end_date && hoyStr > s.end_date;
                               return (
                                 <div key={s.id}
-                                  className="absolute left-1 right-1 bg-blue-50 border border-blue-200 rounded-lg p-1.5 overflow-hidden group cursor-pointer hover:bg-blue-100 transition-colors"
+                                  className={clsx(
+                                    "absolute left-1 right-1 rounded-lg p-1.5 overflow-hidden group cursor-pointer transition-colors border",
+                                    finalizado
+                                      ? "bg-gray-50 border-gray-200 opacity-50 hover:opacity-75"
+                                      : activo
+                                        ? "bg-blue-50 border-blue-200 hover:bg-blue-100"
+                                        : "bg-indigo-50 border-indigo-200 hover:bg-indigo-100"
+                                  )}
                                   style={{ top, height, minHeight: 30 }}
                                   onClick={() => openEditSchedule(s)}
                                 >
-                                  <p className="font-semibold text-blue-800 truncate text-[10px] leading-tight">{s.cursos?.nombre_curso}</p>
-                                  <p className="text-blue-600 truncate text-[10px] leading-tight">{s.profiles?.nombre_completo}</p>
-                                  <p className="text-blue-400 text-[9px]">{startTime}-{endTime}{s.aula ? ` · ${s.aula}` : ""}</p>
+                                  <p className={clsx("font-semibold truncate text-[10px] leading-tight", finalizado ? "text-gray-500" : "text-blue-800")}>{s.cursos?.nombre_curso}</p>
+                                  <p className={clsx("truncate text-[10px] leading-tight", finalizado ? "text-gray-400" : "text-blue-600")}>{s.profiles?.nombre_completo}</p>
+                                  <p className={clsx("text-[9px]", finalizado ? "text-gray-400" : "text-blue-400")}>{startTime}-{endTime}{s.aula ? ` · ${s.aula}` : ""}</p>
                                   <button onClick={(e) => { e.stopPropagation(); handleDeleteSchedule(s.id); }}
                                     className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-600 transition-opacity">
                                     <Trash2 size={10} />
