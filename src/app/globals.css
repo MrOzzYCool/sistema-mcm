@@ -9,6 +9,11 @@
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
+  .dark body,
+  :root.dark body {
+    background-color: #1a1a2e;
+    color: #e2e8f0;
+  }
 }
 
 @layer components {
@@ -18,6 +23,11 @@
     box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
     border: 1px solid #e2e8f0;
     padding: 1.5rem;
+  }
+  .dark .card {
+    background-color: #16213e;
+    border-color: #2a2a4a;
+    box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.3);
   }
   .btn-primary {
     background-color: #a93526;
@@ -42,6 +52,14 @@
   .btn-secondary:hover {
     background-color: #f8fafc;
   }
+  .dark .btn-secondary {
+    background-color: #16213e;
+    color: #e2e8f0;
+    border-color: #2a2a4a;
+  }
+  .dark .btn-secondary:hover {
+    background-color: #1a2744;
+  }
   .badge {
     @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium;
   }
@@ -50,4 +68,13 @@
   .badge-yellow { @apply badge bg-yellow-100 text-yellow-800; }
   .badge-blue   { @apply badge bg-blue-100 text-blue-800; }
   .badge-gray   { @apply badge bg-gray-100 text-gray-600; }
+
+  /* Dark mode overrides for common elements */
+  .dark .bg-mcm-gray { background-color: #1a1a2e; }
+  .dark .bg-white { background-color: #16213e; }
+  .dark .bg-slate-50 { background-color: #1a2744; }
+  .dark .border-mcm-border { border-color: #2a2a4a; }
+  .dark .text-mcm-text { color: #e2e8f0; }
+  .dark .text-mcm-muted { color: #94a3b8; }
+  .dark .hover\:bg-slate-50:hover { background-color: #1a2744; }
 }
