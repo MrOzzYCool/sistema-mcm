@@ -6,7 +6,7 @@ import RouteGuard from "@/components/RouteGuard";
 import { Loader2, RefreshCw, CheckCircle, XCircle, Eye, X, ExternalLink } from "lucide-react";
 
 interface Voucher {
-  id: string; voucher_url: string; status: string; created_at: string;
+  id: string; voucher_url: string; status: string; created_at: string; reviewed_at?: string;
   installment_id: string; alumno_id: string;
   profiles: { nombre_completo: string };
   installments: { concepto: string; amount: number; due_date: string; plan_id: string;
@@ -15,6 +15,7 @@ interface Voucher {
 
 function VouchersContent() {
   const [vouchers, setVouchers] = useState<Voucher[]>([]);
+  const [historial, setHistorial] = useState<Voucher[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState<string | null>(null);
   const [error, setError] = useState("");
@@ -23,6 +24,7 @@ function VouchersContent() {
   const [rejectReason, setRejectReason] = useState("");
   const [approveModal, setApproveModal] = useState<Voucher | null>(null);
   const [approveForm, setApproveForm] = useState({ tipo: "boleta", ruc: "" });
+  const [tab, setTab] = useState<"pendientes" | "historial">("pendientes");
 
   async function getToken() {
     const { data } = await supabase.auth.getSession();
@@ -32,10 +34,16 @@ function VouchersContent() {
   const cargar = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch("/api/admin/voucher-review", {
-        headers: { Authorization: `Bearer ${await getToken()}` },
-      });
-      if (res.ok) setVouchers((await res.json()).vouchers ?? []);
+      const token = await getToken();
+      const [resPending, resHistory] = await Promise.all([
+        fetch("/api/admin/voucher-review?status=pending_review", { headers: { Authorization: `Bearer ${token}` } }),
+        fetch("/api/admin/voucher-review?status=all", { headers: { Authorization: `Bearer ${token}` } }),
+      ]);
+      if (resPending.ok) setVouchers((await resPending.json()).vouchers ?? []);
+      if (resHistory.ok) {
+        const all = (await resHistory.json()).vouchers ?? [];
+        setHistorial(all.filter((v: Voucher) => v.status !== "pending_review"));
+      }
     } catch { /* ignore */ }
     finally { setLoading(false); }
   }, []);
@@ -64,7 +72,7 @@ function VouchersContent() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-mcm-text">Revisión de Vouchers</h1>
-          <p className="text-mcm-muted text-sm">{vouchers.length} pendientes de revisión</p>
+          <p className="text-mcm-muted text-sm">{vouchers.length} pendientes · {historial.length} procesados</p>
         </div>
         <button onClick={cargar} disabled={loading} className="btn-secondary flex items-center gap-2 text-sm">
           <RefreshCw size={14} className={loading ? "animate-spin" : ""} />
@@ -73,9 +81,26 @@ function VouchersContent() {
 
       {error && <div className="bg-red-50 border border-red-200 text-red-700 rounded-xl p-3 text-sm">{error}</div>}
 
+      {/* Tabs */}
+      <div className="flex gap-2 border-b border-mcm-border">
+        <button onClick={() => setTab("pendientes")}
+          className={`px-4 py-2 text-sm font-semibold border-b-2 transition-colors ${
+            tab === "pendientes" ? "border-[#a93526] text-[#a93526]" : "border-transparent text-mcm-muted hover:text-mcm-text"
+          }`}>
+          Pendientes ({vouchers.length})
+        </button>
+        <button onClick={() => setTab("historial")}
+          className={`px-4 py-2 text-sm font-semibold border-b-2 transition-colors ${
+            tab === "historial" ? "border-[#a93526] text-[#a93526]" : "border-transparent text-mcm-muted hover:text-mcm-text"
+          }`}>
+          Historial ({historial.length})
+        </button>
+      </div>
+
       {loading ? (
         <div className="flex items-center justify-center py-16 gap-3 text-mcm-muted"><Loader2 size={20} className="animate-spin" /> Cargando...</div>
-      ) : vouchers.length === 0 ? (
+      ) : tab === "pendientes" ? (
+        vouchers.length === 0 ? (
         <div className="card text-center py-12">
           <CheckCircle size={40} className="mx-auto text-green-400 mb-3" />
           <h2 className="font-bold text-mcm-text text-lg mb-1">Sin vouchers pendientes</h2>
@@ -130,6 +155,51 @@ function VouchersContent() {
             </table>
           </div>
         </div>
+      )) : (
+        /* Historial tab */
+        historial.length === 0 ? (
+          <div className="card text-center py-12">
+            <p className="text-mcm-muted text-sm">No hay vouchers procesados aún.</p>
+          </div>
+        ) : (
+          <div className="card overflow-hidden p-0">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-slate-50">
+                  <tr>
+                    {["Alumno", "Ciclo", "Concepto", "Monto", "Estado", "Fecha", "Voucher"].map(h => (
+                      <th key={h} className="text-left py-3 px-4 text-mcm-muted font-medium text-xs uppercase tracking-wide">{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {historial.map(v => (
+                    <tr key={v.id} className="border-t border-mcm-border hover:bg-slate-50">
+                      <td className="py-3 px-4 font-medium text-mcm-text">{v.profiles?.nombre_completo}</td>
+                      <td className="py-3 px-4"><span className="badge-blue text-xs">Ciclo {(v.installments as unknown as { payment_plans: { ciclo: number } })?.payment_plans?.ciclo ?? "—"}</span></td>
+                      <td className="py-3 px-4 text-mcm-text">{v.installments?.concepto}</td>
+                      <td className="py-3 px-4 font-bold">S/ {Number(v.installments?.amount ?? 0).toFixed(2)}</td>
+                      <td className="py-3 px-4">
+                        <span className={v.status === "approved" ? "badge-green" : "badge-red"}>
+                          {v.status === "approved" ? "Aprobado" : "Rechazado"}
+                        </span>
+                      </td>
+                      <td className="py-3 px-4 text-mcm-muted text-xs">
+                        {v.reviewed_at ? new Date(v.reviewed_at).toLocaleDateString("es-PE", { day: "2-digit", month: "short", year: "numeric" }) : "—"}
+                      </td>
+                      <td className="py-3 px-4">
+                        <button onClick={() => setPreview(v.voucher_url)}
+                          className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 font-medium">
+                          <Eye size={12} /> Ver
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )
       )}
 
       {/* Preview modal */}

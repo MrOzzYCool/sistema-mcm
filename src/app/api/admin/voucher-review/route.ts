@@ -22,12 +22,18 @@ export async function GET(req: NextRequest) {
   const admin = await verifyStaff(req);
   if (!admin) return NextResponse.json({ error: "No autorizado" }, { status: 403 });
 
-  const { data } = await supabaseAdmin
+  const status = req.nextUrl.searchParams.get("status") ?? "pending_review";
+
+  let query = supabaseAdmin
     .from("payment_vouchers")
     .select("*, profiles!alumno_id(nombre_completo), installments(concepto, amount, due_date, plan_id, payment_plans(ciclo, year))")
-    .eq("status", "pending_review")
     .order("created_at", { ascending: false });
 
+  if (status !== "all") {
+    query = query.eq("status", status);
+  }
+
+  const { data } = await query;
   return NextResponse.json({ vouchers: data ?? [] });
 }
 
