@@ -199,19 +199,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     log(`🔑 Login: ${email}`);
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) throw new Error(error.message);
+    log("🔑 signIn OK — waiting for user resolution...");
 
-    // Wait for onAuthStateChange to set user (max 5s)
-    await new Promise<void>((resolve) => {
-      const timeout = setTimeout(resolve, 5000);
-      const unsub = supabase.auth.onAuthStateChange((event) => {
-        if (event === "SIGNED_IN") {
-          clearTimeout(timeout);
-          unsub.data.subscription.unsubscribe();
-          setTimeout(resolve, 50);
-        }
-      });
-    });
-    log("🔑 Login complete");
+    // Wait briefly for onAuthStateChange to resolve the user (max 3s)
+    // The login page's useEffect will handle redirect when user is set
+    for (let i = 0; i < 30; i++) {
+      await new Promise(r => setTimeout(r, 100));
+      if (userRef.current) break;
+    }
+    log(`🔑 Login complete — user: ${userRef.current?.name ?? "pending"}`);
   }
 
   async function logout() {
