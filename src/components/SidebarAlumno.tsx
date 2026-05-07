@@ -5,9 +5,10 @@ import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import {
   LayoutDashboard, Calendar, BookOpen, CreditCard,
-  FileText, LogOut, ChevronRight,
+  FileText, LogOut, ChevronRight, Moon, Sun,
 } from "lucide-react";
 import clsx from "clsx";
+import { useTheme } from "@/lib/theme-context";
 
 const NAV_ITEMS = [
   { href: "/portal",            label: "Inicio",      icon: LayoutDashboard },
@@ -21,6 +22,7 @@ export default function SidebarAlumno() {
   const pathname = usePathname();
   const router   = useRouter();
   const { user, logout } = useAuth();
+  const { theme, toggleTheme } = useTheme();
 
   async function handleLogout() {
     await logout();
@@ -64,8 +66,13 @@ export default function SidebarAlumno() {
         })}
       </nav>
 
-      {/* Logout */}
-      <div className="px-3 pb-5">
+      {/* Dark mode + Logout */}
+      <div className="px-3 pb-5 space-y-1">
+        <button onClick={toggleTheme}
+          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-white/70 hover:bg-white/10 hover:text-white transition-all duration-150">
+          {theme === "dark" ? <Sun size={18} /> : <Moon size={18} />}
+          <span>{theme === "dark" ? "Modo claro" : "Modo oscuro"}</span>
+        </button>
         <button onClick={handleLogout}
           className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-white/70 hover:bg-white/10 hover:text-white transition-all duration-150">
           <LogOut size={18} />
