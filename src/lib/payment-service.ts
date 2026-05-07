@@ -1,21 +1,21 @@
 import { supabaseAdmin } from "./supabase-admin";
 
 /**
- * Obtiene el último día de un mes dado (maneja 28, 29, 30, 31 correctamente).
+ * Obtiene el primer día de un mes dado en formato YYYY-MM-DD.
  * month es 0-indexed (0=Enero, 11=Diciembre)
  */
-function getLastDayOfMonth(year: number, month: number): string {
-  // new Date(year, month+1, 0) da el último día del mes
-  const d = new Date(year, month + 1, 0);
-  return d.toISOString().slice(0, 10);
+function getFirstDayOfMonth(year: number, month: number): string {
+  const realMonth = month % 12;
+  const realYear = year + Math.floor(month / 12);
+  return `${realYear}-${String(realMonth + 1).padStart(2, "0")}-01`;
 }
 
 /**
  * generateStudentPaymentPlan
  * Lógica de fechas:
  * - Busca cycle_opening activa → usa su start_date como mes base
- * - Matrícula y Cuota 01 → último día del mes de inicio
- * - Cuota 02, 03, 04 → último día de los meses siguientes consecutivos
+ * - Matrícula y Cuota 01 → día 01 del mes de inicio
+ * - Cuota 02, 03, 04 → día 01 de los meses siguientes consecutivos
  */
 export async function generateStudentPaymentPlan(
   { alumnoId, ciclo, year }: { alumnoId: string; ciclo: number; year: number }
@@ -92,11 +92,11 @@ export async function generateStudentPaymentPlan(
     concepto: "MATRÍCULA",
     amount_original: 250.00,
     amount: montoMatricula,
-    due_date: getLastDayOfMonth(startYear, startMonthIndex),
+    due_date: getFirstDayOfMonth(startYear, startMonthIndex),
     status: "pending",
   });
 
-  // Cuotas 1..4 — último día de cada mes consecutivo
+  // Cuotas 1..4 — día 01 de cada mes consecutivo
   // Cuota 01 = mismo mes que matrícula (mes de inicio)
   // Cuota 02 = mes siguiente, etc.
   for (let i = 0; i < 4; i++) {
@@ -113,7 +113,7 @@ export async function generateStudentPaymentPlan(
       concepto: `CUOTAS ${String(numero).padStart(2, "0")}`,
       amount_original: 400.00,
       amount: montoCuota,
-      due_date: getLastDayOfMonth(dueYear, realMonthIndex),
+      due_date: getFirstDayOfMonth(dueYear, realMonthIndex),
       status: "pending",
     });
   }
