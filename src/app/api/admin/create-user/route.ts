@@ -115,14 +115,18 @@ export async function POST(req: NextRequest) {
       if (inscError) {
         console.error("create-user: Error inscripción:", inscError.message);
       } else {
-        // Registrar en historial de ciclos
-        await supabaseAdmin.from("historial_ciclos").insert({
-          alumno_id: userId,
-          carrera_id,
-          ciclo,
-          fecha_inicio: fechaInicio + "T00:00:00.000Z",
-          estado: "activo",
-        });
+        // Registrar en historial de ciclos (evitar duplicados)
+        const { data: histExist } = await supabaseAdmin.from("historial_ciclos")
+          .select("id").eq("alumno_id", userId).eq("carrera_id", carrera_id).eq("ciclo", ciclo).single();
+        if (!histExist) {
+          await supabaseAdmin.from("historial_ciclos").insert({
+            alumno_id: userId,
+            carrera_id,
+            ciclo,
+            fecha_inicio: fechaInicio + "T00:00:00.000Z",
+            estado: "activo",
+          });
+        }
 
         // Generar cursos del ciclo desde la malla curricular
         const { generarCursosCiclo } = await import("@/lib/generar-cursos-ciclo");

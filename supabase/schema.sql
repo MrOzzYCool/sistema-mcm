@@ -549,3 +549,16 @@ create policy "delete_solicitudes_admin" on public.solicitudes
 -- ─── Campo es_profesor para staff que también dicta clases ────────────────────
 alter table public.profiles
   add column if not exists es_profesor boolean default false;
+
+-- ─── Prevenir duplicados en cycle_openings y historial_ciclos ──────────────────
+
+-- Solo 1 apertura activa por ciclo
+CREATE UNIQUE INDEX IF NOT EXISTS idx_unique_active_cycle
+  ON public.cycle_openings (cycle_number)
+  WHERE status = 'activo';
+
+-- Solo 1 historial por alumno/carrera/ciclo
+ALTER TABLE public.historial_ciclos
+  DROP CONSTRAINT IF EXISTS historial_ciclos_unique;
+ALTER TABLE public.historial_ciclos
+  ADD CONSTRAINT historial_ciclos_unique UNIQUE (alumno_id, carrera_id, ciclo);
