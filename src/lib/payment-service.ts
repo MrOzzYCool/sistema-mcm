@@ -65,6 +65,23 @@ export async function generateStudentPaymentPlan(
     startYear = year + yearOffset;
   }
 
+  // Check for student benefits (discounts)
+  const { data: benefits } = await supabaseAdmin
+    .from("student_benefits")
+    .select("tipo_concepto, monto_final, es_permanente, ciclo_aplicable")
+    .eq("alumno_id", alumnoId)
+    .eq("activo", true);
+
+  const matriculaBenefit = (benefits ?? []).find(b =>
+    b.tipo_concepto === "matricula" && (b.es_permanente || b.ciclo_aplicable === ciclo || !b.ciclo_aplicable)
+  );
+  const cuotaBenefit = (benefits ?? []).find(b =>
+    b.tipo_concepto === "cuota" && (b.es_permanente || b.ciclo_aplicable === ciclo || !b.ciclo_aplicable)
+  );
+
+  const montoMatricula = matriculaBenefit ? Number(matriculaBenefit.monto_final) : 250.00;
+  const montoCuota = cuotaBenefit ? Number(cuotaBenefit.monto_final) : 400.00;
+
   const items: Record<string, unknown>[] = [];
 
   // Matrícula — último día del mes de inicio
@@ -74,7 +91,7 @@ export async function generateStudentPaymentPlan(
     numero: 0,
     concepto: "MATRÍCULA",
     amount_original: 250.00,
-    amount: 250.00,
+    amount: montoMatricula,
     due_date: getLastDayOfMonth(startYear, startMonthIndex),
     status: "pending",
   });
@@ -95,7 +112,7 @@ export async function generateStudentPaymentPlan(
       numero,
       concepto: `CUOTAS ${String(numero).padStart(2, "0")}`,
       amount_original: 400.00,
-      amount: 400.00,
+      amount: montoCuota,
       due_date: getLastDayOfMonth(dueYear, realMonthIndex),
       status: "pending",
     });

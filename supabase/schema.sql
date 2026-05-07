@@ -603,3 +603,33 @@ create policy "read_vouchers" on storage.objects
 ALTER TABLE public.installments DROP CONSTRAINT IF EXISTS installments_status_check;
 ALTER TABLE public.installments ADD CONSTRAINT installments_status_check
   CHECK (status IN ('pending','paid','overdue','in_review'));
+
+-- ─── Beneficios Académicos (Descuentos personalizados) ────────────────────────
+
+create table if not exists public.student_benefits (
+  id              uuid primary key default gen_random_uuid(),
+  alumno_id       uuid not null references public.profiles(id) on delete cascade,
+  tipo_concepto   text not null check (tipo_concepto in ('matricula','cuota')),
+  monto_final     numeric(10,2) not null check (monto_final >= 0),
+  es_permanente   boolean not null default false,
+  descripcion     text,
+  ciclo_aplicable integer,  -- null = todos, o ciclo específico
+  activo          boolean not null default true,
+  created_by      uuid references auth.users(id),
+  created_at      timestamptz not null default now(),
+  updated_at      timestamptz not null default now()
+);
+
+alter table public.student_benefits enable row level security;
+
+create policy "alumno_read_own_benefits" on public.student_benefits
+  for select using (auth.uid() = alumno_id);
+create policy "admin_all_benefits" on public.student_benefits
+  for all using (auth.role() = 'authenticated' and exists (
+    select 1 from public.profiles where id = auth.uid() and rol in ('super_admin','administradora')
+  ));
+
+drop trigger if exists set_benefits_updated_at on public.student_benefits;
+create trigger set_benefits_updated_at
+  before update on public.student_benefits
+  for each row execute function public.set_updated_at();
