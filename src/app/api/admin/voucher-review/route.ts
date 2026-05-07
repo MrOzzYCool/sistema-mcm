@@ -57,8 +57,13 @@ export async function POST(req: NextRequest) {
     .single();
 
   if (!voucher) return NextResponse.json({ error: "Voucher no encontrado" }, { status: 404 });
-  if (voucher.status !== "pending_review") {
+
+  // For approve/reject, voucher must be pending. For restore, it must be approved/rejected.
+  if ((action === "approve" || action === "reject") && voucher.status !== "pending_review") {
     return NextResponse.json({ error: "Este voucher ya fue procesado" }, { status: 400 });
+  }
+  if (action === "restore" && voucher.status === "pending_review") {
+    return NextResponse.json({ error: "Este voucher ya está pendiente" }, { status: 400 });
   }
 
   if (action === "approve") {
