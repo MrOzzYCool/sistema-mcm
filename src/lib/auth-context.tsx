@@ -52,11 +52,18 @@ async function resolveUser(su: SupabaseUser): Promise<AppUser> {
   }
 
   try {
-    const { data: profile } = await supabase
+    // Query with timeout to prevent hanging
+    const profilePromise = supabase
       .from("profiles")
       .select("nombre_completo, rol, estado, force_password_reset")
       .eq("id", su.id)
       .single();
+
+    const timeoutPromise = new Promise<{ data: null; error: { message: string } }>((resolve) =>
+      setTimeout(() => resolve({ data: null, error: { message: "Profile query timeout" } }), 4000)
+    );
+
+    const { data: profile } = await Promise.race([profilePromise, timeoutPromise]);
 
     if (profile) {
       const name = profile.nombre_completo ?? email.split("@")[0];
@@ -133,13 +140,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     log("🔄 Starting auth init...");
 
-    // HARD TIMEOUT
+    // HARD TIMEOUT — increased to 8s for slow connections
     const hardTimeout = setTimeout(() => {
       if (!initDone) {
-        log("⏰ HARD TIMEOUT 5s");
+        log("⏰ HARD TIMEOUT 8s");
         finishInit();
       }
-    }, 5000);
+    }, 8000);
 
     // 1. Check existing session
     supabase.auth.getSession()

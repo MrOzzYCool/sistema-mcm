@@ -50,8 +50,9 @@ export default function LoginPage() {
     setSubmitting(true);
     try {
       await login(email, password);
-      // After login resolves, user state should be set
-      // The useEffect above will handle redirect
+      // Wait a bit more for redirect to happen via useEffect
+      await new Promise(r => setTimeout(r, 500));
+      // If we're still here after login succeeded, the useEffect should redirect soon
     } catch (err) {
       setError(err instanceof Error ? err.message : "Credenciales incorrectas.");
     } finally {
