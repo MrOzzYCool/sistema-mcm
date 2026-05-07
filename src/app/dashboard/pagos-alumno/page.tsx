@@ -34,8 +34,8 @@ function PagosAlumnoContent() {
   const [genForm, setGenForm] = useState({ ciclo: "1", year: String(new Date().getFullYear()) });
   const [showGenModal, setShowGenModal] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [editMonto, setEditMonto] = useState("");
-  const [editObs, setEditObs] = useState("");
+  const [editOriginal, setEditOriginal] = useState(0);
+  const [editDescuento, setEditDescuento] = useState("");
   const [saving, setSaving] = useState(false);
 
   // Benefits state
@@ -143,12 +143,18 @@ function PagosAlumnoContent() {
 
   async function handleSaveAmount() {
     if (!editingId) return;
-    setSaving(true);
+    const descuento = parseFloat(editDescuento) || 0;
+    if (descuento < 0 || descuento > editOriginal) {
+      setError("El descuento no puede ser mayor al monto original ni negativo.");
+      return;
+    }
+    const montoFinal = editOriginal - descuento;
+    setSaving(true); setError("");
     try {
       const res = await fetch("/api/admin/payments", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${await getToken()}` },
-        body: JSON.stringify({ action: "update-amount", installment_id: editingId, monto: parseFloat(editMonto), observacion: editObs || null }),
+        body: JSON.stringify({ action: "update-amount", installment_id: editingId, monto: montoFinal, observacion: descuento > 0 ? `Descuento S/${descuento.toFixed(2)}` : null }),
       });
       if (!res.ok) throw new Error((await res.json()).error);
       setEditingId(null); loadPlans();
@@ -158,8 +164,8 @@ function PagosAlumnoContent() {
 
   function openEdit(inst: Installment) {
     setEditingId(inst.id);
-    setEditMonto(String(inst.amount));
-    setEditObs(inst.observacion ?? "");
+    setEditOriginal(Number(inst.amount_original));
+    setEditDescuento(String(Number(inst.amount_original) - Number(inst.amount)));
   }
 
   if (!alumnoId) {
@@ -355,27 +361,45 @@ function PagosAlumnoContent() {
         <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-sm">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="font-bold text-mcm-text text-lg">Editar Monto</h3>
+              <h3 className="font-bold text-mcm-text text-lg">Aplicar Descuento</h3>
               <button onClick={() => setEditingId(null)}><X size={20} className="text-mcm-muted" /></button>
             </div>
-            <div className="space-y-3">
-              <div>
-                <label className="block text-sm font-medium text-mcm-text mb-1">Nuevo monto (S/)</label>
-                <input type="number" step="0.01" value={editMonto} onChange={e => setEditMonto(e.target.value)}
-                  className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#a93526]" />
+            <div className="space-y-4">
+              <div className="bg-slate-50 rounded-xl p-3 flex items-center justify-between">
+                <span className="text-sm text-mcm-muted">Monto original</span>
+                <span className="text-lg font-bold text-mcm-text">S/ {editOriginal.toFixed(2)}</span>
               </div>
               <div>
-                <label className="block text-sm font-medium text-mcm-text mb-1">Observación (ej: Beca 25%)</label>
-                <input value={editObs} onChange={e => setEditObs(e.target.value)} placeholder="Motivo del cambio"
+                <label className="block text-sm font-medium text-mcm-text mb-1">Descuento (S/)</label>
+                <input type="number" step="0.01" min="0" max={editOriginal}
+                  value={editDescuento} onChange={e => setEditDescuento(e.target.value)}
+                  placeholder="0.00"
                   className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#a93526]" />
+                {parseFloat(editDescuento) > editOriginal && (
+                  <p className="text-red-500 text-xs mt-1">El descuento no puede ser mayor al monto original</p>
+                )}
+              </div>
+              <div className="bg-green-50 border border-green-200 rounded-xl p-3 flex items-center justify-between">
+                <div>
+                  <span className="text-sm font-medium text-green-800">Total a pagar</span>
+                  {parseFloat(editDescuento) > 0 && (
+                    <span className="text-xs text-green-600 ml-2">
+                      ({Math.round((parseFloat(editDescuento) || 0) / editOriginal * 100)}% descuento)
+                    </span>
+                  )}
+                </div>
+                <span className="text-xl font-bold text-green-800">
+                  S/ {Math.max(0, editOriginal - (parseFloat(editDescuento) || 0)).toFixed(2)}
+                </span>
               </div>
             </div>
             <div className="flex gap-3 mt-5">
               <button onClick={() => setEditingId(null)} className="btn-secondary flex-1 text-sm">Cancelar</button>
-              <button onClick={handleSaveAmount} disabled={saving}
+              <button onClick={handleSaveAmount}
+                disabled={saving || parseFloat(editDescuento) > editOriginal}
                 className="btn-primary flex-1 text-sm disabled:opacity-50 flex items-center justify-center gap-2">
                 {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
-                {saving ? "Guardando..." : "Guardar"}
+                {saving ? "Guardando..." : "Aplicar"}
               </button>
             </div>
           </div>
