@@ -77,4 +77,61 @@
   .dark .text-mcm-text { color: #e2e8f0; }
   .dark .text-mcm-muted { color: #94a3b8; }
   .dark .hover\:bg-slate-50:hover { background-color: #1a2744; }
+
+  /* Dark mode: inputs, selects, textareas */
+  .dark input,
+  .dark select,
+  .dark textarea {
+    background-color: #1f2937 !important;
+    color: #f1f5f9 !important;
+    border-color: #374151 !important;
+  }
+  .dark input::placeholder,
+  .dark textarea::placeholder {
+    color: #6b7280 !important;
+  }
+  .dark input:focus,
+  .dark select:focus,
+  .dark textarea:focus {
+    border-color: #a93526 !important;
+    box-shadow: 0 0 0 2px rgba(169, 53, 38, 0.3) !important;
+  }
+
+  /* Dark mode: labels */
+  .dark label {
+    color: #e2e8f0;
+  }
+
+  /* Dark mode: modals */
+  .dark .bg-white.rounded-2xl,
+  .dark [class*="bg-white"][class*="rounded-2xl"] {
+    background-color: #1e293b !important;
+  }
+
+  /* Dark mode: info boxes */
+  .dark .bg-blue-50 { background-color: #1e3a5f !important; }
+  .dark .border-blue-200 { border-color: #2563eb40 !important; }
+  .dark .text-blue-800,
+  .dark .text-blue-700,
+  .dark .text-blue-600 { color: #93c5fd !important; }
+
+  .dark .bg-red-50 { background-color: #3b1a1a !important; }
+  .dark .border-red-200 { border-color: #dc262640 !important; }
+  .dark .text-red-700,
+  .dark .text-red-600 { color: #fca5a5 !important; }
+
+  .dark .bg-green-50 { background-color: #1a3b2a !important; }
+  .dark .border-green-200 { border-color: #16a34a40 !important; }
+  .dark .text-green-700,
+  .dark .text-green-600 { color: #86efac !important; }
+
+  .dark .bg-yellow-50 { background-color: #3b351a !important; }
+  .dark .border-yellow-200 { border-color: #ca8a0440 !important; }
+  .dark .text-yellow-700,
+  .dark .text-yellow-600 { color: #fde047 !important; }
+
+  /* Dark mode: tables */
+  .dark table thead { background-color: #1a2744 !important; }
+  .dark table tbody tr { border-color: #2a2a4a !important; }
+  .dark table tbody tr:hover { background-color: #1a2744 !important; }
 }
