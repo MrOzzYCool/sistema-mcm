@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useRef } from "react";
 import { getAccessToken } from "@/lib/get-token";
-import { CreditCard, Loader2, AlertCircle, CheckCircle, Clock } from "lucide-react";
+import { supabase } from "@/lib/supabase";
+import { CreditCard, Loader2, AlertCircle, CheckCircle, Clock, Paperclip, Upload } from "lucide-react";
 import clsx from "clsx";
 
 interface Installment {
@@ -77,7 +78,7 @@ export default function PagosAlumnoPage() {
             <table className="w-full text-sm">
               <thead className="bg-slate-50">
                 <tr>
-                  {["Concepto", "Monto", "Vencimiento", "Estado", "Fecha de Pago"].map(h => (
+                  {["Concepto", "Monto", "Vencimiento", "Estado", "Acción"].map(h => (
                     <th key={h} className="text-left py-3 px-4 text-mcm-muted font-medium text-xs uppercase tracking-wide">{h}</th>
                   ))}
                 </tr>
@@ -99,14 +100,21 @@ export default function PagosAlumnoPage() {
                       <td className="py-3.5 px-4">
                         {inst.status === "paid" ? (
                           <span className="badge-green flex items-center gap-1 w-fit"><CheckCircle size={12} /> Pagado</span>
+                        ) : inst.status === "in_review" ? (
+                          <span className="badge-blue flex items-center gap-1 w-fit"><Clock size={12} /> En revisión</span>
                         ) : isOverdue ? (
                           <span className="badge-red flex items-center gap-1 w-fit"><AlertCircle size={12} /> Vencido</span>
                         ) : (
                           <span className="badge-yellow flex items-center gap-1 w-fit"><Clock size={12} /> Pendiente</span>
                         )}
                       </td>
-                      <td className="py-3.5 px-4 text-mcm-muted text-xs">
-                        {inst.fecha_pago ? new Date(inst.fecha_pago).toLocaleDateString("es-PE", { day: "2-digit", month: "short" }) : "—"}
+                      <td className="py-3.5 px-4">
+                        {(inst.status === "pending" || isOverdue) && (
+                          <VoucherUploadBtn installmentId={inst.id} onSuccess={fetchPagos} />
+                        )}
+                        {inst.fecha_pago && (
+                          <span className="text-mcm-muted text-xs">{new Date(inst.fecha_pago).toLocaleDateString("es-PE", { day: "2-digit", month: "short" })}</span>
+                        )}
                       </td>
                     </tr>
                   );
@@ -128,5 +136,57 @@ function SummaryCard({ label, value, color }: { label: string; value: string; co
       <p className="text-xs text-mcm-muted font-medium">{label}</p>
       <p className={clsx("text-2xl font-bold mt-1", textColors[color])}>{value}</p>
     </div>
+  );
+}
+
+function VoucherUploadBtn({ installmentId, onSuccess }: { installmentId: string; onSuccess: () => void }) {
+  const [uploading, setUploading] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    try {
+      const token = await getAccessToken();
+      if (!token) throw new Error("Sesión no disponible");
+
+      // Upload to Supabase Storage
+      const ext = file.name.split(".").pop() ?? "jpg";
+      const path = `vouchers/${installmentId}_${Date.now()}.${ext}`;
+      const { error: upErr } = await supabase.storage.from("vouchers").upload(path, file);
+      if (upErr) throw new Error(upErr.message);
+
+      const { data: urlData } = supabase.storage.from("vouchers").getPublicUrl(path);
+      const voucher_url = urlData.publicUrl;
+
+      // Submit voucher
+      const res = await fetch("/api/portal/vouchers", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ installment_id: installmentId, voucher_url }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error);
+
+      alert(json.message ?? "Voucher enviado correctamente");
+      onSuccess();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Error subiendo voucher");
+    } finally {
+      setUploading(false);
+      if (inputRef.current) inputRef.current.value = "";
+    }
+  }
+
+  return (
+    <>
+      <button onClick={() => inputRef.current?.click()} disabled={uploading}
+        className="flex items-center gap-1 text-xs font-medium text-[#a93526] hover:text-[#8a2b1f] disabled:opacity-50">
+        {uploading ? <Loader2 size={12} className="animate-spin" /> : <Paperclip size={12} />}
+        {uploading ? "Subiendo..." : "Adjuntar voucher"}
+      </button>
+      <input ref={inputRef} type="file" accept="image/*,.pdf" className="hidden" onChange={handleFile} />
+    </>
   );
 }

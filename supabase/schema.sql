@@ -562,3 +562,44 @@ ALTER TABLE public.historial_ciclos
   DROP CONSTRAINT IF EXISTS historial_ciclos_unique;
 ALTER TABLE public.historial_ciclos
   ADD CONSTRAINT historial_ciclos_unique UNIQUE (alumno_id, carrera_id, ciclo);
+
+-- ─── Payment Vouchers ─────────────────────────────────────────────────────────
+
+create table if not exists public.payment_vouchers (
+  id              uuid primary key default gen_random_uuid(),
+  installment_id  uuid not null references public.installments(id) on delete cascade,
+  alumno_id       uuid not null references public.profiles(id) on delete cascade,
+  voucher_url     text not null,
+  status          text not null default 'pending_review'
+                  check (status in ('pending_review','approved','rejected')),
+  rejection_reason text,
+  reviewed_by     uuid references auth.users(id),
+  reviewed_at     timestamptz,
+  created_at      timestamptz not null default now()
+);
+
+alter table public.payment_vouchers enable row level security;
+
+create policy "alumno_read_own_vouchers" on public.payment_vouchers
+  for select using (auth.uid() = alumno_id);
+create policy "alumno_insert_own_vouchers" on public.payment_vouchers
+  for insert with check (auth.uid() = alumno_id);
+create policy "admin_all_vouchers" on public.payment_vouchers
+  for all using (auth.role() = 'authenticated' and exists (
+    select 1 from public.profiles where id = auth.uid() and rol in ('super_admin','administradora','secretaria_academica')
+  ));
+
+-- Storage bucket para vouchers
+insert into storage.buckets (id, name, public)
+values ('vouchers', 'vouchers', true)
+on conflict (id) do nothing;
+
+create policy "upload_vouchers" on storage.objects
+  for insert with check (bucket_id = 'vouchers' and auth.role() = 'authenticated');
+create policy "read_vouchers" on storage.objects
+  for select using (bucket_id = 'vouchers');
+
+-- Agregar status 'in_review' a installments
+ALTER TABLE public.installments DROP CONSTRAINT IF EXISTS installments_status_check;
+ALTER TABLE public.installments ADD CONSTRAINT installments_status_check
+  CHECK (status IN ('pending','paid','overdue','in_review'));
