@@ -85,7 +85,7 @@ function VouchersContent() {
             <table className="w-full text-sm">
               <thead className="bg-slate-50">
                 <tr>
-                  {["Alumno", "Concepto", "Monto", "Vencimiento", "Voucher", "Acciones"].map(h => (
+                  {["Alumno", "Ciclo", "Concepto", "Monto", "Vencimiento", "Voucher", "Acciones"].map(h => (
                     <th key={h} className="text-left py-3 px-4 text-mcm-muted font-medium text-xs uppercase tracking-wide">{h}</th>
                   ))}
                 </tr>
@@ -94,6 +94,7 @@ function VouchersContent() {
                 {vouchers.map(v => (
                   <tr key={v.id} className="border-t border-mcm-border hover:bg-slate-50">
                     <td className="py-3 px-4 font-medium text-mcm-text">{v.profiles?.nombre_completo}</td>
+                    <td className="py-3 px-4"><span className="badge-blue text-xs">Ciclo {(v.installments as unknown as { payment_plans: { ciclo: number } })?.payment_plans?.ciclo ?? "—"}</span></td>
                     <td className="py-3 px-4 text-mcm-text">{v.installments?.concepto}</td>
                     <td className="py-3 px-4 font-bold">S/ {Number(v.installments?.amount ?? 0).toFixed(2)}</td>
                     <td className="py-3 px-4 text-mcm-muted text-xs">

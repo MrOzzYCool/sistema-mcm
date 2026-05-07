@@ -140,53 +140,89 @@ function SummaryCard({ label, value, color }: { label: string; value: string; co
 }
 
 function VoucherUploadBtn({ installmentId, onSuccess }: { installmentId: string; onSuccess: () => void }) {
+  const [file, setFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
+  function handleSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    const f = e.target.files?.[0];
+    if (f) setFile(f);
+    if (inputRef.current) inputRef.current.value = "";
+  }
+
+  async function handleSubmit() {
     if (!file) return;
     setUploading(true);
     try {
       const token = await getAccessToken();
       if (!token) throw new Error("Sesión no disponible");
 
-      // Upload to Supabase Storage
       const ext = file.name.split(".").pop() ?? "jpg";
       const path = `vouchers/${installmentId}_${Date.now()}.${ext}`;
       const { error: upErr } = await supabase.storage.from("vouchers").upload(path, file);
       if (upErr) throw new Error(upErr.message);
 
       const { data: urlData } = supabase.storage.from("vouchers").getPublicUrl(path);
-      const voucher_url = urlData.publicUrl;
 
-      // Submit voucher
       const res = await fetch("/api/portal/vouchers", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ installment_id: installmentId, voucher_url }),
+        body: JSON.stringify({ installment_id: installmentId, voucher_url: urlData.publicUrl }),
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error);
 
+      setFile(null);
       alert(json.message ?? "Voucher enviado correctamente");
       onSuccess();
     } catch (err) {
       alert(err instanceof Error ? err.message : "Error subiendo voucher");
     } finally {
       setUploading(false);
-      if (inputRef.current) inputRef.current.value = "";
     }
   }
 
+  if (!file) {
+    return (
+      <>
+        <button onClick={() => inputRef.current?.click()}
+          className="flex items-center gap-1 text-xs font-medium text-[#a93526] hover:text-[#8a2b1f]">
+          <Paperclip size={12} /> Adjuntar voucher
+        </button>
+        <input ref={inputRef} type="file" accept="image/*,.pdf" className="hidden" onChange={handleSelect} />
+      </>
+    );
+  }
+
+  const isImage = file.type.startsWith("image/");
+
   return (
-    <>
-      <button onClick={() => inputRef.current?.click()} disabled={uploading}
-        className="flex items-center gap-1 text-xs font-medium text-[#a93526] hover:text-[#8a2b1f] disabled:opacity-50">
-        {uploading ? <Loader2 size={12} className="animate-spin" /> : <Paperclip size={12} />}
-        {uploading ? "Subiendo..." : "Adjuntar voucher"}
-      </button>
-      <input ref={inputRef} type="file" accept="image/*,.pdf" className="hidden" onChange={handleFile} />
-    </>
+    <div className="space-y-2">
+      {/* Preview */}
+      <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-800 border border-mcm-border rounded-lg p-2">
+        {isImage ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={URL.createObjectURL(file)} alt="Preview" className="w-10 h-10 object-cover rounded" />
+        ) : (
+          <div className="w-10 h-10 bg-red-50 rounded flex items-center justify-center text-red-600 text-xs font-bold">PDF</div>
+        )}
+        <span className="text-xs text-mcm-text truncate flex-1">{file.name}</span>
+        <button onClick={() => setFile(null)} className="text-mcm-muted hover:text-red-600 shrink-0">
+          <Upload size={12} />
+        </button>
+      </div>
+      {/* Actions */}
+      <div className="flex gap-2">
+        <button onClick={handleSubmit} disabled={uploading}
+          className="flex items-center gap-1 text-xs font-semibold text-white bg-[#a93526] hover:bg-[#8a2b1f] px-3 py-1.5 rounded-lg disabled:opacity-50">
+          {uploading ? <Loader2 size={12} className="animate-spin" /> : <CheckCircle size={12} />}
+          {uploading ? "Enviando..." : "Enviar voucher"}
+        </button>
+        <button onClick={() => setFile(null)} className="text-xs text-mcm-muted hover:text-red-600">
+          Quitar
+        </button>
+      </div>
+      <input ref={inputRef} type="file" accept="image/*,.pdf" className="hidden" onChange={handleSelect} />
+    </div>
   );
 }
