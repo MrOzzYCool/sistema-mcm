@@ -39,9 +39,9 @@ function PagosAlumnoContent() {
   const [saving, setSaving] = useState(false);
 
   // Benefits state
-  interface Benefit { id: string; tipo_concepto: string; monto_final: number; es_permanente: boolean; descripcion: string | null; }
+  interface Benefit { id: string; tipo_concepto: string; monto_final: number; es_permanente: boolean; }
   const [benefits, setBenefits] = useState<Benefit[]>([]);
-  const [benefitForm, setBenefitForm] = useState({ tipo: "matricula", monto: "", permanente: true, descripcion: "" });
+  const [benefitForm, setBenefitForm] = useState({ tipo: "matricula", monto: "", permanente: true });
   const [savingBenefit, setSavingBenefit] = useState(false);
 
   async function getToken() {
@@ -85,14 +85,14 @@ function PagosAlumnoContent() {
           tipo_concepto: benefitForm.tipo,
           monto_final: parseFloat(benefitForm.monto),
           es_permanente: benefitForm.permanente,
-          descripcion: benefitForm.descripcion || null,
         }),
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error);
-      setSuccess("Beneficio guardado correctamente.");
-      setBenefitForm({ tipo: "matricula", monto: "", permanente: true, descripcion: "" });
+      setSuccess("Beneficio aplicado. Las cuotas se actualizaron automáticamente.");
+      setBenefitForm({ tipo: "matricula", monto: "", permanente: true });
       loadBenefits();
+      loadPlans(); // Refresh to show updated amounts
     } catch (e) { setError(e instanceof Error ? e.message : "Error"); }
     finally { setSavingBenefit(false); }
   }
@@ -267,8 +267,10 @@ function PagosAlumnoContent() {
                   <span className="text-sm font-semibold text-green-800">
                     {b.tipo_concepto === "matricula" ? "Matrícula" : "Cuotas"}: S/ {Number(b.monto_final).toFixed(2)}
                   </span>
+                  <span className="text-xs text-green-600 ml-2">
+                    (Original: S/ {b.tipo_concepto === "matricula" ? "250.00" : "400.00"} → Descuento: S/ {(b.tipo_concepto === "matricula" ? 250 - Number(b.monto_final) : 400 - Number(b.monto_final)).toFixed(2)})
+                  </span>
                   {b.es_permanente && <span className="badge-blue text-xs ml-2">Permanente</span>}
-                  {b.descripcion && <p className="text-xs text-green-600 mt-0.5">{b.descripcion}</p>}
                 </div>
                 <button onClick={() => handleRemoveBenefit(b.id)}
                   className="text-red-400 hover:text-red-600 text-xs font-medium">Quitar</button>
@@ -278,26 +280,20 @@ function PagosAlumnoContent() {
         )}
 
         {/* Add benefit form */}
-        <div className="grid grid-cols-1 sm:grid-cols-5 gap-3 items-end">
+        <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 items-end">
           <div>
             <label className="block text-xs font-medium text-mcm-text mb-1">Concepto</label>
             <select value={benefitForm.tipo} onChange={e => setBenefitForm({...benefitForm, tipo: e.target.value})}
               className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#a93526]">
-              <option value="matricula">Matrícula</option>
-              <option value="cuota">Cuotas</option>
+              <option value="matricula">Matrícula (S/ 250)</option>
+              <option value="cuota">Cuotas (S/ 400 c/u)</option>
             </select>
           </div>
           <div>
-            <label className="block text-xs font-medium text-mcm-text mb-1">Monto a pagar (S/)</label>
+            <label className="block text-xs font-medium text-mcm-text mb-1">Monto final a pagar (S/)</label>
             <input type="number" step="0.01" value={benefitForm.monto}
               onChange={e => setBenefitForm({...benefitForm, monto: e.target.value})}
-              placeholder={benefitForm.tipo === "matricula" ? "250" : "400"}
-              className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#a93526]" />
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-mcm-text mb-1">Descripción</label>
-            <input value={benefitForm.descripcion} onChange={e => setBenefitForm({...benefitForm, descripcion: e.target.value})}
-              placeholder="Ej: Beca 50%"
+              placeholder={benefitForm.tipo === "matricula" ? "Ej: 100" : "Ej: 150"}
               className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#a93526]" />
           </div>
           <div>
@@ -311,11 +307,12 @@ function PagosAlumnoContent() {
           <button onClick={handleSaveBenefit} disabled={savingBenefit || !benefitForm.monto}
             className="btn-primary text-sm disabled:opacity-50 flex items-center justify-center gap-2 h-[38px]">
             {savingBenefit ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
-            Guardar
+            Aplicar
           </button>
         </div>
         <p className="text-xs text-mcm-muted mt-2">
-          Los beneficios permanentes se aplican automáticamente al generar nuevos planes de pago.
+          Al aplicar un beneficio, se actualizan automáticamente todas las cuotas pendientes del alumno.
+          Si es permanente, se aplicará también a futuros planes de pago.
         </p>
       </div>
 

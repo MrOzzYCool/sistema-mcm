@@ -42,7 +42,7 @@ export async function POST(req: NextRequest) {
   const admin = await verifyAdmin(req);
   if (!admin) return NextResponse.json({ error: "No autorizado" }, { status: 403 });
 
-  const { alumno_id, tipo_concepto, monto_final, es_permanente, descripcion, ciclo_aplicable } = await req.json();
+  const { alumno_id, tipo_concepto, monto_final, es_permanente } = await req.json();
 
   if (!alumno_id || !tipo_concepto || monto_final == null) {
     return NextResponse.json({ error: "alumno_id, tipo_concepto y monto_final son requeridos" }, { status: 400 });
@@ -56,7 +56,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "monto_final no puede ser negativo" }, { status: 400 });
   }
 
-  // Deactivate existing benefit of same type for this student
+  // Deactivate existing benefit of same type
   await supabaseAdmin
     .from("student_benefits")
     .update({ activo: false })
@@ -72,8 +72,6 @@ export async function POST(req: NextRequest) {
       tipo_concepto,
       monto_final: Number(monto_final),
       es_permanente: !!es_permanente,
-      descripcion: descripcion ?? null,
-      ciclo_aplicable: ciclo_aplicable ?? null,
       activo: true,
       created_by: admin.id,
     })
@@ -82,10 +80,33 @@ export async function POST(req: NextRequest) {
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
+  // ── Apply benefit to existing installments immediately ──
+  // Get all active plans for this student
+  const { data: plans } = await supabaseAdmin
+    .from("payment_plans")
+    .select("id")
+    .eq("alumno_id", alumno_id)
+    .eq("status", "activo");
+
+  if (plans && plans.length > 0) {
+    const planIds = plans.map(p => p.id);
+    const tipoFilter = tipo_concepto === "matricula" ? "matricula" : "cuota";
+
+    // Update all matching installments that are still pending
+    let query = supabaseAdmin
+      .from("installments")
+      .update({ amount: Number(monto_final) })
+      .in("plan_id", planIds)
+      .eq("tipo", tipoFilter)
+      .in("status", ["pending", "in_review"]);
+
+    await query;
+  }
+
   await supabaseAdmin.from("historial_auditoria").insert({
     accion: "asignar_beneficio",
     admin_id: admin.id, admin_email: admin.email, target_id: alumno_id,
-    detalle: { tipo_concepto, monto_final, es_permanente, descripcion },
+    detalle: { tipo_concepto, monto_final, es_permanente },
   });
 
   return NextResponse.json({ success: true, benefit: data });
