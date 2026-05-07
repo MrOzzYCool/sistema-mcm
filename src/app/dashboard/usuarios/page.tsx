@@ -406,10 +406,6 @@ function UsuariosContent() {
                           {p.estado === "activo" ? <XCircle size={14} /> : <CheckCircle size={14} />}
                         </button>
                         {p.rol === "alumno" && (
-                          <button onClick={() => openEnrollModal(p)} title="Asignar carrera/ciclo"
-                            className="text-mcm-muted hover:text-blue-600"><GraduationCap size={14} /></button>
-                        )}
-                        {p.rol === "alumno" && (
                           <button onClick={() => router.push(`/dashboard/pagos-alumno?alumno_id=${p.id}&nombre=${encodeURIComponent(p.nombre_completo)}`)}
                             title="Gestionar pagos" className="text-mcm-muted hover:text-green-600"><CreditCard size={14} /></button>
                         )}
