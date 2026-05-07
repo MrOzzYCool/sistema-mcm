@@ -146,17 +146,34 @@ export async function POST(req: NextRequest) {
   }
 
   if (action === "reject") {
-    // Update voucher
     await supabaseAdmin.from("payment_vouchers").update({
       status: "rejected", reviewed_by: admin.id, reviewed_at: new Date().toISOString(),
       rejection_reason: reason ?? "Voucher no válido",
     }).eq("id", voucher_id);
 
-    // Revert installment to pending
     await supabaseAdmin.from("installments").update({ status: "pending" }).eq("id", voucher.installment_id);
 
     return NextResponse.json({ success: true, message: "Voucher rechazado. Cuota vuelve a pendiente." });
   }
 
-  return NextResponse.json({ error: "Acción no válida. Usa 'approve' o 'reject'" }, { status: 400 });
+  if (action === "restore") {
+    // Restore voucher to pending_review
+    await supabaseAdmin.from("payment_vouchers").update({
+      status: "pending_review", reviewed_by: null, reviewed_at: null, rejection_reason: null,
+    }).eq("id", voucher_id);
+
+    // Revert installment: clear comprobante fields, set status back to in_review
+    await supabaseAdmin.from("installments").update({
+      status: "in_review",
+      fecha_pago: null,
+      tipo_comprobante: null,
+      comprobante_serie: null,
+      comprobante_numero: null,
+      comprobante_url: null,
+    }).eq("id", voucher.installment_id);
+
+    return NextResponse.json({ success: true, message: "Voucher restablecido a pendiente." });
+  }
+
+  return NextResponse.json({ error: "Acción no válida" }, { status: 400 });
 }

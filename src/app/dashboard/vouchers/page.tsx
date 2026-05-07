@@ -67,6 +67,22 @@ function VouchersContent() {
     finally { setSaving(null); }
   }
 
+  async function handleRestore(voucherId: string) {
+    if (!confirm("¿Deseas restablecer este voucher a estado Pendiente?\nSe limpiará cualquier comprobante generado.")) return;
+    setSaving(voucherId);
+    try {
+      const res = await fetch("/api/admin/voucher-review", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${await getToken()}` },
+        body: JSON.stringify({ voucher_id: voucherId, action: "restore" }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error);
+      cargar();
+    } catch (e) { setError(e instanceof Error ? e.message : "Error"); }
+    finally { setSaving(null); }
+  }
+
   return (
     <div className="p-6 w-full space-y-5">
       <div className="flex items-center justify-between">
@@ -188,10 +204,16 @@ function VouchersContent() {
                         {v.reviewed_at ? new Date(v.reviewed_at).toLocaleDateString("es-PE", { day: "2-digit", month: "short", year: "numeric" }) : "—"}
                       </td>
                       <td className="py-3 px-4">
-                        <button onClick={() => setPreview(v.voucher_url)}
-                          className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 font-medium">
-                          <Eye size={12} /> Ver
-                        </button>
+                        <div className="flex gap-2">
+                          <button onClick={() => setPreview(v.voucher_url)}
+                            className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 font-medium">
+                            <Eye size={12} /> Ver
+                          </button>
+                          <button onClick={() => handleRestore(v.id)}
+                            className="flex items-center gap-1 text-xs text-amber-600 hover:text-amber-800 font-medium">
+                            Restablecer
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
