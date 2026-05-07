@@ -7,10 +7,10 @@ const ALLOWED_ROLES = ["super_admin", "cycle_manager"];
 
 // Mapeo: nombre del día (frontend) → número (BD: 1=Lunes ... 6=Sábado)
 const DAY_MAP: Record<string, number> = {
-  lunes: 1, martes: 2, miercoles: 3, jueves: 4, viernes: 5, sabado: 6,
+  lunes: 1, martes: 2, miercoles: 3, jueves: 4, viernes: 5,
 };
 const DAY_REVERSE: Record<number, string> = {
-  1: "lunes", 2: "martes", 3: "miercoles", 4: "jueves", 5: "viernes", 6: "sabado",
+  1: "lunes", 2: "martes", 3: "miercoles", 4: "jueves", 5: "viernes",
 };
 
 async function verifyAdmin(req: NextRequest) {
@@ -121,7 +121,7 @@ export async function POST(req: NextRequest) {
   const dayNumber = DAY_MAP[dia_semana.toLowerCase()];
   if (!dayNumber) {
     return NextResponse.json(
-      { error: `Día inválido: "${dia_semana}". Valores: lunes, martes, miercoles, jueves, viernes, sabado` },
+      { error: `Día inválido: "${dia_semana}". Valores: lunes, martes, miercoles, jueves, viernes` },
       { status: 400 },
     );
   }

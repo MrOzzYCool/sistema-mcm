@@ -373,8 +373,8 @@ function CiclosContent() {
     finally { setSaving(false); }
   }
 
-  const DAYS = ["lunes", "martes", "miercoles", "jueves", "viernes", "sabado"];
-  const DAY_LABELS: Record<string, string> = { lunes: "Lun", martes: "Mar", miercoles: "Mié", jueves: "Jue", viernes: "Vie", sabado: "Sáb" };
+  const DAYS = ["lunes", "martes", "miercoles", "jueves", "viernes"];
+  const DAY_LABELS: Record<string, string> = { lunes: "Lun", martes: "Mar", miercoles: "Mié", jueves: "Jue", viernes: "Vie" };
 
   const filteredSchedules = filterCiclo === "todos"
     ? schedules
@@ -847,7 +847,7 @@ function CiclosContent() {
                 <label className="block text-sm font-medium text-mcm-text mb-1">Día</label>
                 <select value={editScheduleForm.dia_semana} onChange={e => setEditScheduleForm({...editScheduleForm, dia_semana: e.target.value})}
                   className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#a93526]">
-                  {["lunes","martes","miercoles","jueves","viernes","sabado"].map(d => (
+                  {["lunes","martes","miercoles","jueves","viernes"].map(d => (
                     <option key={d} value={d}>{d.charAt(0).toUpperCase() + d.slice(1)}</option>
                   ))}
                 </select>
