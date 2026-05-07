@@ -61,7 +61,7 @@ export async function PUT(req: NextRequest) {
   const admin = await checkAdmin(req);
   if (!admin) return NextResponse.json({ error: "No autorizado" }, { status: 403 });
 
-  const { userId, nombre_completo, email, rol, estado, dni, es_profesor } = await req.json();
+  const { userId, nombre_completo, email, rol, estado, dni, es_profesor, ciclo } = await req.json();
 
   if (!userId) return NextResponse.json({ error: "userId requerido" }, { status: 400 });
 
@@ -76,6 +76,14 @@ export async function PUT(req: NextRequest) {
   if (Object.keys(updateData).length > 0) {
     const { error } = await supabaseAdmin.from("profiles").update(updateData).eq("id", userId);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  // Actualizar ciclo en inscripciones si se proporcionó
+  if (ciclo !== undefined && Number.isInteger(Number(ciclo)) && Number(ciclo) > 0) {
+    await supabaseAdmin
+      .from("inscripciones")
+      .update({ ciclo_actual: Number(ciclo) })
+      .eq("alumno_id", userId);
   }
 
   // Actualizar email en Auth si cambió

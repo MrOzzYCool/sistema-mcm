@@ -36,7 +36,7 @@ function UsuariosContent() {
 
   // Edit modal state
   const [editModal, setEditModal] = useState<{ show: boolean; target: Profile | null }>({ show: false, target: null });
-  const [editForm, setEditForm] = useState({ nombre_completo: "", email: "", rol: "", estado: "", dni: "", es_profesor: false });
+  const [editForm, setEditForm] = useState({ nombre_completo: "", email: "", rol: "", estado: "", dni: "", es_profesor: false, ciclo: "1" });
   const [editSaving, setEditSaving] = useState(false);
 
   // Roles que pueden ver el botón Editar
@@ -191,7 +191,16 @@ function UsuariosContent() {
     }
   }
 
-  function openEditModal(p: Profile) {
+  async function openEditModal(p: Profile) {
+    // Load ciclo from inscripciones if alumno
+    let cicloActual = "1";
+    if (p.rol === "alumno") {
+      try {
+        const { supabase: sb } = await import("@/lib/supabase");
+        const { data: insc } = await sb.from("inscripciones").select("ciclo_actual").eq("alumno_id", p.id).order("created_at", { ascending: false }).limit(1);
+        if (insc && insc.length > 0) cicloActual = String(insc[0].ciclo_actual);
+      } catch { /* ignore */ }
+    }
     setEditForm({
       nombre_completo: p.nombre_completo,
       email: p.email,
@@ -199,6 +208,7 @@ function UsuariosContent() {
       estado: p.estado,
       dni: p.dni ?? "",
       es_profesor: p.es_profesor ?? false,
+      ciclo: cicloActual,
     });
     setEditModal({ show: true, target: p });
   }
@@ -207,9 +217,10 @@ function UsuariosContent() {
     if (!editModal.target) return;
     setEditSaving(true); setError("");
     try {
+      const token = await getToken();
       const res = await fetch("/api/admin/users", {
         method: "PUT",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${await getToken()}` },
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({
           userId: editModal.target.id,
           nombre_completo: editForm.nombre_completo,
@@ -218,10 +229,12 @@ function UsuariosContent() {
           estado: editForm.estado,
           dni: editForm.dni,
           es_profesor: editForm.es_profesor,
+          ...(editForm.rol === "alumno" && { ciclo: parseInt(editForm.ciclo) }),
         }),
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error);
+
       setEditModal({ show: false, target: null });
       cargar();
     } catch (e) {
@@ -600,6 +613,15 @@ function UsuariosContent() {
                   placeholder="12345678" maxLength={8}
                   className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#a93526]" />
               </div>
+              {editForm.rol === "alumno" && (
+                <div>
+                  <label className="block text-sm font-medium text-mcm-text mb-1">Ciclo actual</label>
+                  <select value={editForm.ciclo} onChange={e => setEditForm({...editForm, ciclo: e.target.value})}
+                    className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#a93526]">
+                    {[1,2,3,4,5,6].map(n => <option key={n} value={String(n)}>Ciclo {n}</option>)}
+                  </select>
+                </div>
+              )}
               <div>
                 <label className="flex items-center gap-2 text-sm cursor-pointer">
                   <input type="checkbox" checked={editForm.es_profesor}
