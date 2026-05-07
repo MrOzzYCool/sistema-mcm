@@ -39,7 +39,7 @@ export async function POST(req: NextRequest) {
   const admin = await verifyStaff(req);
   if (!admin) return NextResponse.json({ error: "No autorizado" }, { status: 403 });
 
-  const { voucher_id, action, reason } = await req.json();
+  const { voucher_id, action, reason, tipo_comprobante, ruc } = await req.json();
   if (!voucher_id || !action) {
     return NextResponse.json({ error: "voucher_id y action requeridos" }, { status: 400 });
   }
@@ -56,17 +56,87 @@ export async function POST(req: NextRequest) {
   }
 
   if (action === "approve") {
+    if (!tipo_comprobante || !["boleta", "factura"].includes(tipo_comprobante)) {
+      return NextResponse.json({ error: "tipo_comprobante requerido (boleta o factura)" }, { status: 400 });
+    }
+    if (tipo_comprobante === "factura" && (!ruc || ruc.length !== 11)) {
+      return NextResponse.json({ error: "RUC de 11 dígitos requerido para factura" }, { status: 400 });
+    }
+
+    // Get installment details
+    const { data: inst } = await supabaseAdmin
+      .from("installments")
+      .select("id, concepto, amount, numero, plan_id")
+      .eq("id", voucher.installment_id)
+      .single();
+
+    // Get alumno profile
+    const { data: alumno } = await supabaseAdmin
+      .from("profiles")
+      .select("nombre_completo, dni")
+      .eq("id", voucher.alumno_id)
+      .single();
+
+    // Get alumno email
+    const { data: { user: alumnoAuth } } = await supabaseAdmin.auth.admin.getUserById(voucher.alumno_id);
+    const alumnoEmail = alumnoAuth?.email ?? "";
+
+    // Nubefact codes by concepto
+    const NUBEFACT_CODES: Record<string, number> = {
+      "MATRÍCULA": 16, "CUOTAS 01": 39, "CUOTAS 02": 40, "CUOTAS 03": 41, "CUOTAS 04": 42,
+    };
+    const codigoProducto = NUBEFACT_CODES[inst?.concepto ?? ""] ?? 16;
+
+    // Generate comprobante via Nubefact
+    let comprobanteUrl = "";
+    let comprobanteSerie = "";
+    let comprobanteNumero = "";
+
+    try {
+      const { generarBoleta } = await import("@/lib/nubefactService");
+      const resultado = await generarBoleta({
+        tipoComprobante: tipo_comprobante as "boleta" | "factura",
+        dniCliente: tipo_comprobante === "boleta" ? (alumno?.dni ?? "") : "",
+        ruc: tipo_comprobante === "factura" ? (ruc ?? "") : undefined,
+        razonSocial: tipo_comprobante === "factura" ? (alumno?.nombre_completo ?? "") : undefined,
+        nombreCliente: alumno?.nombre_completo ?? "",
+        cantidad: 1,
+        codigoProducto,
+        descripcion: inst?.concepto ?? "PAGO ACADÉMICO",
+        precioUnitario: Number(inst?.amount ?? 0),
+        tipoIgv: 30, // Inafecto - Operación Onerosa
+        codigoUnico: Date.now().toString(),
+      });
+
+      comprobanteUrl = resultado.pdfUrl ?? "";
+      comprobanteSerie = resultado.serie ?? "";
+      comprobanteNumero = resultado.numero?.toString() ?? "";
+    } catch (nubErr) {
+      console.error("Error Nubefact:", nubErr);
+    }
+
     // Update voucher
     await supabaseAdmin.from("payment_vouchers").update({
       status: "approved", reviewed_by: admin.id, reviewed_at: new Date().toISOString(),
     }).eq("id", voucher_id);
 
-    // Update installment to paid
+    // Update installment to paid + comprobante info
     await supabaseAdmin.from("installments").update({
-      status: "paid", fecha_pago: new Date().toISOString(),
+      status: "paid",
+      fecha_pago: new Date().toISOString(),
+      tipo_comprobante,
+      comprobante_serie: comprobanteSerie || null,
+      comprobante_numero: comprobanteNumero || null,
+      comprobante_url: comprobanteUrl || null,
     }).eq("id", voucher.installment_id);
 
-    return NextResponse.json({ success: true, message: "Voucher aprobado. Cuota marcada como pagada." });
+    return NextResponse.json({
+      success: true,
+      message: comprobanteUrl
+        ? `Voucher aprobado. Comprobante generado: ${comprobanteSerie}-${comprobanteNumero}`
+        : "Voucher aprobado. Cuota marcada como pagada (sin comprobante Nubefact).",
+      comprobante_url: comprobanteUrl,
+    });
   }
 
   if (action === "reject") {

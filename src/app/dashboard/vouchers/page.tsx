@@ -21,6 +21,8 @@ function VouchersContent() {
   const [preview, setPreview] = useState<string | null>(null);
   const [rejectModal, setRejectModal] = useState<Voucher | null>(null);
   const [rejectReason, setRejectReason] = useState("");
+  const [approveModal, setApproveModal] = useState<Voucher | null>(null);
+  const [approveForm, setApproveForm] = useState({ tipo: "boleta", ruc: "" });
 
   async function getToken() {
     const { data } = await supabase.auth.getSession();
@@ -40,13 +42,13 @@ function VouchersContent() {
 
   useEffect(() => { cargar(); }, [cargar]);
 
-  async function handleAction(voucherId: string, action: "approve" | "reject", reason?: string) {
+  async function handleAction(voucherId: string, action: "approve" | "reject", reason?: string, tipoComprobante?: string, ruc?: string) {
     setSaving(voucherId);
     try {
       const res = await fetch("/api/admin/voucher-review", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${await getToken()}` },
-        body: JSON.stringify({ voucher_id: voucherId, action, reason }),
+        body: JSON.stringify({ voucher_id: voucherId, action, reason, tipo_comprobante: tipoComprobante, ruc }),
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error);
@@ -111,7 +113,7 @@ function VouchersContent() {
                         <Loader2 size={14} className="animate-spin text-mcm-muted" />
                       ) : (
                         <div className="flex gap-2">
-                          <button onClick={() => handleAction(v.id, "approve")}
+                          <button onClick={() => { setApproveModal(v); setApproveForm({ tipo: "boleta", ruc: "" }); }}
                             className="flex items-center gap-1 text-xs text-green-600 hover:text-green-800 font-medium">
                             <CheckCircle size={12} /> Aprobar
                           </button>
@@ -165,6 +167,51 @@ function VouchersContent() {
                 disabled={saving === rejectModal.id}
                 className="flex-1 text-sm text-white font-semibold px-4 py-2 rounded-lg bg-red-600 hover:bg-red-700 disabled:opacity-50">
                 {saving === rejectModal.id ? "Rechazando..." : "Rechazar"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Approve modal — select boleta/factura */}
+      {approveModal && (
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-sm">
+            <h3 className="font-bold text-mcm-text text-lg mb-3">Aprobar y generar comprobante</h3>
+            <p className="text-mcm-muted text-sm mb-4">Alumno: {approveModal.profiles?.nombre_completo}</p>
+            <div className="space-y-3">
+              <div>
+                <label className="block text-sm font-medium text-mcm-text mb-1">Tipo de comprobante</label>
+                <div className="grid grid-cols-2 gap-3">
+                  {(["boleta", "factura"] as const).map(t => (
+                    <button key={t} type="button" onClick={() => setApproveForm({...approveForm, tipo: t})}
+                      className={`py-2.5 rounded-xl border-2 text-sm font-semibold transition-all ${
+                        approveForm.tipo === t ? "border-[#a93526] bg-red-50 text-[#a93526]" : "border-mcm-border text-mcm-muted"
+                      }`}>
+                      {t === "boleta" ? "🧾 Boleta" : "📄 Factura"}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              {approveForm.tipo === "factura" && (
+                <div>
+                  <label className="block text-sm font-medium text-mcm-text mb-1">RUC</label>
+                  <input value={approveForm.ruc} onChange={e => setApproveForm({...approveForm, ruc: e.target.value.replace(/\D/g,"").slice(0,11)})}
+                    placeholder="20123456789" maxLength={11}
+                    className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#a93526]" />
+                </div>
+              )}
+            </div>
+            <div className="flex gap-3 mt-5">
+              <button onClick={() => setApproveModal(null)} className="btn-secondary flex-1 text-sm">Cancelar</button>
+              <button
+                onClick={() => {
+                  handleAction(approveModal.id, "approve", undefined, approveForm.tipo, approveForm.ruc || undefined);
+                  setApproveModal(null);
+                }}
+                disabled={saving === approveModal.id || (approveForm.tipo === "factura" && approveForm.ruc.length !== 11)}
+                className="flex-1 text-sm text-white font-semibold px-4 py-2 rounded-lg bg-green-600 hover:bg-green-700 disabled:opacity-50">
+                Aprobar y emitir
               </button>
             </div>
           </div>

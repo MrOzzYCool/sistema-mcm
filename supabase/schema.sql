@@ -633,3 +633,9 @@ drop trigger if exists set_benefits_updated_at on public.student_benefits;
 create trigger set_benefits_updated_at
   before update on public.student_benefits
   for each row execute function public.set_updated_at();
+
+-- ─── Columnas de comprobante en installments ──────────────────────────────────
+ALTER TABLE public.installments ADD COLUMN IF NOT EXISTS tipo_comprobante text;
+ALTER TABLE public.installments ADD COLUMN IF NOT EXISTS comprobante_serie text;
+ALTER TABLE public.installments ADD COLUMN IF NOT EXISTS comprobante_numero text;
+ALTER TABLE public.installments ADD COLUMN IF NOT EXISTS comprobante_url text;

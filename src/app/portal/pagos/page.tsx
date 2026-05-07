@@ -10,6 +10,7 @@ interface Installment {
   id: string; concepto: string; tipo: string; numero: number;
   amount: number; amount_original: number;
   due_date: string; status: string; fecha_pago: string | null; observacion: string | null;
+  comprobante_url?: string | null; tipo_comprobante?: string | null;
 }
 interface Plan {
   id: string; ciclo: number; year: number; status: string;
@@ -134,7 +135,13 @@ export default function PagosAlumnoPage() {
                         {(inst.status === "pending" || isOverdue) && (
                           <VoucherUploadBtn installmentId={inst.id} onSuccess={fetchPagos} />
                         )}
-                        {inst.fecha_pago && (
+                        {inst.status === "paid" && inst.comprobante_url && (
+                          <a href={inst.comprobante_url} target="_blank" rel="noreferrer"
+                            className="flex items-center gap-1 text-xs font-medium text-green-600 hover:text-green-800">
+                            <CheckCircle size={12} /> Comprobante
+                          </a>
+                        )}
+                        {inst.fecha_pago && !inst.comprobante_url && inst.status === "paid" && (
                           <span className="text-mcm-muted text-xs">{new Date(inst.fecha_pago).toLocaleDateString("es-PE", { day: "2-digit", month: "short" })}</span>
                         )}
                       </td>
