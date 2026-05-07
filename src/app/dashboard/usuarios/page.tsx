@@ -25,6 +25,8 @@ function UsuariosContent() {
   const [search, setSearch]       = useState("");
   const [filtroRol, setFiltroRol] = useState("todos");
   const [filtroEstado, setFiltroEstado] = useState("todos");
+  const [filtroCiclo, setFiltroCiclo] = useState("todos");
+  const [inscripciones, setInscripciones] = useState<{ alumno_id: string; ciclo_actual: number }[]>([]);
   const [showModal, setShowModal] = useState(false);
   const [saving, setSaving]       = useState(false);
   const csvRef = useRef<HTMLInputElement>(null);
@@ -88,6 +90,18 @@ function UsuariosContent() {
       }
     }
     loadCarreras();
+  }, []);
+
+  // Cargar inscripciones para filtro de ciclo
+  useEffect(() => {
+    async function loadInscripciones() {
+      try {
+        const { supabase: sb } = await import("@/lib/supabase");
+        const { data } = await sb.from("inscripciones").select("alumno_id, ciclo_actual");
+        if (data) setInscripciones(data);
+      } catch { /* ignore */ }
+    }
+    loadInscripciones();
   }, []);
 
   async function handleCreate() {
@@ -282,9 +296,17 @@ function UsuariosContent() {
     const a = document.createElement("a"); a.href = url; a.download = "usuarios.csv"; a.click();
   }
 
+  // Get unique ciclos from inscripciones
+  const ciclosDisponibles = [...new Set(inscripciones.map(i => i.ciclo_actual))].sort((a, b) => a - b);
+
   const lista = profiles
     .filter(p => filtroEstado === "todos" ? p.estado === "activo" : p.estado === filtroEstado)
     .filter(p => filtroRol === "todos" || p.rol === filtroRol)
+    .filter(p => {
+      if (filtroCiclo === "todos" || filtroRol !== "alumno") return true;
+      const insc = inscripciones.find(i => i.alumno_id === p.id);
+      return insc?.ciclo_actual === parseInt(filtroCiclo);
+    })
     .filter(p => !search || p.nombre_completo.toLowerCase().includes(search.toLowerCase()) || p.email.toLowerCase().includes(search.toLowerCase()));
 
   return (
@@ -335,6 +357,16 @@ function UsuariosContent() {
             {e === "todos" ? "todos los estados" : e}
           </button>
         ))}
+        {filtroRol === "alumno" && ciclosDisponibles.length > 0 && (
+          <>
+            <span className="text-mcm-border">|</span>
+            <select value={filtroCiclo} onChange={e => setFiltroCiclo(e.target.value)}
+              className="border border-mcm-border rounded-lg px-3 py-1.5 text-xs font-semibold focus:ring-2 focus:ring-[#a93526] focus:outline-none">
+              <option value="todos">Todos los ciclos</option>
+              {ciclosDisponibles.map(c => <option key={c} value={String(c)}>Ciclo {c}</option>)}
+            </select>
+          </>
+        )}
       </div>
 
       {/* Tabla */}
