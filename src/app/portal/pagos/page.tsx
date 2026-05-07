@@ -78,13 +78,21 @@ export default function PagosAlumnoPage() {
             <table className="w-full text-sm">
               <thead className="bg-slate-50">
                 <tr>
-                  {["Concepto", "Original", "Descuento", "Total", "Vencimiento", "Estado", "Acción"].map(h => (
-                    <th key={h} className="text-left py-3 px-4 text-mcm-muted font-medium text-xs uppercase tracking-wide">{h}</th>
-                  ))}
+                  {(() => {
+                    const hasDiscount = all.some(i => Number(i.amount_original) > Number(i.amount));
+                    const cols = hasDiscount
+                      ? ["Concepto", "Original", "Descuento", "Total", "Vencimiento", "Estado", "Acción"]
+                      : ["Concepto", "Monto", "Vencimiento", "Estado", "Acción"];
+                    return cols.map(h => (
+                      <th key={h} className="text-left py-3 px-4 text-mcm-muted font-medium text-xs uppercase tracking-wide">{h}</th>
+                    ));
+                  })()}
                 </tr>
               </thead>
               <tbody>
-                {all.map(inst => {
+                {(() => {
+                  const hasDiscount = all.some(i => Number(i.amount_original) > Number(i.amount));
+                  return all.map(inst => {
                   const isOverdue = inst.status === "pending" && new Date(inst.due_date) < new Date();
                   return (
                     <tr key={inst.id} className="border-t border-mcm-border hover:bg-slate-50">
@@ -92,15 +100,21 @@ export default function PagosAlumnoPage() {
                         {inst.concepto}
                         {inst.observacion && <span className="text-xs text-mcm-muted ml-2">({inst.observacion})</span>}
                       </td>
-                      <td className="py-3.5 px-4 text-mcm-muted text-xs">S/ {Number(inst.amount_original).toFixed(2)}</td>
-                      <td className="py-3.5 px-4 text-xs">
-                        {Number(inst.amount_original) > Number(inst.amount) ? (
-                          <span className="text-green-600 font-medium">-S/ {(Number(inst.amount_original) - Number(inst.amount)).toFixed(2)}</span>
-                        ) : (
-                          <span className="text-mcm-muted">—</span>
-                        )}
-                      </td>
-                      <td className="py-3.5 px-4 font-bold text-mcm-text">S/ {Number(inst.amount).toFixed(2)}</td>
+                      {hasDiscount ? (
+                        <>
+                          <td className="py-3.5 px-4 text-mcm-muted text-xs">S/ {Number(inst.amount_original).toFixed(2)}</td>
+                          <td className="py-3.5 px-4 text-xs">
+                            {Number(inst.amount_original) > Number(inst.amount) ? (
+                              <span className="text-green-600 font-medium">-S/ {(Number(inst.amount_original) - Number(inst.amount)).toFixed(2)}</span>
+                            ) : (
+                              <span className="text-mcm-muted">—</span>
+                            )}
+                          </td>
+                          <td className="py-3.5 px-4 font-bold text-mcm-text">S/ {Number(inst.amount).toFixed(2)}</td>
+                        </>
+                      ) : (
+                        <td className="py-3.5 px-4 font-bold text-mcm-text">S/ {Number(inst.amount).toFixed(2)}</td>
+                      )}
                       <td className={clsx("py-3.5 px-4 text-xs", isOverdue ? "text-red-600 font-bold" : "text-mcm-muted")}>
                         {new Date(inst.due_date + "T00:00:00").toLocaleDateString("es-PE", { day: "2-digit", month: "short", year: "numeric" })}
                         {isOverdue && <span className="ml-1 badge-red text-xs">Vencido</span>}
@@ -126,7 +140,8 @@ export default function PagosAlumnoPage() {
                       </td>
                     </tr>
                   );
-                })}
+                });
+                })()}
               </tbody>
             </table>
           </div>
