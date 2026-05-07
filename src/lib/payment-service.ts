@@ -1,11 +1,21 @@
 import { supabaseAdmin } from "./supabase-admin";
 
 /**
+ * Obtiene el último día de un mes dado (maneja 28, 29, 30, 31 correctamente).
+ * month es 0-indexed (0=Enero, 11=Diciembre)
+ */
+function getLastDayOfMonth(year: number, month: number): string {
+  // new Date(year, month+1, 0) da el último día del mes
+  const d = new Date(year, month + 1, 0);
+  return d.toISOString().slice(0, 10);
+}
+
+/**
  * generateStudentPaymentPlan
- * 1. Busca si hay una cycle_opening activa para el ciclo → usa su start_date
- * 2. Si no hay apertura, calcula con la fórmula:
- *    startMonthIndex = ((ciclo - 1) % 3) * 4
- *    startYear = year + Math.floor((ciclo - 1) / 3)
+ * Lógica de fechas:
+ * - Busca cycle_opening activa → usa su start_date como mes base
+ * - Matrícula y Cuota 01 → último día del mes de inicio
+ * - Cuota 02, 03, 04 → último día de los meses siguientes consecutivos
  */
 export async function generateStudentPaymentPlan(
   { alumnoId, ciclo, year }: { alumnoId: string; ciclo: number; year: number }
@@ -46,12 +56,10 @@ export async function generateStudentPaymentPlan(
     .single();
 
   if (opening?.start_date) {
-    // Usar la fecha de la apertura
     const d = new Date(opening.start_date + "T00:00:00");
-    startMonthIndex = d.getMonth(); // 0-indexed
+    startMonthIndex = d.getMonth();
     startYear = d.getFullYear();
   } else {
-    // Fallback: cálculo por fórmula
     startMonthIndex = ((ciclo - 1) % 3) * 4;
     const yearOffset = Math.floor((ciclo - 1) / 3);
     startYear = year + yearOffset;
@@ -59,7 +67,7 @@ export async function generateStudentPaymentPlan(
 
   const items: Record<string, unknown>[] = [];
 
-  // Matrícula — día 01 del mes de inicio
+  // Matrícula — último día del mes de inicio
   items.push({
     plan_id: plan.id,
     tipo: "matricula",
@@ -67,11 +75,13 @@ export async function generateStudentPaymentPlan(
     concepto: "MATRÍCULA",
     amount_original: 250.00,
     amount: 250.00,
-    due_date: new Date(startYear, startMonthIndex, 1).toISOString().slice(0, 10),
+    due_date: getLastDayOfMonth(startYear, startMonthIndex),
     status: "pending",
   });
 
-  // Cuotas 1..4 — día 01 de cada mes consecutivo
+  // Cuotas 1..4 — último día de cada mes consecutivo
+  // Cuota 01 = mismo mes que matrícula (mes de inicio)
+  // Cuota 02 = mes siguiente, etc.
   for (let i = 0; i < 4; i++) {
     const monthIndex = startMonthIndex + i;
     const addYears = Math.floor(monthIndex / 12);
@@ -86,7 +96,7 @@ export async function generateStudentPaymentPlan(
       concepto: `CUOTAS ${String(numero).padStart(2, "0")}`,
       amount_original: 400.00,
       amount: 400.00,
-      due_date: new Date(dueYear, realMonthIndex, 1).toISOString().slice(0, 10),
+      due_date: getLastDayOfMonth(dueYear, realMonthIndex),
       status: "pending",
     });
   }
