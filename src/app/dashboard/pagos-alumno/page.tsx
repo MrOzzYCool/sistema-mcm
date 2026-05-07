@@ -38,6 +38,12 @@ function PagosAlumnoContent() {
   const [editObs, setEditObs] = useState("");
   const [saving, setSaving] = useState(false);
 
+  // Benefits state
+  interface Benefit { id: string; tipo_concepto: string; monto_final: number; es_permanente: boolean; descripcion: string | null; }
+  const [benefits, setBenefits] = useState<Benefit[]>([]);
+  const [benefitForm, setBenefitForm] = useState({ tipo: "matricula", monto: "", permanente: true, descripcion: "" });
+  const [savingBenefit, setSavingBenefit] = useState(false);
+
   async function getToken() {
     const { data } = await supabase.auth.getSession();
     return data.session?.access_token ?? "";
@@ -55,7 +61,54 @@ function PagosAlumnoContent() {
     finally { setLoading(false); }
   }
 
-  useEffect(() => { loadPlans(); }, [alumnoId]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { loadPlans(); loadBenefits(); }, [alumnoId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  async function loadBenefits() {
+    if (!alumnoId) return;
+    try {
+      const res = await fetch(`/api/admin/benefits?alumno_id=${alumnoId}`, {
+        headers: { Authorization: `Bearer ${await getToken()}` },
+      });
+      if (res.ok) setBenefits((await res.json()).benefits ?? []);
+    } catch { /* ignore */ }
+  }
+
+  async function handleSaveBenefit() {
+    if (!alumnoId || !benefitForm.monto) return;
+    setSavingBenefit(true); setError("");
+    try {
+      const res = await fetch("/api/admin/benefits", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${await getToken()}` },
+        body: JSON.stringify({
+          alumno_id: alumnoId,
+          tipo_concepto: benefitForm.tipo,
+          monto_final: parseFloat(benefitForm.monto),
+          es_permanente: benefitForm.permanente,
+          descripcion: benefitForm.descripcion || null,
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error);
+      setSuccess("Beneficio guardado correctamente.");
+      setBenefitForm({ tipo: "matricula", monto: "", permanente: true, descripcion: "" });
+      loadBenefits();
+    } catch (e) { setError(e instanceof Error ? e.message : "Error"); }
+    finally { setSavingBenefit(false); }
+  }
+
+  async function handleRemoveBenefit(id: string) {
+    if (!confirm("¿Quitar este beneficio?")) return;
+    try {
+      await fetch("/api/admin/benefits", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${await getToken()}` },
+        body: JSON.stringify({ benefit_id: id }),
+      });
+      loadBenefits();
+    } catch { /* ignore */ }
+  }
+
 
   async function handleGenerate() {
     if (!alumnoId) return;
@@ -192,6 +245,73 @@ function PagosAlumnoContent() {
           </div>
         ))
       )}
+
+      {/* Beneficios Académicos */}
+      <div className="card">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="font-semibold text-mcm-text">Beneficios Académicos</h2>
+        </div>
+
+        {/* Active benefits */}
+        {benefits.length > 0 && (
+          <div className="space-y-2 mb-4">
+            {benefits.map(b => (
+              <div key={b.id} className="flex items-center justify-between bg-green-50 border border-green-200 rounded-xl px-4 py-3">
+                <div>
+                  <span className="text-sm font-semibold text-green-800">
+                    {b.tipo_concepto === "matricula" ? "Matrícula" : "Cuotas"}: S/ {Number(b.monto_final).toFixed(2)}
+                  </span>
+                  {b.es_permanente && <span className="badge-blue text-xs ml-2">Permanente</span>}
+                  {b.descripcion && <p className="text-xs text-green-600 mt-0.5">{b.descripcion}</p>}
+                </div>
+                <button onClick={() => handleRemoveBenefit(b.id)}
+                  className="text-red-400 hover:text-red-600 text-xs font-medium">Quitar</button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Add benefit form */}
+        <div className="grid grid-cols-1 sm:grid-cols-5 gap-3 items-end">
+          <div>
+            <label className="block text-xs font-medium text-mcm-text mb-1">Concepto</label>
+            <select value={benefitForm.tipo} onChange={e => setBenefitForm({...benefitForm, tipo: e.target.value})}
+              className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#a93526]">
+              <option value="matricula">Matrícula</option>
+              <option value="cuota">Cuotas</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-mcm-text mb-1">Monto a pagar (S/)</label>
+            <input type="number" step="0.01" value={benefitForm.monto}
+              onChange={e => setBenefitForm({...benefitForm, monto: e.target.value})}
+              placeholder={benefitForm.tipo === "matricula" ? "250" : "400"}
+              className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#a93526]" />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-mcm-text mb-1">Descripción</label>
+            <input value={benefitForm.descripcion} onChange={e => setBenefitForm({...benefitForm, descripcion: e.target.value})}
+              placeholder="Ej: Beca 50%"
+              className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#a93526]" />
+          </div>
+          <div>
+            <label className="flex items-center gap-2 text-xs cursor-pointer mt-5">
+              <input type="checkbox" checked={benefitForm.permanente}
+                onChange={e => setBenefitForm({...benefitForm, permanente: e.target.checked})}
+                className="accent-[#a93526]" />
+              Permanente
+            </label>
+          </div>
+          <button onClick={handleSaveBenefit} disabled={savingBenefit || !benefitForm.monto}
+            className="btn-primary text-sm disabled:opacity-50 flex items-center justify-center gap-2 h-[38px]">
+            {savingBenefit ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+            Guardar
+          </button>
+        </div>
+        <p className="text-xs text-mcm-muted mt-2">
+          Los beneficios permanentes se aplican automáticamente al generar nuevos planes de pago.
+        </p>
+      </div>
 
       {/* Generate plan modal */}
       {showGenModal && (
