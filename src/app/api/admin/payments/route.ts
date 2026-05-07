@@ -99,5 +99,40 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ success: true });
   }
 
+  if (action === "delete-plan") {
+    const { plan_id } = body;
+    if (!plan_id) return NextResponse.json({ error: "plan_id requerido" }, { status: 400 });
+
+    // Delete installments first (FK cascade would handle it, but explicit is clearer)
+    await supabaseAdmin.from("installments").delete().eq("plan_id", plan_id);
+    const { error } = await supabaseAdmin.from("payment_plans").delete().eq("id", plan_id);
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+    await supabaseAdmin.from("historial_auditoria").insert({
+      accion: "eliminar_plan_pagos",
+      admin_id: admin.id, admin_email: admin.email,
+      detalle: { plan_id },
+    });
+
+    return NextResponse.json({ success: true, message: "Plan de pagos eliminado." });
+  }
+
+  if (action === "change-ciclo") {
+    const { alumno_id, plan_id, nuevo_ciclo } = body;
+    if (!alumno_id || !nuevo_ciclo) {
+      return NextResponse.json({ error: "alumno_id y nuevo_ciclo requeridos" }, { status: 400 });
+    }
+
+    // Update payment_plan ciclo
+    if (plan_id) {
+      await supabaseAdmin.from("payment_plans").update({ ciclo: Number(nuevo_ciclo) }).eq("id", plan_id);
+    }
+
+    // Update inscripciones
+    await supabaseAdmin.from("inscripciones").update({ ciclo_actual: Number(nuevo_ciclo) }).eq("alumno_id", alumno_id);
+
+    return NextResponse.json({ success: true, message: `Ciclo actualizado a ${nuevo_ciclo}. Recuerda regenerar el plan de pagos.` });
+  }
+
   return NextResponse.json({ error: "Acción no reconocida" }, { status: 400 });
 }

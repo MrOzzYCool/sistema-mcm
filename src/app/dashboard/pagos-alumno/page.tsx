@@ -141,6 +141,21 @@ function PagosAlumnoContent() {
     } catch (err) { setError(err instanceof Error ? err.message : "Error"); }
   }
 
+  async function handleDeletePlan(planId: string, ciclo: number) {
+    if (!confirm(`¿Estás seguro? Esto eliminará todas las cuotas generadas para el Ciclo ${ciclo}.`)) return;
+    try {
+      const res = await fetch("/api/admin/payments", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${await getToken()}` },
+        body: JSON.stringify({ action: "delete-plan", plan_id: planId }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error);
+      setSuccess(json.message ?? "Plan eliminado.");
+      loadPlans();
+    } catch (err) { setError(err instanceof Error ? err.message : "Error"); }
+  }
+
   async function handleSaveAmount() {
     if (!editingId) return;
     const descuento = parseFloat(editDescuento) || 0;
@@ -199,9 +214,15 @@ function PagosAlumnoContent() {
                 <h2 className="font-semibold text-mcm-text">Ciclo {plan.ciclo} — {plan.year}</h2>
                 <span className={plan.status === "activo" ? "badge-blue" : "badge-green"}>{plan.status}</span>
               </div>
-              <span className="text-xs text-mcm-muted">
-                Total: S/ {plan.installments.reduce((s, i) => s + Number(i.amount), 0).toFixed(2)}
-              </span>
+              <div className="flex items-center gap-3">
+                <span className="text-xs text-mcm-muted">
+                  Total: S/ {plan.installments.reduce((s, i) => s + Number(i.amount), 0).toFixed(2)}
+                </span>
+                <button onClick={() => handleDeletePlan(plan.id, plan.ciclo)}
+                  className="text-xs text-red-500 hover:text-red-700 font-medium">
+                  Eliminar plan
+                </button>
+              </div>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
