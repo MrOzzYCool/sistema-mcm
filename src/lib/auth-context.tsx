@@ -216,6 +216,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   async function logout() {
     log("🚪 Logout");
+    const { clearTokenCache } = await import("@/lib/get-token");
+    clearTokenCache();
     await supabase.auth.signOut();
     safeSetUser(null);
   }

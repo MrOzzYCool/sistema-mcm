@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useReducer } from "react";
-import { supabase } from "@/lib/supabase";
+import { getAccessToken } from "@/lib/get-token";
 import {
   BookOpen, Clock, TrendingUp, Loader2, RefreshCw, AlertCircle,
   ChevronDown, ChevronUp, BarChart2,
@@ -66,10 +66,10 @@ function GradeDetail({ cursoId }: { cursoId: string }) {
     let cancelled = false;
     async function load() {
       try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (cancelled || !session?.access_token) { setLoading(false); return; }
+        const token = await getAccessToken();
+        if (cancelled || !token) { setLoading(false); return; }
         const res = await fetch(`/api/portal/mis-notas?curso_id=${cursoId}`, {
-          headers: { Authorization: `Bearer ${session.access_token}` },
+          headers: { Authorization: `Bearer ${token}` },
         });
         if (cancelled) return;
         if (res.ok) {
@@ -181,9 +181,8 @@ export default function CursosAlumnoPage() {
     async function doFetch() {
       dispatch({ type: "FETCH_START" });
       try {
-        const { data: { session } } = await supabase.auth.getSession();
+        const token = await getAccessToken();
         if (cancelled) return;
-        const token = session?.access_token;
         if (!token) { dispatch({ type: "FETCH_ERROR", msg: "Sesión no disponible." }); return; }
         const res = await fetch("/api/portal/mis-cursos", { headers: { Authorization: `Bearer ${token}` } });
         if (cancelled) return;

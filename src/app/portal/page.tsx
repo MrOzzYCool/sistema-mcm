@@ -2,7 +2,7 @@
 
 import { useAuth } from "@/lib/auth-context";
 import { useEffect, useState, useRef } from "react";
-import { supabase } from "@/lib/supabase";
+import { getAccessToken } from "@/lib/get-token";
 import {
   Calendar, BookOpen, CreditCard, FileText, ArrowRight,
   GraduationCap, Loader2,
@@ -28,9 +28,8 @@ export default function PortalInicio() {
     if (fetchingRef.current) return;
     fetchingRef.current = true;
     try {
-      const { data: { session } } = await supabase.auth.getSession();
+      const token = await getAccessToken();
       if (!mountedRef.current) return;
-      const token = session?.access_token;
       if (!token) return;
 
       const res = await fetch("/api/portal/mis-cursos", {

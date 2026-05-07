@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { supabase } from "@/lib/supabase";
+import { getAccessToken } from "@/lib/get-token";
 import { CreditCard, Loader2, AlertCircle, CheckCircle, Clock } from "lucide-react";
 import clsx from "clsx";
 
@@ -25,9 +25,8 @@ export default function PagosAlumnoPage() {
     if (fetchingRef.current) return;
     fetchingRef.current = true;
     try {
-      const { data: { session } } = await supabase.auth.getSession();
+      const token = await getAccessToken();
       if (!mountedRef.current) return;
-      const token = session?.access_token;
       if (!token) return;
       const res = await fetch("/api/portal/mis-pagos", { headers: { Authorization: `Bearer ${token}` } });
       if (!mountedRef.current || !res.ok) return;
