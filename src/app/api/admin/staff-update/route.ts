@@ -9,12 +9,13 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "No autorizado" }, { status: 403 });
   }
 
-  const { userId, nombre_completo, rol } = await req.json();
+  const { userId, nombre_completo, rol, es_profesor } = await req.json();
   if (!userId) return NextResponse.json({ error: "userId requerido" }, { status: 400 });
 
-  const updates: Record<string, string> = {};
+  const updates: Record<string, unknown> = {};
   if (nombre_completo) updates.nombre_completo = nombre_completo;
   if (rol) updates.rol = rol;
+  if (es_profesor !== undefined) updates.es_profesor = !!es_profesor;
 
   if (Object.keys(updates).length === 0) {
     return NextResponse.json({ error: "Nada que actualizar" }, { status: 400 });

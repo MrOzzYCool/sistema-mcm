@@ -545,3 +545,7 @@ create policy "delete_solicitudes_admin" on public.solicitudes
   for delete using (auth.role() = 'authenticated' and exists (
     select 1 from public.profiles where id = auth.uid() and rol in ('super_admin')
   ));
+
+-- ─── Campo es_profesor para staff que también dicta clases ────────────────────
+alter table public.profiles
+  add column if not exists es_profesor boolean default false;
