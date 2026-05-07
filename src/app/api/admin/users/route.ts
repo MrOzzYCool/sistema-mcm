@@ -49,9 +49,14 @@ export async function GET(req: NextRequest) {
   const { data: { users: authUsers } } = await supabaseAdmin.auth.admin.listUsers();
   const emailMap = new Map(authUsers?.map((u) => [u.id, u.email]) ?? []);
 
+  // Enriquecer con ciclo actual de inscripciones
+  const { data: inscripciones } = await supabaseAdmin.from("inscripciones").select("alumno_id, ciclo_actual");
+  const cicloMap = new Map((inscripciones ?? []).map((i) => [i.alumno_id, i.ciclo_actual]));
+
   const enriched = (data ?? []).map((p) => ({
     ...p,
     email: emailMap.get(p.id) ?? "—",
+    ciclo_actual: cicloMap.get(p.id) ?? null,
   }));
 
   return NextResponse.json(enriched);

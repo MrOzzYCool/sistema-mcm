@@ -13,7 +13,8 @@ import clsx from "clsx";
 
 interface Profile {
   id: string; nombre_completo: string; email: string;
-  rol: string; estado: string; dni: string | null; es_profesor: boolean; created_at: string;
+  rol: string; estado: string; dni: string | null; es_profesor?: boolean; created_at: string;
+  ciclo_actual?: number | null;
 }
 
 function UsuariosContent() {
@@ -92,17 +93,14 @@ function UsuariosContent() {
     loadCarreras();
   }, []);
 
-  // Cargar inscripciones para filtro de ciclo
+  // Cargar inscripciones para filtro de ciclo (datos vienen del API de users)
   useEffect(() => {
-    async function loadInscripciones() {
-      try {
-        const { supabase: sb } = await import("@/lib/supabase");
-        const { data } = await sb.from("inscripciones").select("alumno_id, ciclo_actual");
-        if (data) setInscripciones(data);
-      } catch { /* ignore */ }
-    }
-    loadInscripciones();
-  }, []);
+    // ciclo data comes from profiles API response (ciclo_actual field)
+    const inscs = profiles
+      .filter(p => p.ciclo_actual != null)
+      .map(p => ({ alumno_id: p.id, ciclo_actual: p.ciclo_actual! }));
+    setInscripciones(inscs);
+  }, [profiles]);
 
   async function handleCreate() {
     setSaving(true); setError("");
