@@ -38,9 +38,8 @@ export async function generarBoleta(datos: BoletaInput): Promise<BoletaResult> {
   // ── IGV ────────────────────────────────────────────────────────────────────
   // El tipoIgv viene determinado por quien llama:
   //   - Actualizaciones: tipoIgv=10 (Gravado - Operación Onerosa)
-  //   - Trámites externos: tipoIgv=9 (Inafecto - Operación Onerosa)
-  // NO se infiere por monto para evitar falsos positivos.
-  const tipoIgv   = datos.tipoIgv ?? 9;
+  //   - Trámites externos y pagos académicos: tipoIgv=30 (Inafecto - Operación Onerosa)
+  const tipoIgv   = datos.tipoIgv ?? 30; // Default: Inafecto - Operación Onerosa
   const esGravado = tipoIgv === 1 || tipoIgv === 10;
   const cantidad  = datos.cantidad;
 
