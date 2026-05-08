@@ -185,7 +185,7 @@ function VouchersContent() {
               <table className="w-full text-sm">
                 <thead className="bg-slate-50">
                   <tr>
-                    {["Alumno", "Ciclo", "Concepto", "Monto", "Estado", "Fecha", "Voucher"].map(h => (
+                    {["Alumno", "Ciclo", "Concepto", "Monto", "Estado", "Comprobante", "Acciones"].map(h => (
                       <th key={h} className="text-left py-3 px-4 text-mcm-muted font-medium text-xs uppercase tracking-wide">{h}</th>
                     ))}
                   </tr>
@@ -202,14 +202,22 @@ function VouchersContent() {
                           {v.status === "approved" ? "Aprobado" : "Rechazado"}
                         </span>
                       </td>
-                      <td className="py-3 px-4 text-mcm-muted text-xs">
-                        {v.reviewed_at ? new Date(v.reviewed_at).toLocaleDateString("es-PE", { day: "2-digit", month: "short", year: "numeric" }) : "—"}
+                      <td className="py-3 px-4">
+                        {(v.installments as unknown as { comprobante_url?: string })?.comprobante_url ? (
+                          <a href={(v.installments as unknown as { comprobante_url: string }).comprobante_url}
+                            target="_blank" rel="noreferrer"
+                            className="flex items-center gap-1 text-xs text-green-600 hover:text-green-800 font-medium">
+                            <ExternalLink size={12} /> Ver comprobante
+                          </a>
+                        ) : (
+                          <span className="text-xs text-mcm-muted">Sin comprobante</span>
+                        )}
                       </td>
                       <td className="py-3 px-4">
                         <div className="flex gap-2">
                           <button onClick={() => setPreview(v.voucher_url)}
                             className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 font-medium">
-                            <Eye size={12} /> Ver
+                            <Eye size={12} /> Voucher
                           </button>
                           <button onClick={() => handleRestore(v.id)}
                             className="flex items-center gap-1 text-xs text-amber-600 hover:text-amber-800 font-medium">

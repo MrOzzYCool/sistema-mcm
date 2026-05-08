@@ -26,7 +26,7 @@ export async function GET(req: NextRequest) {
 
   let query = supabaseAdmin
     .from("payment_vouchers")
-    .select("*, profiles!alumno_id(nombre_completo), installments(concepto, amount, due_date, plan_id, payment_plans(ciclo, year))")
+    .select("*, profiles!alumno_id(nombre_completo), installments(concepto, amount, due_date, comprobante_url, comprobante_serie, comprobante_numero, plan_id, payment_plans(ciclo, year))")
     .order("created_at", { ascending: false });
 
   if (status !== "all") {
@@ -129,9 +129,13 @@ export async function POST(req: NextRequest) {
       comprobanteNumero = resultado.numero?.toString() ?? "";
     } catch (nubErr) {
       console.error("Error Nubefact:", nubErr);
+      return NextResponse.json({
+        error: `Error al emitir comprobante en Nubefact: ${nubErr instanceof Error ? nubErr.message : "Error desconocido"}. El voucher NO fue aprobado.`,
+      }, { status: 500 });
     }
 
-    // Update voucher
+    // Only update AFTER Nubefact succeeds
+    // Update voucher to approved
     await supabaseAdmin.from("payment_vouchers").update({
       status: "approved", reviewed_by: admin.id, reviewed_at: new Date().toISOString(),
     }).eq("id", voucher_id);
@@ -148,9 +152,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      message: comprobanteUrl
-        ? `Voucher aprobado. Comprobante generado: ${comprobanteSerie}-${comprobanteNumero}`
-        : "Voucher aprobado. Cuota marcada como pagada (sin comprobante Nubefact).",
+      message: `Comprobante emitido: ${comprobanteSerie}-${comprobanteNumero}`,
       comprobante_url: comprobanteUrl,
     });
   }
