@@ -336,7 +336,7 @@ export default function CursosAlumnoPage() {
           })}
           {!cursos.length && (
             <div className="py-12 text-center text-mcm-muted text-sm">
-              No hay cursos asignados para este ciclo.
+              Tu ciclo aún no tiene cursos asignados. Contacta a administración.
             </div>
           )}
         </div>

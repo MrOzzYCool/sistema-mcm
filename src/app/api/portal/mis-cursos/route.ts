@@ -30,6 +30,7 @@ export async function GET(req: NextRequest) {
   // Cursos — traer del ciclo actual o todos si no hay inscripción
   let cursos = [];
   if (inscripcion) {
+    // Primero intentar desde alumno_cursos (registros generados)
     const { data, error: cursosErr } = await supabaseAdmin
       .from("alumno_cursos")
       .select("*, cursos(nombre_curso, creditos)")
@@ -38,6 +39,28 @@ export async function GET(req: NextRequest) {
       .order("created_at");
     if (cursosErr) console.error("Error leyendo cursos:", cursosErr.message);
     cursos = data ?? [];
+
+    // Fallback: si no hay registros en alumno_cursos, buscar directamente en la malla
+    if (cursos.length === 0 && inscripcion.carrera_id) {
+      console.log(`[mis-cursos] No hay alumno_cursos para ciclo ${inscripcion.ciclo_actual}, buscando en malla...`);
+      const { data: mallaCursos } = await supabaseAdmin
+        .from("malla_curricular")
+        .select("curso_id, cursos(id, nombre_curso, creditos, ciclo_perteneciente)")
+        .eq("carrera_id", inscripcion.carrera_id);
+
+      const cursosDelCiclo = (mallaCursos ?? [])
+        .filter(m => (m.cursos as unknown as { ciclo_perteneciente: number })?.ciclo_perteneciente === inscripcion.ciclo_actual)
+        .map(m => ({
+          id: (m.cursos as unknown as { id: string }).id,
+          curso_id: m.curso_id,
+          ciclo: inscripcion.ciclo_actual,
+          estado: "en_curso",
+          cursos: m.cursos as unknown as { nombre_curso: string; creditos: number },
+        }));
+
+      cursos = cursosDelCiclo;
+      console.log(`[mis-cursos] Encontrados ${cursosDelCiclo.length} cursos desde malla`);
+    }
   } else {
     // Fallback: traer todos los cursos del alumno
     const { data, error: cursosErr } = await supabaseAdmin
