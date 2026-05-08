@@ -120,7 +120,7 @@ export async function POST(req: NextRequest) {
         codigoProducto,
         descripcion: inst?.concepto ?? "PAGO ACADÉMICO",
         precioUnitario: Number(inst?.amount ?? 0),
-        tipoIgv: 30,
+        tipoIgv: 9, // Inafecto - Operación Onerosa
         codigoUnico: Date.now().toString(),
       });
 

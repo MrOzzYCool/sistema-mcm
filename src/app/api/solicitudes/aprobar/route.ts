@@ -83,8 +83,8 @@ export async function POST(req: NextRequest) {
             valorUnitario: actualizacion.valorUnitario,
             tipoIgv:       actualizacion.tipoIgv,
           }),
-          // Trámites externos siempre inafectos (sin IGV) - código 30
-          ...(!esActualizacion && { tipoIgv: 30 }),
+          // Trámites externos siempre inafectos (sin IGV) - código 9
+          ...(!esActualizacion && { tipoIgv: 9 }),
           codigoUnico:     id,
           tipoComprobante: (sol.tipo_comprobante === "factura" ? "factura" : "boleta") as "boleta" | "factura",
           ruc:             sol.ruc ?? undefined,
