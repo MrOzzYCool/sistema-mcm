@@ -14,7 +14,7 @@ export async function POST(req: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser(token);
   if (!user) return NextResponse.json({ error: "No autenticado" }, { status: 401 });
 
-  const { installment_id, voucher_url } = await req.json();
+  const { installment_id, voucher_url, tipo_comprobante, ruc_factura, razon_social, direccion_fiscal, email_empresa } = await req.json();
   if (!installment_id || !voucher_url) {
     return NextResponse.json({ error: "installment_id y voucher_url requeridos" }, { status: 400 });
   }
@@ -43,6 +43,11 @@ export async function POST(req: NextRequest) {
     alumno_id: user.id,
     voucher_url,
     status: "pending_review",
+    tipo_comprobante: tipo_comprobante ?? "boleta",
+    ruc_factura: ruc_factura ?? null,
+    razon_social: razon_social ?? null,
+    direccion_fiscal: direccion_fiscal ?? null,
+    email_empresa: email_empresa ?? null,
   });
   if (vErr) return NextResponse.json({ error: vErr.message }, { status: 500 });
 

@@ -52,7 +52,7 @@ export async function POST(req: NextRequest) {
 
   const { data: voucher } = await supabaseAdmin
     .from("payment_vouchers")
-    .select("id, installment_id, alumno_id, status")
+    .select("id, installment_id, alumno_id, status, tipo_comprobante, ruc_factura, razon_social, direccion_fiscal, email_empresa")
     .eq("id", voucher_id)
     .single();
 
@@ -67,10 +67,14 @@ export async function POST(req: NextRequest) {
   }
 
   if (action === "approve") {
-    if (!tipo_comprobante || !["boleta", "factura"].includes(tipo_comprobante)) {
+    // Use comprobante type from voucher (alumno's choice) or admin override
+    const finalTipoComprobante = tipo_comprobante || voucher.tipo_comprobante || "boleta";
+    const finalRuc = ruc || voucher.ruc_factura || "";
+
+    if (!["boleta", "factura"].includes(finalTipoComprobante)) {
       return NextResponse.json({ error: "tipo_comprobante requerido (boleta o factura)" }, { status: 400 });
     }
-    if (tipo_comprobante === "factura" && (!ruc || ruc.length !== 11)) {
+    if (finalTipoComprobante === "factura" && finalRuc.length !== 11) {
       return NextResponse.json({ error: "RUC de 11 dígitos requerido para factura" }, { status: 400 });
     }
 
@@ -106,16 +110,17 @@ export async function POST(req: NextRequest) {
     try {
       const { generarBoleta } = await import("@/lib/nubefactService");
       const resultado = await generarBoleta({
-        tipoComprobante: tipo_comprobante as "boleta" | "factura",
-        dniCliente: tipo_comprobante === "boleta" ? (alumno?.dni ?? "") : "",
-        ruc: tipo_comprobante === "factura" ? (ruc ?? "") : undefined,
-        razonSocial: tipo_comprobante === "factura" ? (alumno?.nombre_completo ?? "") : undefined,
-        nombreCliente: alumno?.nombre_completo ?? "",
+        tipoComprobante: finalTipoComprobante as "boleta" | "factura",
+        dniCliente: finalTipoComprobante === "boleta" ? (alumno?.dni ?? "") : "",
+        ruc: finalTipoComprobante === "factura" ? finalRuc : undefined,
+        razonSocial: finalTipoComprobante === "factura" ? (voucher.razon_social ?? alumno?.nombre_completo ?? "") : undefined,
+        direccionFiscal: finalTipoComprobante === "factura" ? (voucher.direccion_fiscal ?? "") : undefined,
+        nombreCliente: finalTipoComprobante === "boleta" ? (alumno?.nombre_completo ?? "") : (voucher.razon_social ?? ""),
         cantidad: 1,
         codigoProducto,
         descripcion: inst?.concepto ?? "PAGO ACADÉMICO",
         precioUnitario: Number(inst?.amount ?? 0),
-        tipoIgv: 30, // Inafecto - Operación Onerosa
+        tipoIgv: 30,
         codigoUnico: Date.now().toString(),
       });
 
@@ -135,7 +140,7 @@ export async function POST(req: NextRequest) {
     await supabaseAdmin.from("installments").update({
       status: "paid",
       fecha_pago: new Date().toISOString(),
-      tipo_comprobante,
+      tipo_comprobante: finalTipoComprobante,
       comprobante_serie: comprobanteSerie || null,
       comprobante_numero: comprobanteNumero || null,
       comprobante_url: comprobanteUrl || null,

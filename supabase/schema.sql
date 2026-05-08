@@ -639,3 +639,10 @@ ALTER TABLE public.installments ADD COLUMN IF NOT EXISTS tipo_comprobante text;
 ALTER TABLE public.installments ADD COLUMN IF NOT EXISTS comprobante_serie text;
 ALTER TABLE public.installments ADD COLUMN IF NOT EXISTS comprobante_numero text;
 ALTER TABLE public.installments ADD COLUMN IF NOT EXISTS comprobante_url text;
+
+-- ─── Datos de factura en payment_vouchers ─────────────────────────────────────
+ALTER TABLE public.payment_vouchers ADD COLUMN IF NOT EXISTS tipo_comprobante text DEFAULT 'boleta';
+ALTER TABLE public.payment_vouchers ADD COLUMN IF NOT EXISTS ruc_factura text;
+ALTER TABLE public.payment_vouchers ADD COLUMN IF NOT EXISTS razon_social text;
+ALTER TABLE public.payment_vouchers ADD COLUMN IF NOT EXISTS direccion_fiscal text;
+ALTER TABLE public.payment_vouchers ADD COLUMN IF NOT EXISTS email_empresa text;

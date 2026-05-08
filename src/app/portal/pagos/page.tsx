@@ -177,6 +177,8 @@ function SummaryCard({ label, value, color }: { label: string; value: string; co
 function VoucherUploadBtn({ installmentId, onSuccess }: { installmentId: string; onSuccess: () => void }) {
   const [file, setFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [tipoComprobante, setTipoComprobante] = useState<"boleta" | "factura">("boleta");
+  const [facturaData, setFacturaData] = useState({ ruc: "", razon_social: "", direccion_fiscal: "", email_empresa: "" });
   const inputRef = useRef<HTMLInputElement>(null);
 
   function handleSelect(e: React.ChangeEvent<HTMLInputElement>) {
@@ -185,8 +187,12 @@ function VoucherUploadBtn({ installmentId, onSuccess }: { installmentId: string;
     if (inputRef.current) inputRef.current.value = "";
   }
 
+  const facturaValid = tipoComprobante === "boleta" || (
+    facturaData.ruc.length === 11 && facturaData.razon_social.trim() && facturaData.direccion_fiscal.trim()
+  );
+
   async function handleSubmit() {
-    if (!file) return;
+    if (!file || !facturaValid) return;
     setUploading(true);
     try {
       const token = await getAccessToken();
@@ -202,12 +208,24 @@ function VoucherUploadBtn({ installmentId, onSuccess }: { installmentId: string;
       const res = await fetch("/api/portal/vouchers", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ installment_id: installmentId, voucher_url: urlData.publicUrl }),
+        body: JSON.stringify({
+          installment_id: installmentId,
+          voucher_url: urlData.publicUrl,
+          tipo_comprobante: tipoComprobante,
+          ...(tipoComprobante === "factura" && {
+            ruc_factura: facturaData.ruc,
+            razon_social: facturaData.razon_social.trim(),
+            direccion_fiscal: facturaData.direccion_fiscal.trim(),
+            email_empresa: facturaData.email_empresa.trim() || null,
+          }),
+        }),
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error);
 
       setFile(null);
+      setTipoComprobante("boleta");
+      setFacturaData({ ruc: "", razon_social: "", direccion_fiscal: "", email_empresa: "" });
       alert(json.message ?? "Voucher enviado correctamente");
       onSuccess();
     } catch (err) {
@@ -232,9 +250,9 @@ function VoucherUploadBtn({ installmentId, onSuccess }: { installmentId: string;
   const isImage = file.type.startsWith("image/");
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-3 max-w-xs">
       {/* Preview */}
-      <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-800 border border-mcm-border rounded-lg p-2">
+      <div className="flex items-center gap-2 bg-slate-50 border border-mcm-border rounded-lg p-2">
         {isImage ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={URL.createObjectURL(file)} alt="Preview" className="w-10 h-10 object-cover rounded" />
@@ -246,15 +264,57 @@ function VoucherUploadBtn({ installmentId, onSuccess }: { installmentId: string;
           <Upload size={12} />
         </button>
       </div>
+
+      {/* Tipo de comprobante */}
+      <div>
+        <p className="text-xs font-medium text-mcm-text mb-1.5">Tipo de comprobante:</p>
+        <div className="grid grid-cols-2 gap-2">
+          <button type="button" onClick={() => setTipoComprobante("boleta")}
+            className={`py-2 rounded-lg border text-xs font-semibold transition-all ${
+              tipoComprobante === "boleta" ? "border-[#a93526] bg-red-50 text-[#a93526]" : "border-mcm-border text-mcm-muted"
+            }`}>
+            🧾 Boleta
+          </button>
+          <button type="button" onClick={() => setTipoComprobante("factura")}
+            className={`py-2 rounded-lg border text-xs font-semibold transition-all ${
+              tipoComprobante === "factura" ? "border-[#a93526] bg-red-50 text-[#a93526]" : "border-mcm-border text-mcm-muted"
+            }`}>
+            🏢 Factura
+          </button>
+        </div>
+      </div>
+
+      {/* Datos de factura */}
+      {tipoComprobante === "factura" && (
+        <div className="space-y-2 border border-mcm-border rounded-lg p-3 bg-slate-50">
+          <p className="text-xs font-medium text-mcm-text">Datos de la empresa:</p>
+          <input value={facturaData.ruc} onChange={e => setFacturaData({...facturaData, ruc: e.target.value.replace(/\D/g,"").slice(0,11)})}
+            placeholder="RUC (11 dígitos)" maxLength={11}
+            className="w-full border border-mcm-border rounded px-2 py-1.5 text-xs focus:ring-1 focus:ring-[#a93526]" />
+          <input value={facturaData.razon_social} onChange={e => setFacturaData({...facturaData, razon_social: e.target.value.toUpperCase()})}
+            placeholder="Razón Social" style={{ textTransform: "uppercase" }}
+            className="w-full border border-mcm-border rounded px-2 py-1.5 text-xs focus:ring-1 focus:ring-[#a93526]" />
+          <input value={facturaData.direccion_fiscal} onChange={e => setFacturaData({...facturaData, direccion_fiscal: e.target.value})}
+            placeholder="Dirección Fiscal"
+            className="w-full border border-mcm-border rounded px-2 py-1.5 text-xs focus:ring-1 focus:ring-[#a93526]" />
+          <input value={facturaData.email_empresa} onChange={e => setFacturaData({...facturaData, email_empresa: e.target.value})}
+            placeholder="Email empresa (opcional)"
+            className="w-full border border-mcm-border rounded px-2 py-1.5 text-xs focus:ring-1 focus:ring-[#a93526]" />
+          {facturaData.ruc && facturaData.ruc.length !== 11 && (
+            <p className="text-red-500 text-xs">RUC debe tener 11 dígitos</p>
+          )}
+        </div>
+      )}
+
       {/* Actions */}
       <div className="flex gap-2">
-        <button onClick={handleSubmit} disabled={uploading}
+        <button onClick={handleSubmit} disabled={uploading || !facturaValid}
           className="flex items-center gap-1 text-xs font-semibold text-white bg-[#a93526] hover:bg-[#8a2b1f] px-3 py-1.5 rounded-lg disabled:opacity-50">
           {uploading ? <Loader2 size={12} className="animate-spin" /> : <CheckCircle size={12} />}
           {uploading ? "Enviando..." : "Enviar voucher"}
         </button>
-        <button onClick={() => setFile(null)} className="text-xs text-mcm-muted hover:text-red-600">
-          Quitar
+        <button onClick={() => { setFile(null); setTipoComprobante("boleta"); }} className="text-xs text-mcm-muted hover:text-red-600">
+          Cancelar
         </button>
       </div>
       <input ref={inputRef} type="file" accept="image/*,.pdf" className="hidden" onChange={handleSelect} />
