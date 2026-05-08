@@ -142,7 +142,16 @@ export async function generarBoleta(datos: BoletaInput): Promise<BoletaResult> {
   });
 
   const json = await res.json();
-  console.log(">>> RESPUESTA NUBEFACT:", JSON.stringify(json, null, 2));
+  console.log(">>> RESPUESTA NUBEFACT COMPLETA:", JSON.stringify(json, null, 2));
+  console.log(">>> CAMPOS PDF CANDIDATOS:", {
+    enlace_del_pdf: json.enlace_del_pdf,
+    pdf_url: json.pdf_url,
+    enlace: json.enlace,
+    pdf: json.pdf,
+    link: json.link,
+    url: json.url,
+    cadena_para_codigo_qr: json.cadena_para_codigo_qr,
+  });
 
   if (!res.ok || json.errors) {
     let msg: string;
@@ -158,10 +167,15 @@ export async function generarBoleta(datos: BoletaInput): Promise<BoletaResult> {
     throw new Error(msg);
   }
 
+  // Extract PDF URL — try all possible field names
+  const pdfUrl = json.enlace_del_pdf || json.pdf_url || json.enlace || json.pdf || json.link || "";
+  console.log(">>> PDF URL EXTRAÍDO:", pdfUrl);
+  console.log(">>> SERIE:", json.serie, "NUMERO:", json.numero);
+
   return {
-    pdfUrl:   json.enlace_del_pdf ?? json.pdf_url ?? json.enlace ?? "",
-    serie:    json.serie          ?? serie,
-    numero:   json.numero         ?? 0,
-    enlaceQr: json.enlace_del_qr  ?? "",
+    pdfUrl,
+    serie:    json.serie ?? serie,
+    numero:   json.numero ?? 0,
+    enlaceQr: json.enlace_del_qr ?? json.cadena_para_codigo_qr ?? "",
   };
 }

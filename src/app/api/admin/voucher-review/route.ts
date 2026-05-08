@@ -127,10 +127,20 @@ export async function POST(req: NextRequest) {
       comprobanteUrl = resultado.pdfUrl ?? "";
       comprobanteSerie = resultado.serie ?? "";
       comprobanteNumero = resultado.numero?.toString() ?? "";
+
+      console.log("[VOUCHER APPROVE] Nubefact resultado:", { comprobanteUrl, comprobanteSerie, comprobanteNumero });
     } catch (nubErr) {
       console.error("Error Nubefact:", nubErr);
       return NextResponse.json({
         error: `Error al emitir comprobante en Nubefact: ${nubErr instanceof Error ? nubErr.message : "Error desconocido"}. El voucher NO fue aprobado.`,
+      }, { status: 500 });
+    }
+
+    // VALIDACIÓN: No marcar como paid si no hay URL del comprobante
+    if (!comprobanteUrl) {
+      console.error("[VOUCHER APPROVE] ❌ comprobanteUrl está vacío después de Nubefact OK");
+      return NextResponse.json({
+        error: "Nubefact emitió el comprobante pero no devolvió URL del PDF. Revisa los logs de Vercel para ver la respuesta completa.",
       }, { status: 500 });
     }
 
