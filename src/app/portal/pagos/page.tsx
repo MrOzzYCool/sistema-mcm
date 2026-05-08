@@ -44,7 +44,12 @@ export default function PagosAlumnoPage() {
     return <div className="p-6 flex items-center justify-center min-h-[50vh] gap-3 text-mcm-muted"><Loader2 size={20} className="animate-spin" /> <span className="text-sm">Cargando pagos...</span></div>;
   }
 
-  const all = plans.flatMap(p => p.installments).sort((a, b) => a.due_date.localeCompare(b.due_date));
+  const CONCEPTO_ORDER: Record<string, number> = {
+    "MATRÍCULA": 1, "CUOTAS 01": 2, "CUOTAS 02": 3, "CUOTAS 03": 4, "CUOTAS 04": 5,
+  };
+  const all = plans.flatMap(p => p.installments).sort((a, b) =>
+    (CONCEPTO_ORDER[a.concepto] ?? 99) - (CONCEPTO_ORDER[b.concepto] ?? 99)
+  );
   const totalDeuda = all.filter(i => i.status !== "paid").reduce((s, i) => s + Number(i.amount), 0);
   const totalPagado = all.filter(i => i.status === "paid").reduce((s, i) => s + Number(i.amount), 0);
   const pendientes = all.filter(i => i.status === "pending").length;
