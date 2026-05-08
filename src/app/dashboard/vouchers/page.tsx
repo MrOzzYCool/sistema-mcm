@@ -22,8 +22,6 @@ function VouchersContent() {
   const [preview, setPreview] = useState<string | null>(null);
   const [rejectModal, setRejectModal] = useState<Voucher | null>(null);
   const [rejectReason, setRejectReason] = useState("");
-  const [approveModal, setApproveModal] = useState<Voucher | null>(null);
-  const [approveForm, setApproveForm] = useState({ tipo: "boleta", ruc: "" });
   const [tab, setTab] = useState<"pendientes" | "historial">("pendientes");
 
   async function getToken() {
@@ -128,7 +126,7 @@ function VouchersContent() {
             <table className="w-full text-sm">
               <thead className="bg-slate-50">
                 <tr>
-                  {["Alumno", "Ciclo", "Concepto", "Monto", "Vencimiento", "Voucher", "Acciones"].map(h => (
+                  {["Alumno", "Ciclo", "Concepto", "Monto", "Comprobante", "Voucher", "Acciones"].map(h => (
                     <th key={h} className="text-left py-3 px-4 text-mcm-muted font-medium text-xs uppercase tracking-wide">{h}</th>
                   ))}
                 </tr>
@@ -140,8 +138,12 @@ function VouchersContent() {
                     <td className="py-3 px-4"><span className="badge-blue text-xs">Ciclo {(v.installments as unknown as { payment_plans: { ciclo: number } })?.payment_plans?.ciclo ?? "—"}</span></td>
                     <td className="py-3 px-4 text-mcm-text">{v.installments?.concepto}</td>
                     <td className="py-3 px-4 font-bold">S/ {Number(v.installments?.amount ?? 0).toFixed(2)}</td>
-                    <td className="py-3 px-4 text-mcm-muted text-xs">
-                      {v.installments?.due_date ? new Date(v.installments.due_date + "T00:00:00").toLocaleDateString("es-PE", { day: "2-digit", month: "short", year: "numeric" }) : "—"}
+                    <td className="py-3 px-4">
+                      <span className="text-xs">
+                        {(v as unknown as { tipo_comprobante?: string; ruc_factura?: string }).tipo_comprobante === "factura"
+                          ? <span className="badge-blue">🏢 Factura: {(v as unknown as { ruc_factura?: string }).ruc_factura}</span>
+                          : <span className="badge-green">🧾 Boleta</span>}
+                      </span>
                     </td>
                     <td className="py-3 px-4">
                       <button onClick={() => setPreview(v.voucher_url)}
@@ -154,9 +156,9 @@ function VouchersContent() {
                         <Loader2 size={14} className="animate-spin text-mcm-muted" />
                       ) : (
                         <div className="flex gap-2">
-                          <button onClick={() => { setApproveModal(v); setApproveForm({ tipo: "boleta", ruc: "" }); }}
+                          <button onClick={() => handleAction(v.id, "approve")}
                             className="flex items-center gap-1 text-xs text-green-600 hover:text-green-800 font-medium">
-                            <CheckCircle size={12} /> Aprobar
+                            <CheckCircle size={12} /> Aprobar y Emitir
                           </button>
                           <button onClick={() => { setRejectModal(v); setRejectReason(""); }}
                             className="flex items-center gap-1 text-xs text-red-500 hover:text-red-700 font-medium">
@@ -265,50 +267,6 @@ function VouchersContent() {
         </div>
       )}
 
-      {/* Approve modal — select boleta/factura */}
-      {approveModal && (
-        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-sm">
-            <h3 className="font-bold text-mcm-text text-lg mb-3">Aprobar y generar comprobante</h3>
-            <p className="text-mcm-muted text-sm mb-4">Alumno: {approveModal.profiles?.nombre_completo}</p>
-            <div className="space-y-3">
-              <div>
-                <label className="block text-sm font-medium text-mcm-text mb-1">Tipo de comprobante</label>
-                <div className="grid grid-cols-2 gap-3">
-                  {(["boleta", "factura"] as const).map(t => (
-                    <button key={t} type="button" onClick={() => setApproveForm({...approveForm, tipo: t})}
-                      className={`py-2.5 rounded-xl border-2 text-sm font-semibold transition-all ${
-                        approveForm.tipo === t ? "border-[#a93526] bg-red-50 text-[#a93526]" : "border-mcm-border text-mcm-muted"
-                      }`}>
-                      {t === "boleta" ? "🧾 Boleta" : "📄 Factura"}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              {approveForm.tipo === "factura" && (
-                <div>
-                  <label className="block text-sm font-medium text-mcm-text mb-1">RUC</label>
-                  <input value={approveForm.ruc} onChange={e => setApproveForm({...approveForm, ruc: e.target.value.replace(/\D/g,"").slice(0,11)})}
-                    placeholder="20123456789" maxLength={11}
-                    className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#a93526]" />
-                </div>
-              )}
-            </div>
-            <div className="flex gap-3 mt-5">
-              <button onClick={() => setApproveModal(null)} className="btn-secondary flex-1 text-sm">Cancelar</button>
-              <button
-                onClick={() => {
-                  handleAction(approveModal.id, "approve", undefined, approveForm.tipo, approveForm.ruc || undefined);
-                  setApproveModal(null);
-                }}
-                disabled={saving === approveModal.id || (approveForm.tipo === "factura" && approveForm.ruc.length !== 11)}
-                className="flex-1 text-sm text-white font-semibold px-4 py-2 rounded-lg bg-green-600 hover:bg-green-700 disabled:opacity-50">
-                Aprobar y emitir
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
