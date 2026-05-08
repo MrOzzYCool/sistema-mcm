@@ -159,7 +159,7 @@ export async function generarBoleta(datos: BoletaInput): Promise<BoletaResult> {
   }
 
   return {
-    pdfUrl:   json.enlace_del_pdf ?? json.pdf_url ?? "",
+    pdfUrl:   json.enlace_del_pdf ?? json.pdf_url ?? json.enlace ?? "",
     serie:    json.serie          ?? serie,
     numero:   json.numero         ?? 0,
     enlaceQr: json.enlace_del_qr  ?? "",

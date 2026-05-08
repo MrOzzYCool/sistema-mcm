@@ -135,13 +135,22 @@ export async function POST(req: NextRequest) {
     }
 
     // Only update AFTER Nubefact succeeds
+    console.log(`[VOUCHER APPROVE] Nubefact OK: serie=${comprobanteSerie}, numero=${comprobanteNumero}, url=${comprobanteUrl}`);
+    console.log(`[VOUCHER APPROVE] Updating voucher ${voucher_id} to approved...`);
+
     // Update voucher to approved
-    await supabaseAdmin.from("payment_vouchers").update({
+    const { error: voucherUpdateErr } = await supabaseAdmin.from("payment_vouchers").update({
       status: "approved", reviewed_by: admin.id, reviewed_at: new Date().toISOString(),
     }).eq("id", voucher_id);
 
+    if (voucherUpdateErr) {
+      console.error("[VOUCHER APPROVE] Error updating voucher:", voucherUpdateErr.message);
+    }
+
+    console.log(`[VOUCHER APPROVE] Updating installment ${voucher.installment_id} to paid...`);
+
     // Update installment to paid + comprobante info
-    await supabaseAdmin.from("installments").update({
+    const { error: instUpdateErr } = await supabaseAdmin.from("installments").update({
       status: "paid",
       fecha_pago: new Date().toISOString(),
       tipo_comprobante: finalTipoComprobante,
@@ -149,6 +158,17 @@ export async function POST(req: NextRequest) {
       comprobante_numero: comprobanteNumero || null,
       comprobante_url: comprobanteUrl || null,
     }).eq("id", voucher.installment_id);
+
+    if (instUpdateErr) {
+      console.error("[VOUCHER APPROVE] Error updating installment:", instUpdateErr.message);
+      // Return error so admin knows something went wrong
+      return NextResponse.json({
+        error: `Comprobante emitido (${comprobanteSerie}-${comprobanteNumero}) pero error al actualizar la cuota: ${instUpdateErr.message}. Contacta soporte.`,
+        comprobante_url: comprobanteUrl,
+      }, { status: 500 });
+    }
+
+    console.log("[VOUCHER APPROVE] ✅ Todo actualizado correctamente");
 
     return NextResponse.json({
       success: true,
