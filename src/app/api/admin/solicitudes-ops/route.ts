@@ -7,8 +7,14 @@ async function verifyAdmin(req: NextRequest) {
   if (!token) return null;
   const { data: { user } } = await supabase.auth.getUser(token);
   if (!user) return null;
-  // Verificar que sea admin/staff
-  if (user.email?.toLowerCase() === "admin@margaritacabrera.edu.pe") return user;
+  // Emails con acceso directo (fallback si profiles no tiene el rol correcto)
+  const ADMIN_EMAILS = [
+    "admin@margaritacabrera.edu.pe",
+    "staff@margaritacabrera.edu.pe",
+    "nvasquez@margaritacabrera.edu.pe",
+  ];
+  if (user.email && ADMIN_EMAILS.includes(user.email.toLowerCase())) return user;
+  // Verificar rol en profiles
   const { data: profile } = await supabaseAdmin
     .from("profiles").select("rol").eq("id", user.id).single();
   if (!profile || !["super_admin", "staff_tramites", "gestor"].includes(profile.rol)) return null;
@@ -60,12 +66,26 @@ export async function PUT(req: NextRequest) {
 
 /**
  * DELETE /api/admin/solicitudes-ops
- * Body: { action: "delete_all" } — borra todas las solicitudes
+ * Body: { action: "delete_all" } — borra todas
+ * Body: { action: "delete_one", id: "uuid" } — borra una
  */
 export async function DELETE(req: NextRequest) {
   const admin = await verifyAdmin(req);
   if (!admin) return NextResponse.json({ error: "No autorizado" }, { status: 403 });
 
+  const body = await req.json();
+  const { action, id } = body;
+
+  if (action === "delete_one" && id) {
+    const { error } = await supabaseAdmin
+      .from("solicitudes")
+      .delete()
+      .eq("id", id);
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ success: true });
+  }
+
+  // delete_all
   const { error } = await supabaseAdmin
     .from("solicitudes")
     .delete()

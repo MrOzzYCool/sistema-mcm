@@ -96,9 +96,17 @@ function TramitesExternosContent() {
     if (!confirm(`¿Estás seguro de eliminar el trámite de "${nombre}"?\n\nEsta acción no se puede deshacer.`)) return;
     setSaving(id);
     try {
-      const { supabase: sb } = await import("@/lib/supabase");
-      const { error: delErr } = await sb.from("solicitudes").delete().eq("id", id);
-      if (delErr) throw new Error(delErr.message);
+      const { data: { session } } = await (await import("@/lib/supabase")).supabase.auth.getSession();
+      const token = session?.access_token ?? "";
+      const res = await fetch("/api/admin/solicitudes-ops", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ action: "delete_one", id }),
+      });
+      if (!res.ok) {
+        const json = await res.json();
+        throw new Error(json.error ?? "Error eliminando");
+      }
       setSolicitudes((prev) => prev.filter((s) => s.id !== id));
     } catch (e) {
       setError(e instanceof Error ? e.message : "Error eliminando trámite");
