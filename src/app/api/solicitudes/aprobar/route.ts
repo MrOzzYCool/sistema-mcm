@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { supabase } from "@/lib/supabase";
+import { supabaseAdmin } from "@/lib/supabase-admin";
 import { generarBoleta } from "@/lib/nubefactService";
 import { enviarCorreoAprobacion } from "@/lib/emailService";
 import { NUBEFACT_MAP, TRAMITES_EXTERNOS_CATALOGO, ACTUALIZACIONES_CATALOGO } from "@/lib/mock-data";
@@ -12,7 +12,7 @@ export async function POST(req: NextRequest) {
     if (!id) return NextResponse.json({ error: "ID requerido" }, { status: 400 });
 
     // ── 1. Obtener datos de la solicitud ──────────────────────────────────────
-    const { data: sol, error: fetchErr } = await supabase
+    const { data: sol, error: fetchErr } = await supabaseAdmin
       .from("solicitudes")
       .select("email, nombres, apellidos, dni, tipo_tramite, monto_pagado, costo_tramite, cantidad_silabos, tipo_comprobante, ruc, razon_social, direccion_fiscal")
       .eq("id", id)
@@ -101,7 +101,7 @@ export async function POST(req: NextRequest) {
     }
 
     // ── 4. Actualizar estado en Supabase ──────────────────────────────────────
-    const { error: updateErr } = await supabase
+    const { error: updateErr } = await supabaseAdmin
       .from("solicitudes")
       .update({ estado: "aprobado", pdf_boleta_url: pdfUrl || null })
       .eq("id", id);

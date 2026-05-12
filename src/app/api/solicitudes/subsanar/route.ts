@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { supabase } from "@/lib/supabase";
+import { supabaseAdmin } from "@/lib/supabase-admin";
 
 export async function POST(req: NextRequest) {
   try {
@@ -7,7 +7,7 @@ export async function POST(req: NextRequest) {
     const { token, ...campos } = body as { token: string; [key: string]: string };
 
     // Buscar solicitud por token
-    const { data: sol, error: fetchErr } = await supabase
+    const { data: sol, error: fetchErr } = await supabaseAdmin
       .from("solicitudes")
       .select("id")
       .eq("token_subsanacion", token)
@@ -18,7 +18,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Actualizar solo los campos enviados + limpiar observaciones + volver a pendiente
-    const { error: updateErr } = await supabase
+    const { error: updateErr } = await supabaseAdmin
       .from("solicitudes")
       .update({ ...campos, estado: "pendiente", observaciones: null })
       .eq("id", sol.id);
@@ -40,7 +40,7 @@ export async function GET(req: NextRequest) {
   const token = new URL(req.url).searchParams.get("token");
   if (!token) return NextResponse.json({ error: "Token requerido" }, { status: 400 });
 
-  const { data, error } = await supabase
+  const { data, error } = await supabaseAdmin
     .from("solicitudes")
     .select("id, nombres, apellidos, tipo_tramite, observaciones, estado, voucher_url, dni_anverso_url, dni_reverso_url")
     .eq("token_subsanacion", token)

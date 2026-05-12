@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { supabase } from "@/lib/supabase";
+import { supabaseAdmin } from "@/lib/supabase-admin";
 import { enviarCorreoRechazo, ObservacionesCampos } from "@/lib/emailService";
 
 export async function POST(req: NextRequest) {
@@ -7,7 +7,7 @@ export async function POST(req: NextRequest) {
     const { id, observaciones }: { id: string; observaciones: ObservacionesCampos } = await req.json();
 
     // 1. Obtener datos de la solicitud
-    const { data: sol, error: fetchErr } = await supabase
+    const { data: sol, error: fetchErr } = await supabaseAdmin
       .from("solicitudes")
       .select("email, nombres, apellidos, tipo_tramite, token_subsanacion")
       .eq("id", id)
@@ -18,7 +18,7 @@ export async function POST(req: NextRequest) {
     }
 
     // 2. Actualizar estado y guardar observaciones en JSONB
-    const { error: updateErr } = await supabase
+    const { error: updateErr } = await supabaseAdmin
       .from("solicitudes")
       .update({ estado: "rechazado", observaciones })
       .eq("id", id);

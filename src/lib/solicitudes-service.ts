@@ -104,15 +104,19 @@ export async function insertarSolicitud(
 // ─── Obtener solicitudes ──────────────────────────────────────────────────────
 
 export async function getSolicitudes(tipoFormulario: "tramite" | "actualizacion" = "tramite"): Promise<SolicitudDB[]> {
-  const { data, error } = await supabase
-    .from("solicitudes")
-    .select("*")
-    .eq("tipo_formulario", tipoFormulario)
-    .order("created_at", { ascending: false })
-    .limit(500);
+  const { data: { session } } = await supabase.auth.getSession();
+  const token = session?.access_token ?? "";
 
-  if (error) throw new Error(`Error cargando solicitudes: ${error.message}`);
-  return (data ?? []) as SolicitudDB[];
+  const res = await fetch(`/api/admin/solicitudes-ops?tipo=${tipoFormulario}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+
+  if (!res.ok) {
+    const json = await res.json();
+    throw new Error(json.error ?? `Error ${res.status}`);
+  }
+
+  return await res.json() as SolicitudDB[];
 }
 
 // ─── Actualizar estado ────────────────────────────────────────────────────────
@@ -122,24 +126,35 @@ export async function actualizarEstado(
   estado: SolicitudDB["estado"],
   observacion?: string
 ): Promise<void> {
-  const update: Partial<SolicitudDB> = { estado };
-  if (observacion !== undefined) update.observacion = observacion;
+  const { data: { session } } = await supabase.auth.getSession();
+  const token = session?.access_token ?? "";
 
-  const { error } = await supabase
-    .from("solicitudes")
-    .update(update)
-    .eq("id", id);
+  const res = await fetch("/api/admin/solicitudes-ops", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ id, estado, observacion }),
+  });
 
-  if (error) throw new Error(`Error actualizando estado: ${error.message}`);
+  if (!res.ok) {
+    const json = await res.json();
+    throw new Error(json.error ?? `Error ${res.status}`);
+  }
 }
 
 // ─── Borrar TODAS las solicitudes (limpieza de pruebas) ───────────────────────
 
 export async function borrarTodasLasSolicitudes(): Promise<void> {
-  const { error } = await supabase
-    .from("solicitudes")
-    .delete()
-    .neq("id", "00000000-0000-0000-0000-000000000000"); // condición siempre true
+  const { data: { session } } = await supabase.auth.getSession();
+  const token = session?.access_token ?? "";
 
-  if (error) throw new Error(`Error borrando solicitudes: ${error.message}`);
+  const res = await fetch("/api/admin/solicitudes-ops", {
+    method: "DELETE",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ action: "delete_all" }),
+  });
+
+  if (!res.ok) {
+    const json = await res.json();
+    throw new Error(json.error ?? `Error ${res.status}`);
+  }
 }
