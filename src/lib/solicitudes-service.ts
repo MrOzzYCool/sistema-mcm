@@ -17,14 +17,31 @@ export function getPublicUrl(pathOrUrl: string): string {
 function buildPath(
   dni: string,
   tipo: "voucher" | "dni-anverso" | "dni-reverso",
-  timestamp: number
+  timestamp: number,
+  extension: string = "jpg"
 ): string {
-  return `${dni}/${tipo}-${timestamp}.jpg`;
+  return `${dni}/${tipo}-${timestamp}.${extension}`;
+}
+
+// Extraer extensión del archivo
+function getExtension(file: File): string {
+  const name = file.name.toLowerCase();
+  const ext = name.split(".").pop();
+  if (ext && ["jpg", "jpeg", "png", "pdf", "webp"].includes(ext)) return ext;
+  // Inferir de MIME type
+  if (file.type.includes("png")) return "png";
+  if (file.type.includes("pdf")) return "pdf";
+  if (file.type.includes("webp")) return "webp";
+  return "jpg";
 }
 
 // ─── Subir un archivo y devolver su URL pública inmediatamente ────────────────
 
 async function uploadFile(file: File, path: string): Promise<string> {
+  if (!file || file.size === 0) {
+    throw new Error(`Archivo vacío o inválido para ${path}`);
+  }
+
   const { error } = await supabase.storage
     .from(BUCKET)
     .upload(path, file, { upsert: true, contentType: file.type });
@@ -62,14 +79,17 @@ export async function uploadSolicitudFiles(
     // Subir todos los vouchers
     const voucherUrls: string[] = [];
     for (let i = 0; i < vouchers.length; i++) {
-      const path = `${dni}/voucher-${ts}-${i + 1}.jpg`;
+      const ext = getExtension(vouchers[i]);
+      const path = `${dni}/voucher-${ts}-${i + 1}.${ext}`;
       const url  = await uploadFile(vouchers[i], path);
       uploaded.push(path);
       voucherUrls.push(url);
     }
 
-    const pathAnverso = buildPath(dni, "dni-anverso", ts);
-    const pathReverso = buildPath(dni, "dni-reverso", ts);
+    const extAnverso = getExtension(dniAnverso);
+    const extReverso = getExtension(dniReverso);
+    const pathAnverso = buildPath(dni, "dni-anverso", ts, extAnverso);
+    const pathReverso = buildPath(dni, "dni-reverso", ts, extReverso);
 
     const dniAnversoUrl = await uploadFile(dniAnverso, pathAnverso); uploaded.push(pathAnverso);
     const dniReversoUrl = await uploadFile(dniReverso, pathReverso); uploaded.push(pathReverso);
