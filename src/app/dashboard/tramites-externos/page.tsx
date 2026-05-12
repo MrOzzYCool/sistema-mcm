@@ -290,10 +290,24 @@ function TramitesExternosContent() {
                     {/* Documentos */}
                     <td className="py-4 px-4">
                       <div className="flex flex-col gap-1.5">
-                        <button onClick={() => setLightbox({ url: s.voucher_url, titulo: "Voucher de pago" })}
-                          className="flex items-center gap-1 text-xs text-[#a93526] hover:underline font-medium whitespace-nowrap">
-                          <Eye size={12} /> Voucher
-                        </button>
+                        {/* Voucher — puede tener múltiples URLs separadas por coma */}
+                        {(() => {
+                          const urls = (s.voucher_url ?? "").split(",").map(u => u.trim()).filter(Boolean);
+                          if (urls.length <= 1) {
+                            return (
+                              <button onClick={() => setLightbox({ url: urls[0] ?? s.voucher_url, titulo: "Voucher de pago" })}
+                                className="flex items-center gap-1 text-xs text-[#a93526] hover:underline font-medium whitespace-nowrap">
+                                <Eye size={12} /> Voucher
+                              </button>
+                            );
+                          }
+                          return urls.map((url, i) => (
+                            <button key={i} onClick={() => setLightbox({ url, titulo: `Voucher ${i + 1} de ${urls.length}` })}
+                              className="flex items-center gap-1 text-xs text-[#a93526] hover:underline font-medium whitespace-nowrap">
+                              <Eye size={12} /> Voucher {i + 1}
+                            </button>
+                          ));
+                        })()}
                         <button onClick={() => setLightbox({ url: s.dni_anverso_url, titulo: "DNI — Anverso" })}
                           className="flex items-center gap-1 text-xs text-mcm-muted hover:text-mcm-text font-medium whitespace-nowrap">
                           <Eye size={12} /> DNI ▲
