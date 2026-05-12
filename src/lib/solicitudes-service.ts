@@ -35,22 +35,33 @@ function getExtension(file: File): string {
   return "jpg";
 }
 
-// ─── Subir un archivo y devolver su URL pública inmediatamente ────────────────
+// ─── Subir un archivo con reintento ──────────────────────────────────────────
 
-async function uploadFile(file: File, path: string): Promise<string> {
+async function uploadFile(file: File, path: string, retries = 2): Promise<string> {
   if (!file || file.size === 0) {
     throw new Error(`Archivo vacío o inválido para ${path}`);
   }
 
-  const { error } = await supabase.storage
-    .from(BUCKET)
-    .upload(path, file, { upsert: true, contentType: file.type });
+  let lastError: Error | null = null;
 
-  if (error) throw new Error(`Error subiendo ${path}: ${error.message}`);
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    const { error } = await supabase.storage
+      .from(BUCKET)
+      .upload(path, file, { upsert: true, contentType: file.type });
 
-  // URL construida por el SDK — es exactamente lo que se guardará en la tabla
-  const { data } = supabase.storage.from(BUCKET).getPublicUrl(path);
-  return data.publicUrl;
+    if (!error) {
+      const { data } = supabase.storage.from(BUCKET).getPublicUrl(path);
+      return data.publicUrl;
+    }
+
+    lastError = new Error(`Error subiendo ${path}: ${error.message}`);
+    console.warn(`[upload] Intento ${attempt + 1} falló para ${path}: ${error.message}`);
+
+    // Esperar antes de reintentar
+    if (attempt < retries) await new Promise(r => setTimeout(r, 1000 * (attempt + 1)));
+  }
+
+  throw lastError!;
 }
 
 // ─── Eliminar archivos (rollback) ─────────────────────────────────────────────
@@ -76,14 +87,29 @@ export async function uploadSolicitudFiles(
   const uploaded: string[] = [];
 
   try {
-    // Subir todos los vouchers
+    // Subir todos los vouchers (secuencial para evitar race conditions en Storage)
     const voucherUrls: string[] = [];
+    const failedVouchers: string[] = [];
     for (let i = 0; i < vouchers.length; i++) {
-      const ext = getExtension(vouchers[i]);
-      const path = `${dni}/voucher-${ts}-${i + 1}.${ext}`;
-      const url  = await uploadFile(vouchers[i], path);
-      uploaded.push(path);
-      voucherUrls.push(url);
+      try {
+        const ext = getExtension(vouchers[i]);
+        const path = `${dni}/voucher-${ts}-${i + 1}.${ext}`;
+        const url = await uploadFile(vouchers[i], path);
+        uploaded.push(path);
+        voucherUrls.push(url);
+      } catch (err) {
+        failedVouchers.push(`Voucher ${i + 1}: ${err instanceof Error ? err.message : "Error desconocido"}`);
+      }
+    }
+
+    // Si ningún voucher se subió, fallar
+    if (voucherUrls.length === 0 && vouchers.length > 0) {
+      throw new Error(`No se pudo subir ningún voucher. ${failedVouchers.join("; ")}`);
+    }
+
+    // Si algunos fallaron pero otros sí, advertir en consola pero continuar
+    if (failedVouchers.length > 0) {
+      console.warn("[upload] Algunos vouchers fallaron:", failedVouchers);
     }
 
     const extAnverso = getExtension(dniAnverso);
