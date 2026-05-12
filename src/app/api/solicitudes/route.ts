@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { supabase } from "@/lib/supabase";
+import { supabaseAdmin } from "@/lib/supabase-admin";
 import { enviarConfirmacionRecepcion } from "@/lib/emailService";
 
 export async function POST(req: NextRequest) {
@@ -10,7 +10,7 @@ export async function POST(req: NextRequest) {
     const token_subsanacion = crypto.randomUUID();
 
     // Insertar en Supabase con el token
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
       .from("solicitudes")
       .insert({ ...body, token_subsanacion, estado: "pendiente" })
       .select()
