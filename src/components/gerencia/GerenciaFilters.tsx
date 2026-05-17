@@ -4,10 +4,15 @@ import { useState } from "react";
 import { GerenciaFilters } from "@/types/gerencia";
 import { AlertCircle } from "lucide-react";
 
+export interface CarreraOption {
+  id: string;
+  nombre: string;
+}
+
 interface GerenciaFiltersProps {
   filters: GerenciaFilters;
   onFiltersChange: (filters: GerenciaFilters) => void;
-  carreras?: string[];
+  carreras?: CarreraOption[];
   ciclos?: number[];
 }
 
@@ -42,7 +47,6 @@ export default function GerenciaFiltersComponent({
     // Validate date range
     if (updated.from && updated.to && updated.from > updated.to) {
       setDateError("La fecha 'desde' no puede ser posterior a 'hasta'");
-      // Still update local state for the field so the user sees what they typed
       return;
     }
 
@@ -93,8 +97,8 @@ export default function GerenciaFiltersComponent({
           >
             <option value="">Todas las carreras</option>
             {carreras.map((c) => (
-              <option key={c} value={c}>
-                {c}
+              <option key={c.id} value={c.nombre}>
+                {c.nombre}
               </option>
             ))}
           </select>

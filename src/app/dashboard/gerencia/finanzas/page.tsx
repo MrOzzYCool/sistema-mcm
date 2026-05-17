@@ -79,6 +79,28 @@ function FinanzasContent() {
   const [error, setError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
 
+  // Filter options from DB
+  const [carreras, setCarreras] = useState<{ id: string; nombre: string }[]>([]);
+  const [ciclos, setCiclos] = useState<number[]>([]);
+
+  useEffect(() => {
+    async function loadFilterOptions() {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session?.access_token) return;
+        const res = await fetch("/api/admin/reports/filter-options", {
+          headers: { Authorization: `Bearer ${session.access_token}` },
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setCarreras(data.carreras ?? []);
+          setCiclos(data.ciclos ?? []);
+        }
+      } catch { /* non-critical */ }
+    }
+    loadFilterOptions();
+  }, []);
+
   const fetchData = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -150,7 +172,7 @@ function FinanzasContent() {
   if (loading) {
     return (
       <div className="space-y-6">
-        <GerenciaFiltersComponent filters={filters} onFiltersChange={handleFiltersChange} />
+        <GerenciaFiltersComponent filters={filters} onFiltersChange={handleFiltersChange} carreras={carreras} ciclos={ciclos} />
         <div className="flex items-center justify-center py-20 gap-3 text-mcm-muted">
           <Loader2 className="w-5 h-5 animate-spin" />
           <span className="text-sm">Cargando datos financieros...</span>
@@ -164,7 +186,7 @@ function FinanzasContent() {
   if (error) {
     return (
       <div className="space-y-6">
-        <GerenciaFiltersComponent filters={filters} onFiltersChange={handleFiltersChange} />
+        <GerenciaFiltersComponent filters={filters} onFiltersChange={handleFiltersChange} carreras={carreras} ciclos={ciclos} />
         <div className="flex flex-col items-center justify-center py-20 gap-4">
           <AlertCircle className="w-10 h-10 text-red-500" />
           <p className="text-sm text-red-600 font-medium">{error}</p>
@@ -186,7 +208,7 @@ function FinanzasContent() {
       {/* Filters + Export */}
       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
         <div className="flex-1">
-          <GerenciaFiltersComponent filters={filters} onFiltersChange={handleFiltersChange} />
+          <GerenciaFiltersComponent filters={filters} onFiltersChange={handleFiltersChange} carreras={carreras} ciclos={ciclos} />
         </div>
         <div className="shrink-0">
           <ExportButtons type="financials" filters={filters} />
