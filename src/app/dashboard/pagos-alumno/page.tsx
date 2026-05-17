@@ -1,12 +1,12 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import RouteGuard from "@/components/RouteGuard";
 import {
   Loader2, ArrowLeft, CreditCard, CheckCircle, Pencil, Plus,
-  AlertCircle, X, Save,
+  AlertCircle, X, Save, Paperclip,
 } from "lucide-react";
 import clsx from "clsx";
 
@@ -14,6 +14,7 @@ interface Installment {
   id: string; concepto: string; tipo: string; numero: number;
   amount: number; amount_original: number;
   due_date: string; status: string; fecha_pago: string | null; observacion: string | null;
+  comprobante_url?: string | null; comprobante_serie?: string | null; comprobante_numero?: string | null;
 }
 interface Plan {
   id: string; ciclo: number; year: number; status: string;
@@ -43,6 +44,13 @@ function PagosAlumnoContent() {
   const [benefits, setBenefits] = useState<Benefit[]>([]);
   const [benefitForm, setBenefitForm] = useState({ tipo: "matricula", monto: "", permanente: true });
   const [savingBenefit, setSavingBenefit] = useState(false);
+
+  // Manual comprobante modal
+  const [manualModal, setManualModal] = useState<{ show: boolean; installmentId: string; concepto: string }>({ show: false, installmentId: "", concepto: "" });
+  const [manualForm, setManualForm] = useState({ serie: "BBB2", numero: "", tipo: "boleta", url: "" });
+  const [manualFile, setManualFile] = useState<File | null>(null);
+  const [manualSaving, setManualSaving] = useState(false);
+  const manualFileRef = useRef<HTMLInputElement>(null);
 
   async function getToken() {
     const { data } = await supabase.auth.getSession();
@@ -183,6 +191,51 @@ function PagosAlumnoContent() {
     setEditDescuento(String(Number(inst.amount_original) - Number(inst.amount)));
   }
 
+  function openManualComprobante(inst: Installment) {
+    setManualModal({ show: true, installmentId: inst.id, concepto: inst.concepto });
+    setManualForm({ serie: "BBB2", numero: "", tipo: "boleta", url: "" });
+    setManualFile(null);
+  }
+
+  async function handleManualComprobante() {
+    if (!manualModal.installmentId || !manualForm.serie || !manualForm.numero) return;
+    setManualSaving(true); setError("");
+    try {
+      let comprobanteUrl = manualForm.url;
+
+      // If file was uploaded, store it
+      if (manualFile) {
+        const ext = manualFile.name.split(".").pop() ?? "pdf";
+        const path = `comprobantes/${manualModal.installmentId}_${Date.now()}.${ext}`;
+        const { error: upErr } = await supabase.storage.from("vouchers").upload(path, manualFile);
+        if (upErr) throw new Error(upErr.message);
+        const { data: urlData } = supabase.storage.from("vouchers").getPublicUrl(path);
+        comprobanteUrl = urlData.publicUrl;
+      }
+
+      if (!comprobanteUrl) throw new Error("Debes subir un archivo o ingresar una URL");
+
+      const res = await fetch("/api/admin/payments", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${await getToken()}` },
+        body: JSON.stringify({
+          action: "manual-comprobante",
+          installment_id: manualModal.installmentId,
+          comprobante_url: comprobanteUrl,
+          comprobante_serie: manualForm.serie,
+          comprobante_numero: manualForm.numero,
+          tipo_comprobante: manualForm.tipo,
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error);
+      setSuccess(json.message ?? "Comprobante adjuntado.");
+      setManualModal({ show: false, installmentId: "", concepto: "" });
+      loadPlans();
+    } catch (err) { setError(err instanceof Error ? err.message : "Error"); }
+    finally { setManualSaving(false); }
+  }
+
   if (!alumnoId) {
     return <div className="p-6 card text-center py-12"><AlertCircle size={40} className="mx-auto text-red-400 mb-3" /><p className="text-mcm-text font-bold">Falta alumno_id</p><button onClick={() => router.back()} className="btn-secondary text-sm mt-4">Volver</button></div>;
   }
@@ -261,7 +314,13 @@ function PagosAlumnoContent() {
                           <div className="flex gap-2">
                             <button onClick={() => handleMarkPaid(inst.id)} title="Marcar pagado" className="text-mcm-muted hover:text-green-600"><CheckCircle size={14} /></button>
                             <button onClick={() => openEdit(inst)} title="Editar monto" className="text-mcm-muted hover:text-blue-600"><Pencil size={14} /></button>
+                            <button onClick={() => openManualComprobante(inst)} title="Adjuntar comprobante manual" className="text-mcm-muted hover:text-amber-600"><Paperclip size={14} /></button>
                           </div>
+                        )}
+                        {inst.status === "paid" && inst.comprobante_url && (
+                          <a href={inst.comprobante_url} target="_blank" rel="noreferrer" className="text-xs text-green-600 hover:text-green-800 font-medium">
+                            Ver comprobante
+                          </a>
                         )}
                       </td>
                     </tr>
@@ -418,6 +477,69 @@ function PagosAlumnoContent() {
                 className="btn-primary flex-1 text-sm disabled:opacity-50 flex items-center justify-center gap-2">
                 {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
                 {saving ? "Guardando..." : "Aplicar"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Manual comprobante modal */}
+      {manualModal.show && (
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-md">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-bold text-mcm-text text-lg">Adjuntar Comprobante Manual</h3>
+              <button onClick={() => setManualModal({ show: false, installmentId: "", concepto: "" })}><X size={20} className="text-mcm-muted" /></button>
+            </div>
+            <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 mb-4 text-sm text-blue-800">
+              Concepto: <strong>{manualModal.concepto}</strong>
+            </div>
+            <div className="space-y-3">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm font-medium text-mcm-text mb-1">Serie</label>
+                  <input value={manualForm.serie} onChange={e => setManualForm({...manualForm, serie: e.target.value.toUpperCase()})}
+                    placeholder="BBB2" className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#a93526]" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-mcm-text mb-1">Número</label>
+                  <input value={manualForm.numero} onChange={e => setManualForm({...manualForm, numero: e.target.value.replace(/\D/g,"")})}
+                    placeholder="4557" className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#a93526]" />
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-mcm-text mb-1">Tipo</label>
+                <select value={manualForm.tipo} onChange={e => setManualForm({...manualForm, tipo: e.target.value})}
+                  className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#a93526]">
+                  <option value="boleta">Boleta</option>
+                  <option value="factura">Factura</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-mcm-text mb-1">Archivo PDF/Imagen del comprobante</label>
+                <div className="flex items-center gap-2">
+                  <button type="button" onClick={() => manualFileRef.current?.click()}
+                    className="btn-secondary text-xs flex items-center gap-1">
+                    <Paperclip size={12} /> {manualFile ? manualFile.name : "Seleccionar archivo"}
+                  </button>
+                  {manualFile && <button onClick={() => setManualFile(null)} className="text-red-500 text-xs">Quitar</button>}
+                </div>
+                <input ref={manualFileRef} type="file" accept="image/*,.pdf" className="hidden"
+                  onChange={e => { if (e.target.files?.[0]) setManualFile(e.target.files[0]); }} />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-mcm-text mb-1">O pegar URL directa del PDF</label>
+                <input value={manualForm.url} onChange={e => setManualForm({...manualForm, url: e.target.value})}
+                  placeholder="https://..." className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#a93526]" />
+              </div>
+            </div>
+            <div className="flex gap-3 mt-5">
+              <button onClick={() => setManualModal({ show: false, installmentId: "", concepto: "" })} className="btn-secondary flex-1 text-sm">Cancelar</button>
+              <button onClick={handleManualComprobante}
+                disabled={manualSaving || !manualForm.serie || !manualForm.numero || (!manualFile && !manualForm.url)}
+                className="btn-primary flex-1 text-sm disabled:opacity-50 flex items-center justify-center gap-2">
+                {manualSaving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+                {manualSaving ? "Guardando..." : "Adjuntar y marcar pagado"}
               </button>
             </div>
           </div>

@@ -134,5 +134,37 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ success: true, message: `Ciclo actualizado a ${nuevo_ciclo}. Recuerda regenerar el plan de pagos.` });
   }
 
+  if (action === "manual-comprobante") {
+    const { installment_id, comprobante_url, comprobante_serie, comprobante_numero, tipo_comprobante, fecha_pago } = body;
+    if (!installment_id || !comprobante_url || !comprobante_serie || !comprobante_numero) {
+      return NextResponse.json({ error: "installment_id, comprobante_url, comprobante_serie y comprobante_numero son requeridos" }, { status: 400 });
+    }
+
+    // Update installment to paid with comprobante info
+    const { error: instErr } = await supabaseAdmin.from("installments").update({
+      status: "paid",
+      fecha_pago: fecha_pago ?? new Date().toISOString(),
+      tipo_comprobante: tipo_comprobante ?? "boleta",
+      comprobante_serie,
+      comprobante_numero: String(comprobante_numero),
+      comprobante_url,
+    }).eq("id", installment_id);
+
+    if (instErr) return NextResponse.json({ error: instErr.message }, { status: 500 });
+
+    // Also approve any pending voucher for this installment
+    await supabaseAdmin.from("payment_vouchers").update({
+      status: "approved", reviewed_by: admin.id, reviewed_at: new Date().toISOString(),
+    }).eq("installment_id", installment_id).eq("status", "pending_review");
+
+    await supabaseAdmin.from("historial_auditoria").insert({
+      accion: "comprobante_manual",
+      admin_id: admin.id, admin_email: admin.email,
+      detalle: { installment_id, comprobante_serie, comprobante_numero, tipo_comprobante },
+    });
+
+    return NextResponse.json({ success: true, message: `Comprobante ${comprobante_serie}-${comprobante_numero} adjuntado. Cuota marcada como pagada.` });
+  }
+
   return NextResponse.json({ error: "Acción no reconocida" }, { status: 400 });
 }
