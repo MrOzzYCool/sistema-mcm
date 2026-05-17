@@ -45,7 +45,7 @@ export async function POST(req: NextRequest) {
   const admin = await verifyStaff(req);
   if (!admin) return NextResponse.json({ error: "No autorizado" }, { status: 403 });
 
-  const { voucher_id, action, reason, tipo_comprobante, ruc } = await req.json();
+  const { voucher_id, action, reason, tipo_comprobante, ruc, comprobante_url, comprobante_serie, comprobante_numero } = await req.json();
   if (!voucher_id || !action) {
     return NextResponse.json({ error: "voucher_id y action requeridos" }, { status: 400 });
   }
@@ -58,7 +58,7 @@ export async function POST(req: NextRequest) {
 
   if (!voucher) return NextResponse.json({ error: "Voucher no encontrado" }, { status: 404 });
 
-  // For approve/reject, voucher must be pending. For restore, it must be approved/rejected.
+  // For approve/reject, voucher must be pending. For restore, it must be approved/rejected. For manual-attach, any non-pending status is fine.
   if ((action === "approve" || action === "reject") && voucher.status !== "pending_review") {
     return NextResponse.json({ error: "Este voucher ya fue procesado" }, { status: 400 });
   }
@@ -196,6 +196,28 @@ export async function POST(req: NextRequest) {
     await supabaseAdmin.from("installments").update({ status: "pending" }).eq("id", voucher.installment_id);
 
     return NextResponse.json({ success: true, message: "Voucher rechazado. Cuota vuelve a pendiente." });
+  }
+
+  if (action === "manual-attach") {
+    // Manual comprobante attachment — only updates installment comprobante fields, keeps voucher status unchanged
+    if (!comprobante_url || !comprobante_serie || !comprobante_numero) {
+      return NextResponse.json({ error: "comprobante_url, comprobante_serie y comprobante_numero son requeridos" }, { status: 400 });
+    }
+
+    const { error: instErr } = await supabaseAdmin.from("installments").update({
+      status: "paid",
+      fecha_pago: new Date().toISOString(),
+      tipo_comprobante: tipo_comprobante || "boleta",
+      comprobante_serie: comprobante_serie,
+      comprobante_numero: comprobante_numero,
+      comprobante_url: comprobante_url,
+    }).eq("id", voucher.installment_id);
+
+    if (instErr) {
+      return NextResponse.json({ error: `Error al actualizar cuota: ${instErr.message}` }, { status: 500 });
+    }
+
+    return NextResponse.json({ success: true, message: `Comprobante adjuntado: ${comprobante_serie}-${comprobante_numero}` });
   }
 
   if (action === "restore") {

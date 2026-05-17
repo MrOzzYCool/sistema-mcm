@@ -13,6 +13,13 @@ export async function POST(req: NextRequest) {
   const { userId, estado } = await req.json();
   if (!userId || !estado) return NextResponse.json({ error: "Datos incompletos" }, { status: 400 });
 
+  if (estado === "eliminado") {
+    return NextResponse.json(
+      { error: "No se puede usar este endpoint para eliminar usuarios" },
+      { status: 400 }
+    );
+  }
+
   const { error } = await supabaseAdmin.from("profiles").update({ estado }).eq("id", userId);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 

@@ -81,7 +81,7 @@ create table if not exists public.profiles (
   id               uuid primary key references auth.users(id) on delete cascade,
   nombre_completo  text,
   rol              text not null default 'alumno' check (rol in ('alumno','super_admin','staff_tramites','gestor','actualizacion')),
-  estado           text not null default 'activo' check (estado in ('activo','inactivo')),
+  estado           text not null default 'activo' check (estado in ('activo','inactivo','eliminado')),
   created_at       timestamptz not null default now()
 );
 
@@ -646,3 +646,9 @@ ALTER TABLE public.payment_vouchers ADD COLUMN IF NOT EXISTS ruc_factura text;
 ALTER TABLE public.payment_vouchers ADD COLUMN IF NOT EXISTS razon_social text;
 ALTER TABLE public.payment_vouchers ADD COLUMN IF NOT EXISTS direccion_fiscal text;
 ALTER TABLE public.payment_vouchers ADD COLUMN IF NOT EXISTS email_empresa text;
+
+
+-- ─── Migración: Soft Delete — agregar 'eliminado' al constraint de estado ─────
+-- Ejecutar estos ALTER TABLE en la BD existente para aplicar el cambio:
+ALTER TABLE public.profiles DROP CONSTRAINT IF EXISTS profiles_estado_check;
+ALTER TABLE public.profiles ADD CONSTRAINT profiles_estado_check CHECK (estado IN ('activo', 'inactivo', 'eliminado'));

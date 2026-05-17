@@ -6,7 +6,7 @@ Implementar un mecanismo de eliminación suave (soft delete) para usuarios en el
 
 ## Tareas
 
-- [ ] 1. Actualizar esquema de base de datos para soportar estado `eliminado`
+- [x] 1. Actualizar esquema de base de datos para soportar estado `eliminado`
   - Modificar el archivo `supabase/schema.sql` para actualizar el CHECK constraint de `profiles.estado`
   - Reemplazar `check (estado in ('activo','inactivo'))` por `check (estado in ('activo','inactivo','eliminado'))`
   - Agregar comentario SQL con los ALTER TABLE para aplicar en BD existente:
@@ -16,8 +16,8 @@ Implementar un mecanismo de eliminación suave (soft delete) para usuarios en el
     ```
   - _Requisitos: 1.1, 1.2, 1.3_
 
-- [ ] 2. Crear endpoint API de soft-delete y proteger toggle existente
-  - [ ] 2.1 Crear el endpoint `POST /api/admin/delete-user`
+- [x] 2. Crear endpoint API de soft-delete y proteger toggle existente
+  - [x] 2.1 Crear el endpoint `POST /api/admin/delete-user`
     - Crear archivo `src/app/api/admin/delete-user/route.ts`
     - Implementar la función `POST` siguiendo el patrón de autenticación existente en `toggle-user/route.ts` y `users/route.ts`
     - Paso 1: Extraer token del header Authorization, verificar con `supabase.auth.getUser(token)`, validar que el email sea `admin@margaritacabrera.edu.pe` → 403 si no
@@ -61,7 +61,7 @@ Implementar un mecanismo de eliminación suave (soft delete) para usuarios en el
     - Test: mock fallo de ban Auth → verifica respuesta de error (Requisito 2.7)
     - Test: auto-eliminación retorna 400 (Requisito 9.1)
 
-  - [ ] 2.8 Agregar protección al endpoint toggle-user existente
+  - [x] 2.8 Agregar protección al endpoint toggle-user existente
     - Modificar `src/app/api/admin/toggle-user/route.ts`
     - Agregar validación después de parsear el body: si `estado === "eliminado"`, retornar 400 con `"No se puede usar este endpoint para eliminar usuarios"`
     - _Requisitos: 10.1, 10.3_
@@ -71,11 +71,11 @@ Implementar un mecanismo de eliminación suave (soft delete) para usuarios en el
     - Verificar que solicitudes al toggle con `estado = "eliminado"` retornan HTTP 400
     - **Valida: Requisitos 10.1, 10.3**
 
-- [ ] 3. Checkpoint — Verificar endpoints API
+- [x] 3. Checkpoint — Verificar endpoints API
   - Asegurar que todos los tests pasan, preguntar al usuario si surgen dudas.
 
-- [ ] 4. Implementar cambios de UI en la página de usuarios
-  - [ ] 4.1 Agregar estado de modal de eliminación y constantes
+- [x] 4. Implementar cambios de UI en la página de usuarios
+  - [x] 4.1 Agregar estado de modal de eliminación y constantes
     - Modificar `src/app/dashboard/usuarios/page.tsx`
     - Agregar import de `Trash2` desde `lucide-react`
     - Agregar constante `ADMIN_LEVEL_ROLES = ["super_admin", "staff_tramites", "gestor", "actualizacion"]`
@@ -83,7 +83,7 @@ Implementar un mecanismo de eliminación suave (soft delete) para usuarios en el
     - Agregar estado `filtroEstado` con valor por defecto `"todos"`
     - _Requisitos: 5.1, 6.4, 8.2_
 
-  - [ ] 4.2 Implementar función `handleDelete` y lógica de filtrado por estado
+  - [x] 4.2 Implementar función `handleDelete` y lógica de filtrado por estado
     - Implementar `handleDelete(userId: string)` que llama a `POST /api/admin/delete-user` con el token de autenticación
     - En caso de éxito: cerrar modal, refrescar lista con `cargar()`
     - En caso de error: mostrar error en el modal
@@ -99,12 +99,12 @@ Implementar un mecanismo de eliminación suave (soft delete) para usuarios en el
     - Generar listas de usuarios con estados mixtos, verificar que cada filtro muestra exactamente los usuarios correctos
     - **Valida: Requisitos 8.3, 8.4, 8.5**
 
-  - [ ] 4.4 Agregar pills de filtro de estado en la UI
+  - [x] 4.4 Agregar pills de filtro de estado en la UI
     - Agregar una fila de botones pill debajo de los filtros de rol existentes con opciones: `todos`, `activo`, `inactivo`, `eliminado`
     - Usar el mismo estilo de pills que los filtros de rol (clsx con bg-[#a93526] para activo, bg-slate-100 para inactivo)
     - _Requisitos: 8.2_
 
-  - [ ] 4.5 Agregar botón Eliminar y actualizar visibilidad de botones de acción
+  - [x] 4.5 Agregar botón Eliminar y actualizar visibilidad de botones de acción
     - Agregar botón `Trash2` en la columna de acciones de cada fila de usuario
     - Ocultar botón Eliminar para usuarios con `estado === "eliminado"` (Requisito 5.3)
     - Ocultar botón Eliminar para la fila del super_admin autenticado (Requisito 9.2)
@@ -117,7 +117,7 @@ Implementar un mecanismo de eliminación suave (soft delete) para usuarios en el
     - Verificar que para usuarios con `estado = 'eliminado'`, no se renderizan los botones Eliminar ni toggle
     - **Valida: Requisitos 5.3, 10.2**
 
-  - [ ] 4.7 Implementar modal de confirmación de eliminación
+  - [x] 4.7 Implementar modal de confirmación de eliminación
     - Renderizar modal con overlay `bg-black/40` siguiendo el patrón del modal de creación existente
     - Mostrar nombre completo, email y rol del usuario target (Requisito 6.1)
     - Mostrar warning de que el usuario será desactivado y no podrá iniciar sesión (Requisito 6.2)
@@ -132,7 +132,7 @@ Implementar un mecanismo de eliminación suave (soft delete) para usuarios en el
     - Generar strings random, verificar que solo "ELIMINAR" habilita el botón de confirmar para usuarios admin-level
     - **Valida: Requisito 6.4**
 
-  - [ ] 4.9 Actualizar badge de estado para soportar `eliminado`
+  - [x] 4.9 Actualizar badge de estado para soportar `eliminado`
     - Actualizar la lógica del badge en la columna Estado de la tabla:
       - `activo` → `badge-green`
       - `inactivo` → `badge-red`
@@ -140,7 +140,7 @@ Implementar un mecanismo de eliminación suave (soft delete) para usuarios en el
     - La clase `badge-gray` ya existe en `globals.css` (`bg-gray-100 text-gray-600`)
     - _Requisitos: 8.6_
 
-- [ ] 5. Checkpoint final — Verificar implementación completa
+- [x] 5. Checkpoint final — Verificar implementación completa
   - Asegurar que todos los tests pasan, preguntar al usuario si surgen dudas.
 
 ## Notas

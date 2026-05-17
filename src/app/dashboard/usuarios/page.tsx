@@ -7,9 +7,11 @@ import RouteGuard from "@/components/RouteGuard";
 import { supabase } from "@/lib/supabase";
 import {
   UserPlus, RefreshCw, Loader2, Search, Download, Upload,
-  CheckCircle, XCircle, Key, X, UserX, GraduationCap, CreditCard, Pencil,
+  CheckCircle, XCircle, Key, X, UserX, GraduationCap, CreditCard, Pencil, Trash2,
 } from "lucide-react";
 import clsx from "clsx";
+
+const ADMIN_LEVEL_ROLES = ["super_admin", "staff_tramites", "gestor", "actualizacion"];
 
 interface Profile {
   id: string; nombre_completo: string; email: string;
@@ -30,6 +32,7 @@ function UsuariosContent() {
   const [inscripciones, setInscripciones] = useState<{ alumno_id: string; ciclo_actual: number }[]>([]);
   const [showModal, setShowModal] = useState(false);
   const [saving, setSaving]       = useState(false);
+  const [deleteModal, setDeleteModal] = useState<{ show: boolean; targetUser: any | null; confirmText: string; deleting: boolean }>({ show: false, targetUser: null, confirmText: "", deleting: false });
   const csvRef = useRef<HTMLInputElement>(null);
 
   // Enrollment modal state
@@ -151,6 +154,24 @@ function UsuariosContent() {
       if (!res.ok) throw new Error((await res.json()).error);
       cargar();
     } catch (e) { setError(e instanceof Error ? e.message : "Error"); }
+  }
+
+  async function handleDelete(userId: string) {
+    setDeleteModal(prev => ({ ...prev, deleting: true }));
+    try {
+      const res = await fetch("/api/admin/delete-user", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${await getToken()}` },
+        body: JSON.stringify({ userId }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error);
+      setDeleteModal({ show: false, targetUser: null, confirmText: "", deleting: false });
+      cargar();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Error");
+      setDeleteModal(prev => ({ ...prev, deleting: false }));
+    }
   }
 
   async function handlePurge(p: Profile) {
@@ -298,7 +319,10 @@ function UsuariosContent() {
   const ciclosDisponibles = [...new Set(inscripciones.map(i => i.ciclo_actual))].sort((a, b) => a - b);
 
   const lista = profiles
-    .filter(p => filtroEstado === "todos" ? p.estado === "activo" : p.estado === filtroEstado)
+    .filter(p => {
+      if (filtroEstado === "todos") return p.estado === "activo" || p.estado === "inactivo";
+      return p.estado === filtroEstado;
+    })
     .filter(p => filtroRol === "todos" || p.rol === filtroRol)
     .filter(p => {
       if (filtroCiclo === "todos" || filtroRol !== "alumno") return true;
@@ -348,7 +372,7 @@ function UsuariosContent() {
           </button>
         ))}
         <span className="text-mcm-border">|</span>
-        {["todos", "activo", "inactivo"].map(e => (
+        {["todos", "activo", "inactivo", "eliminado"].map(e => (
           <button key={`e-${e}`} onClick={() => setFiltroEstado(e)}
             className={clsx("px-3 py-1.5 rounded-full text-xs font-semibold transition-colors capitalize",
               filtroEstado === e ? "bg-[#a93526] text-white" : "bg-slate-100 text-mcm-muted hover:bg-slate-200")}>
@@ -391,7 +415,7 @@ function UsuariosContent() {
                     <td className="py-3 px-4"><span className={p.rol === "profesor" ? "badge-blue" : "badge-green"}>{p.rol}</span></td>
                     <td className="py-3 px-4 text-mcm-muted font-mono text-xs">{p.dni ?? "—"}</td>
                     <td className="py-3 px-4">
-                      <span className={p.estado === "activo" ? "badge-green" : "px-2 py-0.5 rounded-full text-xs font-semibold bg-gray-100 text-gray-600"}>{p.estado}</span>
+                      <span className={p.estado === "activo" ? "badge-green" : p.estado === "eliminado" ? "badge-gray" : "badge-red"}>{p.estado}</span>
                     </td>
                     <td className="py-3 px-4">
                       <div className="flex gap-2">
@@ -401,13 +425,19 @@ function UsuariosContent() {
                         )}
                         <button onClick={() => handleReset(p.id)} title="Restablecer contraseña"
                           className="text-mcm-muted hover:text-[#a93526]"><Key size={14} /></button>
-                        <button onClick={() => handleToggle(p.id, p.estado)} title={p.estado === "activo" ? "Desactivar" : "Activar"}
-                          className="text-mcm-muted hover:text-[#a93526]">
-                          {p.estado === "activo" ? <XCircle size={14} /> : <CheckCircle size={14} />}
-                        </button>
+                        {p.estado !== "eliminado" && (
+                          <button onClick={() => handleToggle(p.id, p.estado)} title={p.estado === "activo" ? "Desactivar" : "Activar"}
+                            className="text-mcm-muted hover:text-[#a93526]">
+                            {p.estado === "activo" ? <XCircle size={14} /> : <CheckCircle size={14} />}
+                          </button>
+                        )}
                         {p.rol === "alumno" && (
                           <button onClick={() => router.push(`/dashboard/pagos-alumno?alumno_id=${p.id}&nombre=${encodeURIComponent(p.nombre_completo)}`)}
                             title="Gestionar pagos" className="text-mcm-muted hover:text-green-600"><CreditCard size={14} /></button>
+                        )}
+                        {p.estado !== "eliminado" && p.id !== user?.id && (
+                          <button onClick={() => setDeleteModal({ show: true, targetUser: p, confirmText: "", deleting: false })} title="Eliminar usuario"
+                            className="text-mcm-muted hover:text-red-700"><Trash2 size={14} /></button>
                         )}
                         {p.id !== user?.id && (
                           <button onClick={() => handlePurge(p)} title="Eliminar usuario de prueba (irreversible)"
@@ -664,6 +694,50 @@ function UsuariosContent() {
                 className="btn-primary flex-1 text-sm disabled:opacity-50 flex items-center justify-center gap-2">
                 {editSaving && <Loader2 size={14} className="animate-spin" />}
                 {editSaving ? "Guardando..." : "Guardar cambios"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Modal confirmar eliminación */}
+      {deleteModal.show && deleteModal.targetUser && (
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-md">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-bold text-mcm-text text-lg">Confirmar eliminación</h3>
+              <button onClick={() => setDeleteModal({ show: false, targetUser: null, confirmText: "", deleting: false })}><X size={20} className="text-mcm-muted" /></button>
+            </div>
+            <div className="space-y-3">
+              <div className="bg-blue-50 border border-blue-200 rounded-xl p-3">
+                <p className="text-sm font-semibold text-blue-800">{deleteModal.targetUser.nombre_completo}</p>
+                <p className="text-xs text-blue-600">{deleteModal.targetUser.email}</p>
+                <p className="text-xs text-blue-600 capitalize">Rol: {deleteModal.targetUser.rol}</p>
+              </div>
+              <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-3">
+                <p className="text-sm text-yellow-800 font-medium">⚠️ Este usuario será desactivado permanentemente y no podrá iniciar sesión.</p>
+              </div>
+              {ADMIN_LEVEL_ROLES.includes(deleteModal.targetUser.rol) && (
+                <>
+                  <div className="bg-red-50 border border-red-300 rounded-xl p-3">
+                    <p className="text-sm text-red-800 font-bold">⚠️ ATENCIÓN: Este es un usuario administrativo ({deleteModal.targetUser.rol}). Esta acción es irreversible desde la interfaz.</p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-mcm-text mb-1">Escribe &quot;ELIMINAR&quot; para confirmar</label>
+                    <input value={deleteModal.confirmText} onChange={e => setDeleteModal(prev => ({ ...prev, confirmText: e.target.value }))}
+                      placeholder="ELIMINAR"
+                      className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#a93526]" />
+                  </div>
+                </>
+              )}
+            </div>
+            <div className="flex gap-3 mt-5">
+              <button onClick={() => setDeleteModal({ show: false, targetUser: null, confirmText: "", deleting: false })} className="btn-secondary flex-1 text-sm">Cancelar</button>
+              <button
+                onClick={() => handleDelete(deleteModal.targetUser!.id)}
+                disabled={deleteModal.deleting || (ADMIN_LEVEL_ROLES.includes(deleteModal.targetUser.rol) && deleteModal.confirmText !== "ELIMINAR")}
+                className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg flex-1 text-sm disabled:opacity-50 flex items-center justify-center gap-2">
+                {deleteModal.deleting && <Loader2 size={14} className="animate-spin" />}
+                {deleteModal.deleting ? "Eliminando..." : "Confirmar eliminación"}
               </button>
             </div>
           </div>
