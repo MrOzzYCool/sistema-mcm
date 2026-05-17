@@ -8,7 +8,7 @@ import { supabaseAdmin } from "@/lib/supabase-admin";
  *
  * Devuelve datos financieros mensuales para el gráfico de líneas.
  * Query params: from, to (requeridos), group_by (debe ser "month"),
- *               carrera (opcional), ciclo (opcional)
+ *               ciclo (opcional)
  */
 export async function GET(req: NextRequest) {
   // 1. Auth
@@ -40,20 +40,16 @@ export async function GET(req: NextRequest) {
   }
 
   const { from, to } = dateResult;
-  const carrera = searchParams.get("carrera");
   const ciclo = searchParams.get("ciclo");
 
   try {
     // 4. Query installments joined with payment_plans, filtered by date range
     let query = supabaseAdmin
       .from("installments")
-      .select("amount, status, due_date, payment_plans!inner(carrera_id, ciclo)")
+      .select("amount, status, due_date, payment_plans!inner(ciclo)")
       .gte("due_date", `${from}T00:00:00`)
       .lte("due_date", `${to}T23:59:59`);
 
-    if (carrera) {
-      query = query.eq("payment_plans.carrera_id", carrera);
-    }
     if (ciclo) {
       query = query.eq("payment_plans.ciclo", Number(ciclo));
     }
@@ -61,21 +57,15 @@ export async function GET(req: NextRequest) {
     const { data, error } = await query;
 
     if (error) {
-      console.error(
-        "[REPORTS/FINANCIALS] Error querying installments:",
-        error.message
-      );
+      console.error("[REPORTS/FINANCIALS] Error querying installments:", JSON.stringify(error));
       return NextResponse.json(
-        { error: "Error interno al consultar datos" },
+        { error: "Error interno al consultar datos", detail: error.message },
         { status: 500 }
       );
     }
 
     // 5. Aggregate by month (YYYY-MM from due_date)
-    const monthlyMap = new Map<
-      string,
-      { ingresos: number; egresos: number }
-    >();
+    const monthlyMap = new Map<string, { ingresos: number; egresos: number }>();
 
     for (const row of data ?? []) {
       const dueDate = row.due_date as string;

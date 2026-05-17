@@ -67,13 +67,10 @@ export async function GET(req: NextRequest) {
       // Query installments joined with payment_plans filtered by date range
       let query = supabaseAdmin
         .from("installments")
-        .select("amount, status, due_date, payment_plans!inner(carrera_id, ciclo)")
+        .select("amount, status, due_date, payment_plans!inner(ciclo)")
         .gte("due_date", `${from}T00:00:00`)
         .lte("due_date", `${to}T23:59:59`);
 
-      if (carrera) {
-        query = query.eq("payment_plans.carrera_id", carrera);
-      }
       if (ciclo) {
         query = query.eq("payment_plans.ciclo", Number(ciclo));
       }
