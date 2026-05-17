@@ -105,9 +105,9 @@ export async function GET(req: NextRequest) {
 
     // 7. Transform vouchers data to expected format
     const vouchers_recientes = (vouchersData ?? []).map((v) => {
-      const installment = v.installments as Record<string, unknown> | null;
-      const paymentPlan = installment?.payment_plans as Record<string, unknown> | null;
-      const profile = paymentPlan?.profiles as Record<string, unknown> | null;
+      const installment = v.installments as unknown as Record<string, unknown> | null;
+      const paymentPlan = installment?.payment_plans as unknown as Record<string, unknown> | null;
+      const profile = paymentPlan?.profiles as unknown as Record<string, unknown> | null;
 
       return {
         id: v.id,
