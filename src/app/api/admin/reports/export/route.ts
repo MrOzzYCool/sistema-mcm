@@ -64,18 +64,18 @@ export async function GET(req: NextRequest) {
     const filename = `reporte-${type}-${from}-${to}.${format}`;
 
     if (type === "financials") {
-      // Query report_financial_summary view filtered by month range
+      // Query installments joined with payment_plans filtered by date range
       let query = supabaseAdmin
-        .from("report_financial_summary")
-        .select("month, total_ingresos, total_egresos, carrera_id, ciclo")
-        .gte("month", from.slice(0, 7)) // YYYY-MM format comparison
-        .lte("month", to.slice(0, 7));
+        .from("installments")
+        .select("amount, status, due_date, payment_plans!inner(carrera_id, ciclo)")
+        .gte("due_date", `${from}T00:00:00`)
+        .lte("due_date", `${to}T23:59:59`);
 
       if (carrera) {
-        query = query.eq("carrera_id", carrera);
+        query = query.eq("payment_plans.carrera_id", carrera);
       }
       if (ciclo) {
-        query = query.eq("ciclo", Number(ciclo));
+        query = query.eq("payment_plans.ciclo", Number(ciclo));
       }
 
       const { data, error } = await query;
@@ -88,14 +88,22 @@ export async function GET(req: NextRequest) {
         );
       }
 
-      // Aggregate by month (sum ingresos/egresos across carrera_id/ciclo)
+      // Aggregate by month
       const monthlyMap = new Map<string, { ingresos: number; egresos: number }>();
 
       for (const row of data ?? []) {
-        const month = row.month as string;
+        const dueDate = row.due_date as string;
+        if (!dueDate) continue;
+        const month = dueDate.slice(0, 7);
         const existing = monthlyMap.get(month) ?? { ingresos: 0, egresos: 0 };
-        existing.ingresos += Number(row.total_ingresos ?? 0);
-        existing.egresos += Number(row.total_egresos ?? 0);
+        const amount = Number(row.amount ?? 0);
+
+        if (row.status === "paid") {
+          existing.ingresos += amount;
+        } else if (row.status === "pending" || row.status === "overdue") {
+          existing.egresos += amount;
+        }
+
         monthlyMap.set(month, existing);
       }
 
@@ -116,19 +124,16 @@ export async function GET(req: NextRequest) {
       }
     } else {
       // type === "tramites"
-      // Query report_tramites_overview view filtered by date range
+      // Query solicitudes directly filtered by date range
       let query = supabaseAdmin
-        .from("report_tramites_overview")
-        .select("id, fecha, tipo_tramite, alumno, costo, estado")
-        .gte("fecha", `${from}T00:00:00`)
-        .lte("fecha", `${to}T23:59:59`)
-        .order("fecha", { ascending: false });
+        .from("solicitudes")
+        .select("id, created_at, tipo_tramite, nombres, apellidos, monto_pagado, estado")
+        .gte("created_at", `${from}T00:00:00`)
+        .lte("created_at", `${to}T23:59:59`)
+        .order("created_at", { ascending: false });
 
       if (carrera) {
         query = query.eq("carrera", carrera);
-      }
-      if (ciclo) {
-        query = query.eq("ciclo", Number(ciclo));
       }
 
       const { data, error } = await query;
@@ -143,10 +148,10 @@ export async function GET(req: NextRequest) {
 
       const tramitesData: TramiteRow[] = (data ?? []).map((row) => ({
         id: row.id as string,
-        fecha: (row.fecha as string).slice(0, 10),
-        tipo_tramite: row.tipo_tramite as string,
-        alumno: row.alumno as string,
-        costo: Number(row.costo ?? 0),
+        fecha: (row.created_at as string).slice(0, 10),
+        tipo_tramite: (row.tipo_tramite as string) ?? "",
+        alumno: `${row.nombres ?? ""} ${row.apellidos ?? ""}`.trim(),
+        costo: Number(row.monto_pagado ?? 0),
         estado: row.estado as string,
       }));
 

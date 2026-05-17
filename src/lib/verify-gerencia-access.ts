@@ -1,5 +1,4 @@
 import { NextRequest } from "next/server";
-import { supabase } from "@/lib/supabase";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 
 /**
@@ -14,11 +13,13 @@ export async function verifyGerenciaAccess(
   const token = (req.headers.get("authorization") ?? "").replace("Bearer ", "");
   if (!token) return null;
 
-  // Validar JWT con el cliente público (anon key)
+  // Validar JWT usando el cliente admin (funciona server-side sin localStorage)
   const {
     data: { user },
-  } = await supabase.auth.getUser(token);
-  if (!user) return null;
+    error: authError,
+  } = await supabaseAdmin.auth.getUser(token);
+
+  if (authError || !user) return null;
 
   // Consultar rol desde profiles usando el cliente admin (bypass RLS)
   const { data: profile } = await supabaseAdmin

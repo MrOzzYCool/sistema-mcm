@@ -44,25 +44,25 @@ export async function GET(req: NextRequest) {
   const ciclo = searchParams.get("ciclo");
 
   try {
-    // 4. Query report_financial_summary view filtered by date range
+    // 4. Query installments joined with payment_plans, filtered by date range
     let query = supabaseAdmin
-      .from("report_financial_summary")
-      .select("month, total_ingresos, total_egresos, carrera_id, ciclo")
-      .gte("month", from.slice(0, 7)) // YYYY-MM format comparison
-      .lte("month", to.slice(0, 7));
+      .from("installments")
+      .select("amount, status, due_date, payment_plans!inner(carrera_id, ciclo)")
+      .gte("due_date", `${from}T00:00:00`)
+      .lte("due_date", `${to}T23:59:59`);
 
     if (carrera) {
-      query = query.eq("carrera_id", carrera);
+      query = query.eq("payment_plans.carrera_id", carrera);
     }
     if (ciclo) {
-      query = query.eq("ciclo", Number(ciclo));
+      query = query.eq("payment_plans.ciclo", Number(ciclo));
     }
 
     const { data, error } = await query;
 
     if (error) {
       console.error(
-        "[REPORTS/FINANCIALS] Error querying financial summary:",
+        "[REPORTS/FINANCIALS] Error querying installments:",
         error.message
       );
       return NextResponse.json(
@@ -71,17 +71,25 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    // 5. Aggregate by month (sum total_ingresos and total_egresos across carrera_id/ciclo)
+    // 5. Aggregate by month (YYYY-MM from due_date)
     const monthlyMap = new Map<
       string,
       { ingresos: number; egresos: number }
     >();
 
     for (const row of data ?? []) {
-      const month = row.month as string;
+      const dueDate = row.due_date as string;
+      if (!dueDate) continue;
+      const month = dueDate.slice(0, 7); // YYYY-MM
       const existing = monthlyMap.get(month) ?? { ingresos: 0, egresos: 0 };
-      existing.ingresos += Number(row.total_ingresos ?? 0);
-      existing.egresos += Number(row.total_egresos ?? 0);
+      const amount = Number(row.amount ?? 0);
+
+      if (row.status === "paid") {
+        existing.ingresos += amount;
+      } else if (row.status === "pending" || row.status === "overdue") {
+        existing.egresos += amount;
+      }
+
       monthlyMap.set(month, existing);
     }
 

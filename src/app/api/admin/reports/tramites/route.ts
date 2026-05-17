@@ -65,19 +65,16 @@ export async function GET(req: NextRequest) {
   try {
     // 6. Build base filter for counts query (all matching records)
     let countsQuery = supabaseAdmin
-      .from("report_tramites_overview")
+      .from("solicitudes")
       .select("estado")
-      .gte("fecha", `${from}T00:00:00`)
-      .lte("fecha", `${to}T23:59:59`);
+      .gte("created_at", `${from}T00:00:00`)
+      .lte("created_at", `${to}T23:59:59`);
 
     if (estado) {
       countsQuery = countsQuery.eq("estado", estado);
     }
     if (carrera) {
       countsQuery = countsQuery.eq("carrera", carrera);
-    }
-    if (ciclo) {
-      countsQuery = countsQuery.eq("ciclo", Number(ciclo));
     }
 
     const { data: countsData, error: countsError } = await countsQuery;
@@ -111,13 +108,13 @@ export async function GET(req: NextRequest) {
     // Total matching records
     const total = (countsData ?? []).length;
 
-    // 8. Query paginated items
+    // 8. Query paginated items directly from solicitudes
     let itemsQuery = supabaseAdmin
-      .from("report_tramites_overview")
-      .select("id, fecha, tipo_tramite, alumno, costo, estado")
-      .gte("fecha", `${from}T00:00:00`)
-      .lte("fecha", `${to}T23:59:59`)
-      .order("fecha", { ascending: false })
+      .from("solicitudes")
+      .select("id, created_at, tipo_tramite, nombres, apellidos, monto_pagado, estado")
+      .gte("created_at", `${from}T00:00:00`)
+      .lte("created_at", `${to}T23:59:59`)
+      .order("created_at", { ascending: false })
       .range(offset, offset + limit - 1);
 
     if (estado) {
@@ -125,9 +122,6 @@ export async function GET(req: NextRequest) {
     }
     if (carrera) {
       itemsQuery = itemsQuery.eq("carrera", carrera);
-    }
-    if (ciclo) {
-      itemsQuery = itemsQuery.eq("ciclo", Number(ciclo));
     }
 
     const { data: itemsData, error: itemsError } = await itemsQuery;
@@ -143,10 +137,20 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    // 9. Return response
+    // 9. Transform items to expected format
+    const items = (itemsData ?? []).map((row) => ({
+      id: row.id,
+      fecha: row.created_at,
+      tipo_tramite: row.tipo_tramite ?? "",
+      alumno: `${row.nombres ?? ""} ${row.apellidos ?? ""}`.trim(),
+      costo: Number(row.monto_pagado ?? 0),
+      estado: row.estado,
+    }));
+
+    // 10. Return response
     return NextResponse.json({
       counts,
-      items: itemsData ?? [],
+      items,
       total,
       page,
       limit,

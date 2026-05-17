@@ -31,41 +31,43 @@ export async function GET(req: NextRequest) {
   const ciclo = searchParams.get("ciclo");
 
   try {
-    // 3. Query report_financial_summary view with filters
-    let summaryQuery = supabaseAdmin
-      .from("report_financial_summary")
-      .select("month, total_ingresos, total_egresos, carrera_id, ciclo")
-      .gte("month", from.slice(0, 7)) // YYYY-MM format comparison
-      .lte("month", to.slice(0, 7));
+    // 3. Query installments joined with payment_plans for financial summary
+    let installmentsQuery = supabaseAdmin
+      .from("installments")
+      .select("amount, status, due_date, plan_id, payment_plans!inner(carrera_id, ciclo)")
+      .gte("due_date", `${from}T00:00:00`)
+      .lte("due_date", `${to}T23:59:59`);
 
     if (carrera) {
-      summaryQuery = summaryQuery.eq("carrera_id", carrera);
+      installmentsQuery = installmentsQuery.eq("payment_plans.carrera_id", carrera);
     }
     if (ciclo) {
-      summaryQuery = summaryQuery.eq("ciclo", Number(ciclo));
+      installmentsQuery = installmentsQuery.eq("payment_plans.ciclo", Number(ciclo));
     }
 
-    const { data: summaryData, error: summaryError } = await summaryQuery;
+    const { data: installmentsData, error: installmentsError } = await installmentsQuery;
 
-    if (summaryError) {
-      console.error("[REPORTS/SUMMARY] Error querying financial summary:", summaryError.message);
+    if (installmentsError) {
+      console.error("[REPORTS/SUMMARY] Error querying installments:", installmentsError.message);
       return NextResponse.json(
         { error: "Error interno al consultar datos" },
         { status: 500 }
       );
     }
 
-    // 4. Calculate totals from aggregated view data
-    const total_pagado = (summaryData ?? []).reduce(
-      (sum, row) => sum + Number(row.total_ingresos ?? 0),
-      0
-    );
-    const total_pendiente = (summaryData ?? []).reduce(
-      (sum, row) => sum + Number(row.total_egresos ?? 0),
-      0
-    );
+    // 4. Calculate totals from raw installments data
+    let total_pagado = 0;
+    let total_pendiente = 0;
 
-    // total_ingresos and total_egresos in response are same as total_pagado and total_pendiente
+    for (const row of installmentsData ?? []) {
+      const amount = Number(row.amount ?? 0);
+      if (row.status === "paid") {
+        total_pagado += amount;
+      } else if (row.status === "pending" || row.status === "overdue") {
+        total_pendiente += amount;
+      }
+    }
+
     const total_ingresos = total_pagado;
     const total_egresos = total_pendiente;
 
@@ -76,28 +78,55 @@ export async function GET(req: NextRequest) {
       porcentaje_cobranza = Math.round((total_pagado / divisor) * 1000) / 10;
     }
 
-    // 6. Query report_recent_vouchers view for latest 50 vouchers
+    // 6. Query recent vouchers (join payment_vouchers → installments → payment_plans → profiles)
     const { data: vouchersData, error: vouchersError } = await supabaseAdmin
-      .from("report_recent_vouchers")
-      .select("id, alumno_nombre, monto, fecha, status, comprobante_url")
+      .from("payment_vouchers")
+      .select(`
+        id,
+        created_at,
+        status,
+        installments!inner(amount, comprobante_url, payment_plans!inner(alumno_id, profiles:alumno_id(nombre_completo)))
+      `)
+      .order("created_at", { ascending: false })
       .limit(50);
 
     if (vouchersError) {
       console.error("[REPORTS/SUMMARY] Error querying recent vouchers:", vouchersError.message);
-      return NextResponse.json(
-        { error: "Error interno al consultar datos" },
-        { status: 500 }
-      );
+      // Return financial data even if vouchers fail
+      return NextResponse.json({
+        total_pagado,
+        total_pendiente,
+        total_ingresos,
+        total_egresos,
+        porcentaje_cobranza,
+        vouchers_recientes: [],
+      });
     }
 
-    // 7. Return response
+    // 7. Transform vouchers data to expected format
+    const vouchers_recientes = (vouchersData ?? []).map((v) => {
+      const installment = v.installments as Record<string, unknown> | null;
+      const paymentPlan = installment?.payment_plans as Record<string, unknown> | null;
+      const profile = paymentPlan?.profiles as Record<string, unknown> | null;
+
+      return {
+        id: v.id,
+        alumno_nombre: (profile?.nombre_completo as string) ?? "—",
+        monto: Number(installment?.amount ?? 0),
+        fecha: v.created_at,
+        status: v.status,
+        comprobante_url: (installment?.comprobante_url as string) ?? null,
+      };
+    });
+
+    // 8. Return response
     return NextResponse.json({
       total_pagado,
       total_pendiente,
       total_ingresos,
       total_egresos,
       porcentaje_cobranza,
-      vouchers_recientes: vouchersData ?? [],
+      vouchers_recientes,
     });
   } catch (err) {
     console.error("[REPORTS/SUMMARY] Unexpected error:", err);
