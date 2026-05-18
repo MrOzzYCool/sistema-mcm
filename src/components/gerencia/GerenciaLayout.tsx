@@ -25,7 +25,7 @@ export default function GerenciaLayout({ children }: GerenciaLayoutProps) {
   }
 
   return (
-    <div className="p-6 w-full max-w-7xl mx-auto space-y-6">
+    <div className="w-full px-6 lg:px-10 xl:px-16 py-6 space-y-4">
       <div>
         <h1 className="text-2xl font-bold text-mcm-text">Gerencia</h1>
         <p className="text-mcm-muted text-sm mt-0.5">Dashboard ejecutivo</p>

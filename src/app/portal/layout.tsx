@@ -71,9 +71,9 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
             </button>
           </div>
         </header>
-        {/* Main content — centered */}
+        {/* Main content — full width */}
         <main className="flex-1 overflow-auto">
-          <div className="max-w-7xl mx-auto">
+          <div className="w-full px-6 lg:px-10 xl:px-16">
             {children}
           </div>
         </main>
