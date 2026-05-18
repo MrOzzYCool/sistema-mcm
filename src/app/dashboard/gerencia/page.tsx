@@ -118,6 +118,7 @@ function DashboardContent() {
   const [monthlyData, setMonthlyData] = useState<MonthlyFinancial[]>([]);
   const [tramitesCounts, setTramitesCounts] = useState<TramitesCounts | null>(null);
   const [vouchers, setVouchers] = useState<VoucherRow[]>([]);
+  const [detailItems, setDetailItems] = useState<{ id: string; alumno: string; carrera: string; ciclo: number; concepto: string; monto: number; estado: string; due_date: string }[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -197,6 +198,7 @@ function DashboardContent() {
       });
 
       setMonthlyData(financialsData.data ?? []);
+      setDetailItems(financialsData.detail?.items ?? []);
       setTramitesCounts(tramitesData.counts ?? { pendiente: 0, aprobado: 0, observado: 0, rechazado: 0 });
       setVouchers(summaryData.vouchers_recientes ?? []);
     } catch (err) {
@@ -334,6 +336,55 @@ function DashboardContent() {
           </div>
           {tramitesCounts && <DonutChart counts={tramitesCounts} />}
         </div>
+      </div>
+
+      {/* Detail Table: Alumnos */}
+      <div className="card">
+        <div className="flex items-center gap-2 mb-4">
+          <Banknote className="w-4 h-4 text-mcm-muted" />
+          <h3 className="font-semibold text-mcm-text">Detalle por Alumno</h3>
+        </div>
+        {detailItems.length === 0 ? (
+          <p className="text-sm text-mcm-muted py-6 text-center">No hay movimientos para el periodo y filtros seleccionados</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-mcm-border">
+                  {["Alumno", "Carrera", "Ciclo", "Concepto", "Monto", "Estado", "Vencimiento"].map((h) => (
+                    <th key={h} className="text-left py-2.5 px-3 text-mcm-muted font-medium text-xs uppercase tracking-wide">{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {detailItems.slice(0, 50).map((item) => (
+                  <tr key={item.id} className="border-b border-mcm-border last:border-0 hover:bg-slate-50">
+                    <td className="py-3 px-3 text-mcm-text text-xs font-medium">{item.alumno}</td>
+                    <td className="py-3 px-3 text-mcm-muted text-xs">{item.carrera}</td>
+                    <td className="py-3 px-3 text-mcm-muted text-xs">Ciclo {item.ciclo}</td>
+                    <td className="py-3 px-3 text-mcm-text text-xs">{item.concepto}</td>
+                    <td className="py-3 px-3 font-mono text-xs">S/ {item.monto.toFixed(2)}</td>
+                    <td className="py-3 px-3">
+                      <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${
+                        item.estado === "paid" ? "bg-green-100 text-green-700" :
+                        item.estado === "exonerado" ? "bg-blue-100 text-blue-700" :
+                        "bg-red-100 text-red-700"
+                      }`}>
+                        {item.estado === "paid" ? "Pagado" : item.estado === "exonerado" ? "Exonerado" : "Pendiente"}
+                      </span>
+                    </td>
+                    <td className="py-3 px-3 text-mcm-muted text-xs">{formatDetailDate(item.due_date)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {detailItems.length > 50 && (
+              <p className="text-xs text-mcm-muted text-center py-3 border-t border-mcm-border">
+                Mostrando 50 de {detailItems.length} registros. Ve a la pestaña Finanzas para ver todos.
+              </p>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Vouchers Table */}
@@ -532,6 +583,15 @@ function VouchersTable({ vouchers }: { vouchers: VoucherRow[] }) {
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
+
+function formatDetailDate(dateStr: string): string {
+  if (!dateStr) return "—";
+  try {
+    const d = new Date(dateStr + "T00:00:00");
+    if (isNaN(d.getTime())) return dateStr;
+    return d.toLocaleDateString("es-PE", { day: "2-digit", month: "short", year: "numeric" });
+  } catch { return dateStr; }
+}
 
 function formatVoucherDate(dateStr: string): string {
   if (!dateStr) return "—";
