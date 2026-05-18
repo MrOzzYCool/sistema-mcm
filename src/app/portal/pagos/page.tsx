@@ -30,7 +30,7 @@ export default function PagosAlumnoPage() {
       const token = await getAccessToken();
       if (!mountedRef.current) return;
       if (!token) return;
-      const res = await fetch("/api/portal/mis-pagos", { headers: { Authorization: `Bearer ${token}` } });
+      const res = await fetch("/api/portal/mis-pagos", { headers: { Authorization: `Bearer ${token}` }, cache: "no-store" });
       if (!mountedRef.current || !res.ok) return;
       const data = await res.json();
       if (mountedRef.current) setPlans(data.plans ?? []);
@@ -50,8 +50,8 @@ export default function PagosAlumnoPage() {
   const all = plans.flatMap(p => p.installments).sort((a, b) =>
     (CONCEPTO_ORDER[a.concepto] ?? 99) - (CONCEPTO_ORDER[b.concepto] ?? 99)
   );
-  const totalDeuda = all.filter(i => i.status !== "paid").reduce((s, i) => s + Number(i.amount), 0);
-  const totalPagado = all.filter(i => i.status === "paid").reduce((s, i) => s + Number(i.amount), 0);
+  const totalDeuda = all.filter(i => i.status !== "paid" && i.status !== "exonerado").reduce((s, i) => s + Number(i.amount), 0);
+  const totalPagado = all.filter(i => i.status === "paid" || i.status === "exonerado").reduce((s, i) => s + Number(i.amount), 0);
   const pendientes = all.filter(i => i.status === "pending").length;
 
   return (
@@ -128,6 +128,8 @@ export default function PagosAlumnoPage() {
                       <td className="py-3.5 px-4">
                         {inst.status === "paid" ? (
                           <span className="badge-green flex items-center gap-1 w-fit"><CheckCircle size={12} /> Pagado</span>
+                        ) : inst.status === "exonerado" ? (
+                          <span className="badge-blue flex items-center gap-1 w-fit"><CheckCircle size={12} /> Exonerado</span>
                         ) : inst.status === "in_review" ? (
                           <span className="badge-blue flex items-center gap-1 w-fit"><Clock size={12} /> En revisión</span>
                         ) : isOverdue ? (

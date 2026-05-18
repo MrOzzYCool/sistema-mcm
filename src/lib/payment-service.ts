@@ -83,8 +83,10 @@ export async function generateStudentPaymentPlan(
   const montoCuota = cuotaBenefit ? Number(cuotaBenefit.monto_final) : 400.00;
 
   const items: Record<string, unknown>[] = [];
+  const ahora = new Date().toISOString();
 
   // Matrícula — último día del mes de inicio
+  // Si monto = 0, se marca como pagado automáticamente
   items.push({
     plan_id: plan.id,
     tipo: "matricula",
@@ -93,7 +95,8 @@ export async function generateStudentPaymentPlan(
     amount_original: 250.00,
     amount: montoMatricula,
     due_date: getFirstDayOfMonth(startYear, startMonthIndex),
-    status: "pending",
+    status: montoMatricula === 0 ? "exonerado" : "pending",
+    fecha_pago: montoMatricula === 0 ? ahora : null,
   });
 
   // Cuotas 1..4 — día 01 de cada mes consecutivo
@@ -106,6 +109,7 @@ export async function generateStudentPaymentPlan(
     const dueYear = startYear + addYears;
 
     const numero = i + 1;
+    // Si monto = 0, se marca como pagado automáticamente
     items.push({
       plan_id: plan.id,
       tipo: "cuota",
@@ -114,7 +118,8 @@ export async function generateStudentPaymentPlan(
       amount_original: 400.00,
       amount: montoCuota,
       due_date: getFirstDayOfMonth(dueYear, realMonthIndex),
-      status: "pending",
+      status: montoCuota === 0 ? "exonerado" : "pending",
+      fecha_pago: montoCuota === 0 ? ahora : null,
     });
   }
 

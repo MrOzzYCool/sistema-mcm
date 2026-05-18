@@ -302,15 +302,15 @@ function PagosAlumnoContent() {
                         {new Date(inst.due_date + "T00:00:00").toLocaleDateString("es-PE", { day: "2-digit", month: "short", year: "numeric" })}
                       </td>
                       <td className="py-3 px-4">
-                        <span className={inst.status === "paid" ? "badge-green" : inst.status === "overdue" ? "badge-red" : "badge-yellow"}>
-                          {inst.status === "paid" ? "Pagado" : inst.status === "overdue" ? "Vencido" : "Pendiente"}
+                        <span className={inst.status === "paid" ? "badge-green" : inst.status === "exonerado" ? "badge-blue" : inst.status === "overdue" ? "badge-red" : "badge-yellow"}>
+                          {inst.status === "paid" ? "Pagado" : inst.status === "exonerado" ? "Exonerado" : inst.status === "overdue" ? "Vencido" : "Pendiente"}
                         </span>
                       </td>
                       <td className="py-3 px-4 text-mcm-muted text-xs">
                         {inst.fecha_pago ? new Date(inst.fecha_pago).toLocaleDateString("es-PE", { day: "2-digit", month: "short" }) : "—"}
                       </td>
                       <td className="py-3 px-4">
-                        {inst.status !== "paid" && (
+                        {inst.status !== "paid" && inst.status !== "exonerado" && (
                           <div className="flex gap-2">
                             <button onClick={() => handleMarkPaid(inst.id)} title="Marcar pagado" className="text-mcm-muted hover:text-green-600"><CheckCircle size={14} /></button>
                             <button onClick={() => openEdit(inst)} title="Editar monto" className="text-mcm-muted hover:text-blue-600"><Pencil size={14} /></button>
@@ -321,6 +321,11 @@ function PagosAlumnoContent() {
                           <a href={inst.comprobante_url} target="_blank" rel="noreferrer" className="text-xs text-green-600 hover:text-green-800 font-medium">
                             Ver comprobante
                           </a>
+                        )}
+                        {inst.status === "paid" && !inst.comprobante_url && (
+                          <button onClick={() => openManualComprobante(inst)} title="Adjuntar boleta" className="flex items-center gap-1 text-xs text-amber-600 hover:text-amber-800 font-medium">
+                            <Paperclip size={12} /> Adjuntar boleta
+                          </button>
                         )}
                       </td>
                     </tr>

@@ -92,15 +92,23 @@ export async function POST(req: NextRequest) {
     const planIds = plans.map(p => p.id);
     const tipoFilter = tipo_concepto === "matricula" ? "matricula" : "cuota";
 
-    // Update all matching installments that are still pending
-    let query = supabaseAdmin
-      .from("installments")
-      .update({ amount: Number(monto_final) })
-      .in("plan_id", planIds)
-      .eq("tipo", tipoFilter)
-      .in("status", ["pending", "in_review"]);
-
-    await query;
+    if (Number(monto_final) === 0) {
+      // If amount is 0, mark as exonerado (no debt)
+      await supabaseAdmin
+        .from("installments")
+        .update({ amount: 0, status: "exonerado", fecha_pago: new Date().toISOString() })
+        .in("plan_id", planIds)
+        .eq("tipo", tipoFilter)
+        .in("status", ["pending", "in_review"]);
+    } else {
+      // Update amount but keep as pending
+      await supabaseAdmin
+        .from("installments")
+        .update({ amount: Number(monto_final) })
+        .in("plan_id", planIds)
+        .eq("tipo", tipoFilter)
+        .in("status", ["pending", "in_review"]);
+    }
   }
 
   await supabaseAdmin.from("historial_auditoria").insert({
