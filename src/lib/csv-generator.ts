@@ -1,5 +1,15 @@
 import type { MonthlyFinancial, TramiteRow } from "@/types/gerencia";
 
+export interface FinancialDetailRow {
+  alumno: string;
+  carrera: string;
+  ciclo: number;
+  concepto: string;
+  monto: number;
+  estado: string;
+  due_date: string;
+}
+
 /**
  * Escapes a CSV field value. If the field contains commas, double quotes,
  * or newlines, it wraps the value in double quotes and escapes internal
@@ -26,6 +36,19 @@ export function generateFinancialCSV(data: MonthlyFinancial[]): string {
   const rows = data.map(
     (r) =>
       `${escapeCSVField(r.month)},${r.ingresos.toFixed(2)},${r.egresos.toFixed(2)}`
+  );
+  return [header, ...rows].join("\n");
+}
+
+/**
+ * Generates a CSV string from financial detail data (per-alumno).
+ */
+export function generateFinancialDetailCSV(data: FinancialDetailRow[]): string {
+  const header = "Alumno,Carrera,Ciclo,Concepto,Monto (S/),Estado,Fecha Vencimiento";
+  const statusLabels: Record<string, string> = { paid: "Pagado", pending: "Pendiente", overdue: "Vencido", in_review: "En revisión" };
+  const rows = data.map(
+    (r) =>
+      `${escapeCSVField(r.alumno)},${escapeCSVField(r.carrera)},${r.ciclo},${escapeCSVField(r.concepto)},${r.monto.toFixed(2)},${escapeCSVField(statusLabels[r.estado] ?? r.estado)},${escapeCSVField(r.due_date)}`
   );
   return [header, ...rows].join("\n");
 }

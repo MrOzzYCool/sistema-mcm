@@ -2,9 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { verifyGerenciaAccess } from "@/lib/verify-gerencia-access";
 import { validateDateParams } from "@/lib/validate-date-params";
 import { supabaseAdmin } from "@/lib/supabase-admin";
-import { generateFinancialCSV, generateTramitesCSV } from "@/lib/csv-generator";
-import { generateFinancialPDF, generateTramitesPDF } from "@/lib/pdf-generator";
-import type { MonthlyFinancial, TramiteRow } from "@/types/gerencia";
+import { generateFinancialDetailCSV, generateTramitesCSV } from "@/lib/csv-generator";
+import type { FinancialDetailRow } from "@/lib/csv-generator";
+import { generateFinancialDetailPDF, generateTramitesPDF } from "@/lib/pdf-generator";
+import type { TramiteRow } from "@/types/gerencia";
 
 const VALID_TYPES = ["financials", "tramites"] as const;
 const VALID_FORMATS = ["csv", "pdf"] as const;
@@ -64,12 +65,20 @@ export async function GET(req: NextRequest) {
     const filename = `reporte-${type}-${from}-${to}.${format}`;
 
     if (type === "financials") {
-      // Query installments joined with payment_plans filtered by date range
+      // Query installments with full detail joins for export
       let query = supabaseAdmin
         .from("installments")
-        .select("amount, status, due_date, payment_plans!inner(ciclo)")
+        .select(`
+          id, amount, status, due_date, concepto,
+          payment_plans!inner(
+            alumno_id, ciclo,
+            profiles:alumno_id(nombre_completo),
+            inscripciones:alumno_id(carrera_id, carreras:carrera_id(nombre_carrera))
+          )
+        `)
         .gte("due_date", `${from}T00:00:00`)
-        .lte("due_date", `${to}T23:59:59`);
+        .lte("due_date", `${to}T23:59:59`)
+        .order("due_date", { ascending: false });
 
       if (ciclo) {
         query = query.eq("payment_plans.ciclo", Number(ciclo));
@@ -85,38 +94,57 @@ export async function GET(req: NextRequest) {
         );
       }
 
-      // Aggregate by month
-      const monthlyMap = new Map<string, { ingresos: number; egresos: number }>();
+      // Transform to detail rows
+      const detailData: FinancialDetailRow[] = [];
 
       for (const row of data ?? []) {
-        const dueDate = row.due_date as string;
-        if (!dueDate) continue;
-        const month = dueDate.slice(0, 7);
-        const existing = monthlyMap.get(month) ?? { ingresos: 0, egresos: 0 };
-        const amount = Number(row.amount ?? 0);
+        const plan = row.payment_plans as unknown as {
+          ciclo?: number;
+          profiles?: { nombre_completo?: string } | { nombre_completo?: string }[] | null;
+          inscripciones?: Array<{ carreras?: { nombre_carrera?: string } | { nombre_carrera?: string }[] | null }> | null;
+        } | null;
 
-        if (row.status === "paid") {
-          existing.ingresos += amount;
-        } else if (row.status === "pending" || row.status === "overdue") {
-          existing.egresos += amount;
+        let alumnoNombre = "—";
+        let carreraNombre = "—";
+
+        if (plan) {
+          const profiles = plan.profiles;
+          if (Array.isArray(profiles)) {
+            alumnoNombre = profiles[0]?.nombre_completo ?? "—";
+          } else if (profiles) {
+            alumnoNombre = profiles.nombre_completo ?? "—";
+          }
+
+          const inscripciones = plan.inscripciones;
+          if (Array.isArray(inscripciones) && inscripciones.length > 0) {
+            const carreras = inscripciones[0].carreras;
+            if (Array.isArray(carreras)) {
+              carreraNombre = carreras[0]?.nombre_carrera ?? "—";
+            } else if (carreras) {
+              carreraNombre = carreras.nombre_carrera ?? "—";
+            }
+          }
         }
 
-        monthlyMap.set(month, existing);
+        // Apply carrera filter
+        if (carrera && carreraNombre !== carrera && carreraNombre !== "—") continue;
+
+        detailData.push({
+          alumno: alumnoNombre,
+          carrera: carreraNombre,
+          ciclo: plan?.ciclo ?? 0,
+          concepto: (row.concepto as string) ?? "Cuota",
+          monto: Number(row.amount ?? 0),
+          estado: row.status as string,
+          due_date: (row.due_date as string).slice(0, 10),
+        });
       }
 
-      const financialData: MonthlyFinancial[] = Array.from(monthlyMap.entries())
-        .sort(([a], [b]) => a.localeCompare(b))
-        .map(([month, values]) => ({
-          month,
-          ingresos: values.ingresos,
-          egresos: values.egresos,
-        }));
-
       if (format === "csv") {
-        fileContent = generateFinancialCSV(financialData);
+        fileContent = generateFinancialDetailCSV(detailData);
         contentType = "text/csv; charset=utf-8";
       } else {
-        fileContent = generateFinancialPDF(financialData, { from, to, carrera: carrera ?? undefined, ciclo: ciclo ? Number(ciclo) : undefined });
+        fileContent = generateFinancialDetailPDF(detailData, { from, to, carrera: carrera ?? undefined, ciclo: ciclo ? Number(ciclo) : undefined });
         contentType = "application/pdf";
       }
     } else {
