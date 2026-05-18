@@ -65,17 +65,10 @@ export async function GET(req: NextRequest) {
     const filename = `reporte-${type}-${from}-${to}.${format}`;
 
     if (type === "financials") {
-      // Query installments with full detail joins for export
+      // Step 1: Query installments with payment_plans (simple join)
       let query = supabaseAdmin
         .from("installments")
-        .select(`
-          id, amount, status, due_date, concepto,
-          payment_plans!inner(
-            alumno_id, ciclo,
-            profiles:alumno_id(nombre_completo),
-            inscripciones:alumno_id(carrera_id, carreras:carrera_id(nombre_carrera))
-          )
-        `)
+        .select("id, amount, status, due_date, concepto, plan_id, payment_plans!inner(id, alumno_id, ciclo)")
         .gte("due_date", `${from}T00:00:00`)
         .lte("due_date", `${to}T23:59:59`)
         .order("due_date", { ascending: false });
@@ -87,47 +80,55 @@ export async function GET(req: NextRequest) {
       const { data, error } = await query;
 
       if (error) {
-        console.error("[REPORTS/EXPORT] Error querying financial data:", error.message);
+        console.error("[REPORTS/EXPORT] Supabase error:", JSON.stringify(error));
         return NextResponse.json(
-          { error: "Error interno al consultar datos" },
+          { error: "Error interno al consultar datos", detail: error.message },
           { status: 500 }
         );
       }
 
-      // Transform to detail rows
+      // Step 2: Resolve alumno names and carreras
+      const alumnoIds = [...new Set(
+        (data ?? []).map((row) => {
+          const plan = row.payment_plans as unknown as { alumno_id?: string } | null;
+          return plan?.alumno_id;
+        }).filter(Boolean)
+      )] as string[];
+
+      let alumnoNameMap: Record<string, string> = {};
+      let alumnoCarreraMap: Record<string, string> = {};
+
+      if (alumnoIds.length > 0) {
+        const { data: profiles } = await supabaseAdmin
+          .from("profiles")
+          .select("id, nombre_completo")
+          .in("id", alumnoIds);
+        for (const p of profiles ?? []) {
+          alumnoNameMap[p.id] = p.nombre_completo ?? "—";
+        }
+
+        const { data: inscripciones } = await supabaseAdmin
+          .from("inscripciones")
+          .select("alumno_id, carreras:carrera_id(nombre_carrera)")
+          .in("alumno_id", alumnoIds);
+        for (const insc of inscripciones ?? []) {
+          const carreraObj = insc.carreras as unknown as { nombre_carrera?: string } | null;
+          if (carreraObj?.nombre_carrera) {
+            alumnoCarreraMap[insc.alumno_id] = carreraObj.nombre_carrera;
+          }
+        }
+      }
+
+      // Step 3: Build detail rows
       const detailData: FinancialDetailRow[] = [];
 
       for (const row of data ?? []) {
-        const plan = row.payment_plans as unknown as {
-          ciclo?: number;
-          profiles?: { nombre_completo?: string } | { nombre_completo?: string }[] | null;
-          inscripciones?: Array<{ carreras?: { nombre_carrera?: string } | { nombre_carrera?: string }[] | null }> | null;
-        } | null;
+        const plan = row.payment_plans as unknown as { alumno_id?: string; ciclo?: number } | null;
+        const alumnoId = plan?.alumno_id ?? "";
+        const alumnoNombre = alumnoNameMap[alumnoId] ?? "—";
+        const carreraNombre = alumnoCarreraMap[alumnoId] ?? "—";
 
-        let alumnoNombre = "—";
-        let carreraNombre = "—";
-
-        if (plan) {
-          const profiles = plan.profiles;
-          if (Array.isArray(profiles)) {
-            alumnoNombre = profiles[0]?.nombre_completo ?? "—";
-          } else if (profiles) {
-            alumnoNombre = profiles.nombre_completo ?? "—";
-          }
-
-          const inscripciones = plan.inscripciones;
-          if (Array.isArray(inscripciones) && inscripciones.length > 0) {
-            const carreras = inscripciones[0].carreras;
-            if (Array.isArray(carreras)) {
-              carreraNombre = carreras[0]?.nombre_carrera ?? "—";
-            } else if (carreras) {
-              carreraNombre = carreras.nombre_carrera ?? "—";
-            }
-          }
-        }
-
-        // Apply carrera filter
-        if (carrera && carreraNombre !== carrera && carreraNombre !== "—") continue;
+        if (carrera && carreraNombre !== carrera) continue;
 
         detailData.push({
           alumno: alumnoNombre,

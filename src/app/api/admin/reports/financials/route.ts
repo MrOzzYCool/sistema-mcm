@@ -48,19 +48,10 @@ export async function GET(req: NextRequest) {
   const offset = (page - 1) * limit;
 
   try {
-    // 4. Query installments with full joins for detail
-    // installments → payment_plans (alumno_id, ciclo) → profiles (nombre_completo)
-    // Also get inscripciones → carreras for carrera name
+    // 4. Step 1: Query installments with payment_plans (simple join)
     let query = supabaseAdmin
       .from("installments")
-      .select(`
-        id, amount, status, due_date, concepto,
-        payment_plans!inner(
-          alumno_id, ciclo,
-          profiles:alumno_id(nombre_completo),
-          inscripciones:alumno_id(carrera_id, carreras:carrera_id(nombre_carrera))
-        )
-      `)
+      .select("id, amount, status, due_date, concepto, plan_id, payment_plans!inner(id, alumno_id, ciclo)")
       .gte("due_date", `${from}T00:00:00`)
       .lte("due_date", `${to}T23:59:59`)
       .order("due_date", { ascending: false });
@@ -69,17 +60,54 @@ export async function GET(req: NextRequest) {
       query = query.eq("payment_plans.ciclo", Number(ciclo));
     }
 
-    const { data, error } = await query;
+    const { data: installmentsData, error: installmentsError } = await query;
 
-    if (error) {
-      console.error("[REPORTS/FINANCIALS] Error querying installments:", JSON.stringify(error));
+    if (installmentsError) {
+      console.error("[REPORTS/FINANCIALS] Supabase error:", JSON.stringify(installmentsError));
       return NextResponse.json(
-        { error: "Error interno al consultar datos", detail: error.message },
+        { error: "Error interno al consultar datos", detail: installmentsError.message, code: installmentsError.code },
         { status: 500 }
       );
     }
 
-    // 5. Process data: aggregate monthly + build detail items
+    // 5. Step 2: Get unique alumno_ids to resolve names and carreras
+    const alumnoIds = [...new Set(
+      (installmentsData ?? []).map((row) => {
+        const plan = row.payment_plans as unknown as { alumno_id?: string } | null;
+        return plan?.alumno_id;
+      }).filter(Boolean)
+    )] as string[];
+
+    // Resolve alumno names from profiles
+    let alumnoNameMap: Record<string, string> = {};
+    if (alumnoIds.length > 0) {
+      const { data: profiles } = await supabaseAdmin
+        .from("profiles")
+        .select("id, nombre_completo")
+        .in("id", alumnoIds);
+
+      for (const p of profiles ?? []) {
+        alumnoNameMap[p.id] = p.nombre_completo ?? "—";
+      }
+    }
+
+    // Resolve carrera names from inscripciones → carreras
+    let alumnoCarreraMap: Record<string, string> = {};
+    if (alumnoIds.length > 0) {
+      const { data: inscripciones } = await supabaseAdmin
+        .from("inscripciones")
+        .select("alumno_id, carreras:carrera_id(nombre_carrera)")
+        .in("alumno_id", alumnoIds);
+
+      for (const insc of inscripciones ?? []) {
+        const carreraObj = insc.carreras as unknown as { nombre_carrera?: string } | null;
+        if (carreraObj?.nombre_carrera) {
+          alumnoCarreraMap[insc.alumno_id] = carreraObj.nombre_carrera;
+        }
+      }
+    }
+
+    // 6. Process data: aggregate monthly + build detail items
     const monthlyMap = new Map<string, { ingresos: number; egresos: number }>();
 
     interface DetailItem {
@@ -95,14 +123,21 @@ export async function GET(req: NextRequest) {
 
     const allItems: DetailItem[] = [];
 
-    for (const row of data ?? []) {
+    for (const row of installmentsData ?? []) {
       const dueDate = row.due_date as string;
       if (!dueDate) continue;
 
       const amount = Number(row.amount ?? 0);
-      const month = dueDate.slice(0, 7);
+      const plan = row.payment_plans as unknown as { alumno_id?: string; ciclo?: number } | null;
+      const alumnoId = plan?.alumno_id ?? "";
+      const cicloNum = plan?.ciclo ?? 0;
+      const alumnoNombre = alumnoNameMap[alumnoId] ?? "—";
+      const carreraNombre = alumnoCarreraMap[alumnoId] ?? "—";
 
-      // Monthly aggregation
+      // Apply carrera filter
+      if (carrera && carreraNombre !== carrera) continue;
+
+      const month = dueDate.slice(0, 7);
       const existing = monthlyMap.get(month) ?? { ingresos: 0, egresos: 0 };
       if (row.status === "paid") {
         existing.ingresos += amount;
@@ -110,54 +145,6 @@ export async function GET(req: NextRequest) {
         existing.egresos += amount;
       }
       monthlyMap.set(month, existing);
-
-      // Extract detail info from nested joins
-      const plan = row.payment_plans as unknown as {
-        alumno_id?: string;
-        ciclo?: number;
-        profiles?: { nombre_completo?: string } | { nombre_completo?: string }[] | null;
-        inscripciones?: Array<{ carrera_id?: string; carreras?: { nombre_carrera?: string } | { nombre_carrera?: string }[] | null }> | null;
-      } | null;
-
-      let alumnoNombre = "—";
-      let carreraNombre = "—";
-      let cicloNum = 0;
-
-      if (plan) {
-        cicloNum = plan.ciclo ?? 0;
-
-        // profiles can be object or array depending on Supabase response
-        const profiles = plan.profiles;
-        if (Array.isArray(profiles)) {
-          alumnoNombre = profiles[0]?.nombre_completo ?? "—";
-        } else if (profiles) {
-          alumnoNombre = profiles.nombre_completo ?? "—";
-        }
-
-        // inscripciones is an array
-        const inscripciones = plan.inscripciones;
-        if (Array.isArray(inscripciones) && inscripciones.length > 0) {
-          const insc = inscripciones[0];
-          const carreras = insc.carreras;
-          if (Array.isArray(carreras)) {
-            carreraNombre = carreras[0]?.nombre_carrera ?? "—";
-          } else if (carreras) {
-            carreraNombre = carreras.nombre_carrera ?? "—";
-          }
-        }
-      }
-
-      // Apply carrera filter client-side (since it's a nested join)
-      if (carrera && carreraNombre !== carrera && carreraNombre !== "—") {
-        // Remove from monthly aggregation
-        if (row.status === "paid") {
-          existing.ingresos -= amount;
-        } else if (row.status === "pending" || row.status === "overdue") {
-          existing.egresos -= amount;
-        }
-        monthlyMap.set(month, existing);
-        continue;
-      }
 
       allItems.push({
         id: row.id as string,
@@ -171,22 +158,7 @@ export async function GET(req: NextRequest) {
       });
     }
 
-    // If carrera filter was applied, recalculate monthly from filtered items
-    if (carrera) {
-      monthlyMap.clear();
-      for (const item of allItems) {
-        const month = item.due_date.slice(0, 7);
-        const existing = monthlyMap.get(month) ?? { ingresos: 0, egresos: 0 };
-        if (item.estado === "paid") {
-          existing.ingresos += item.monto;
-        } else if (item.estado === "pending" || item.estado === "overdue") {
-          existing.egresos += item.monto;
-        }
-        monthlyMap.set(month, existing);
-      }
-    }
-
-    // 6. Convert monthly to sorted array
+    // 7. Convert monthly to sorted array
     const monthlySummary = Array.from(monthlyMap.entries())
       .sort(([a], [b]) => a.localeCompare(b))
       .map(([month, values]) => ({
@@ -195,7 +167,7 @@ export async function GET(req: NextRequest) {
         egresos: values.egresos,
       }));
 
-    // 7. Paginate detail items
+    // 8. Paginate detail items
     const total = allItems.length;
     const paginatedItems = allItems.slice(offset, offset + limit);
 
@@ -209,9 +181,10 @@ export async function GET(req: NextRequest) {
       },
     });
   } catch (err) {
-    console.error("[REPORTS/FINANCIALS] Unexpected error:", err);
+    const message = err instanceof Error ? err.message : String(err);
+    console.error("[REPORTS/FINANCIALS] Unexpected error:", message, err);
     return NextResponse.json(
-      { error: "Error interno al consultar datos" },
+      { error: "Error interno al consultar datos", detail: message },
       { status: 500 }
     );
   }
