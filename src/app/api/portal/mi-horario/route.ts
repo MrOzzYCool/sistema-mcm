@@ -58,7 +58,7 @@ export async function GET(req: NextRequest) {
     // 3. Obtener horarios de class_schedules para esos cursos y el ciclo actual
     const { data: schedules, error: schedError } = await supabaseAdmin
       .from("class_schedules")
-      .select("id, course_id, day_of_week, start_time, end_time, location, cycle_number")
+      .select("id, course_id, day_of_week, start_time, end_time, location, cycle_number, url_clase")
       .in("course_id", cursoIds)
       .eq("cycle_number", ciclo_actual)
       .order("day_of_week")
@@ -89,7 +89,7 @@ export async function GET(req: NextRequest) {
 
     // 5. Mapear día numérico a nombre
     const DAY_NAMES: Record<number, string> = {
-      1: "Lunes", 2: "Martes", 3: "Miércoles", 4: "Jueves", 5: "Viernes", 6: "Sábado",
+      1: "Lunes", 2: "Martes", 3: "Miércoles", 4: "Jueves", 5: "Viernes", 6: "Sábado", 7: "Domingo",
     };
 
     // 6. Transformar datos para el frontend
@@ -100,7 +100,8 @@ export async function GET(req: NextRequest) {
       curso: cursoMap.get(s.course_id) ?? "—",
       hora_inicio: s.start_time,
       hora_fin: s.end_time,
-      aula: s.location ?? "—",
+      aula: s.location ?? null,
+      url_clase: (s as Record<string, unknown>).url_clase as string | null ?? null,
     }));
 
     return NextResponse.json({
