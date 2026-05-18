@@ -7,7 +7,6 @@ import { useRouter } from "next/navigation";
 import GerenciaLayout from "@/components/gerencia/GerenciaLayout";
 import GerenciaFiltersComponent, {
   getFirstDayOfMonth,
-  getLastDayOfMonth,
 } from "@/components/gerencia/GerenciaFilters";
 import ExportButtons from "@/components/gerencia/ExportButtons";
 import type {
@@ -34,9 +33,11 @@ import {
   Loader2,
   AlertCircle,
   TrendingUp,
-  DollarSign,
+  Banknote,
   Percent,
   ExternalLink,
+  FileText,
+  CreditCard,
 } from "lucide-react";
 
 // ─── Constants ───────────────────────────────────────────────────────────────
@@ -110,7 +111,7 @@ export default function GerenciaDashboardPage() {
 function DashboardContent() {
   const [filters, setFilters] = useState<GerenciaFilters>({
     from: getFirstDayOfMonth(),
-    to: getLastDayOfMonth(),
+    to: new Date().toISOString().slice(0, 10), // Hoy
   });
 
   const [summary, setSummary] = useState<FinancialSummary | null>(null);
@@ -328,7 +329,7 @@ function DashboardContent() {
         {/* Donut Chart: Trámites por Estado */}
         <div className="card">
           <div className="flex items-center gap-2 mb-4">
-            <DollarSign className="w-4 h-4 text-mcm-muted" />
+            <FileText className="w-4 h-4 text-mcm-muted" />
             <h3 className="font-semibold text-mcm-text">Trámites por Estado</h3>
           </div>
           {tramitesCounts && <DonutChart counts={tramitesCounts} />}
@@ -338,7 +339,7 @@ function DashboardContent() {
       {/* Vouchers Table */}
       <div className="card">
         <div className="flex items-center gap-2 mb-4">
-          <DollarSign className="w-4 h-4 text-mcm-muted" />
+          <CreditCard className="w-4 h-4 text-mcm-muted" />
           <h3 className="font-semibold text-mcm-text">Últimos Vouchers</h3>
         </div>
         <VouchersTable vouchers={vouchers} />
@@ -351,30 +352,18 @@ function DashboardContent() {
 
 function KpiSection({ summary }: { summary: FinancialSummary }) {
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
       <KpiCard
         label="Total Pagado"
         value={`S/ ${summary.total_pagado.toFixed(2)}`}
-        icon={<DollarSign className="w-5 h-5" />}
+        icon={<Banknote className="w-5 h-5" />}
         color="green"
       />
       <KpiCard
         label="Total Pendiente"
         value={`S/ ${summary.total_pendiente.toFixed(2)}`}
-        icon={<DollarSign className="w-5 h-5" />}
+        icon={<CreditCard className="w-5 h-5" />}
         color="yellow"
-      />
-      <KpiCard
-        label="Total Ingresos"
-        value={`S/ ${summary.total_ingresos.toFixed(2)}`}
-        icon={<TrendingUp className="w-5 h-5" />}
-        color="blue"
-      />
-      <KpiCard
-        label="Total Egresos"
-        value={`S/ ${summary.total_egresos.toFixed(2)}`}
-        icon={<TrendingUp className="w-5 h-5" />}
-        color="red"
       />
       <KpiCard
         label="% Cobranza"
