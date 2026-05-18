@@ -11,12 +11,13 @@ export async function GET(req: NextRequest) {
 
   const { data: plans } = await supabaseAdmin
     .from("payment_plans")
-    .select("id, ciclo, year, status, installments(id, concepto, tipo, numero, amount, amount_original, due_date, status, fecha_pago, observacion, comprobante_url, tipo_comprobante)")
+    .select("id, ciclo, year, status, installments(id, concepto, tipo, numero, amount, amount_original, due_date, status, fecha_pago, observacion, comprobante_url, tipo_comprobante, boleta_pregenerada)")
     .eq("alumno_id", user.id)
     .eq("status", "activo")
     .order("year", { ascending: false });
 
   // Fix inconsistencies: if a cuota has comprobante_url + fecha_pago but status is still pending,
+  // AND it's NOT a boleta_pregenerada (those are intentionally pending until voucher approved),
   // treat it as paid (and fix it in the DB for next time)
   const idsToFix: string[] = [];
   const fixedPlans = (plans ?? []).map((plan) => ({
@@ -25,6 +26,7 @@ export async function GET(req: NextRequest) {
       if (
         inst.comprobante_url &&
         inst.fecha_pago &&
+        !inst.boleta_pregenerada &&
         (inst.status === "pending" || inst.status === "in_review")
       ) {
         idsToFix.push(inst.id as string);
