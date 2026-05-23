@@ -172,6 +172,25 @@ function AcademicoContent() {
     const a = document.createElement("a"); a.href = url; a.download = "plantilla_cursos.csv"; a.click();
   }
 
+  function exportarCursos() {
+    const header = "Nombre del Curso,Créditos,Ciclo,Carreras";
+    const rows = cursos.map((c) => {
+      const carrNames = c.malla_curricular?.map((m) => m.carreras?.nombre_carrera).filter(Boolean).join("; ") ?? "—";
+      // Escape fields with commas
+      const nombre = c.nombre_curso.includes(",") ? `"${c.nombre_curso}"` : c.nombre_curso;
+      const carrerasField = carrNames.includes(",") ? `"${carrNames}"` : carrNames;
+      return `${nombre},${c.creditos},${c.ciclo_perteneciente},${carrerasField}`;
+    });
+    const csv = [header, ...rows].join("\n");
+    const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `cursos_mcm_${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
   // ── Render ────────────────────────────────────────────────────────────────
 
   return (
@@ -193,6 +212,9 @@ function AcademicoContent() {
             <input ref={csvRef} type="file" accept=".csv" className="hidden" onChange={handleCSVFile} />
             <button onClick={downloadTemplate} className="btn-secondary flex items-center gap-2 text-sm">
               <Download size={14} /> Plantilla
+            </button>
+            <button onClick={exportarCursos} className="btn-secondary flex items-center gap-2 text-sm">
+              <Download size={14} /> Exportar Cursos
             </button>
           </>}
           <button onClick={cargar} disabled={loading} className="btn-secondary flex items-center gap-2 text-sm">
