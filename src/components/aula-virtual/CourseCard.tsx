@@ -46,9 +46,9 @@ export default function CourseCard({
         : `https://picsum.photos/seed/default/400/200`;
 
   const linkHref = codigo
-    ? `/portal/aula-virtual/cursos/${codigo}`
+    ? `/aula-virtual/cursos/${codigo}`
     : id
-      ? `/portal/aula-virtual/cursos/${id}`
+      ? `/aula-virtual/cursos/${id}`
       : "#";
 
   const cardContent = (

@@ -4,23 +4,22 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import {
-  LayoutDashboard, Calendar, BookOpen, CreditCard,
-  FileText, LogOut, ChevronRight, Moon, Sun, ArrowLeftRight,
+  LayoutDashboard, BookOpen, FileText, ClipboardList,
+  LogOut, ChevronRight, Moon, Sun, ArrowLeftRight,
 } from "lucide-react";
 import clsx from "clsx";
 import { useTheme } from "@/lib/theme-context";
 
 const NAV_ITEMS = [
-  { href: "/portal",            label: "Inicio",      icon: LayoutDashboard },
-  { href: "/portal/calendario", label: "Calendario",  icon: Calendar        },
-  { href: "/portal/cursos",     label: "Cursos",      icon: BookOpen        },
-  { href: "/portal/pagos",      label: "Pagos",       icon: CreditCard      },
-  { href: "/portal/tramites",   label: "Trámites",    icon: FileText        },
+  { href: "/aula-virtual",        label: "Mis Cursos",    icon: LayoutDashboard },
+  { href: "/aula-virtual/tareas", label: "Tareas",        icon: ClipboardList   },
+  { href: "/aula-virtual/foros",  label: "Foros",         icon: FileText        },
+  { href: "/aula-virtual/notas",  label: "Notas",         icon: BookOpen        },
 ];
 
-export default function SidebarAlumno() {
+export default function SidebarAulaVirtual() {
   const pathname = usePathname();
-  const router   = useRouter();
+  const router = useRouter();
   const { user, logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
 
@@ -32,7 +31,7 @@ export default function SidebarAlumno() {
   return (
     <aside
       className="w-64 min-h-screen flex flex-col shrink-0"
-      style={{ background: "linear-gradient(180deg, #a93526 0%, #8a2b1f 100%)" }}
+      style={{ background: "linear-gradient(180deg, #1e293b 0%, #0f172a 100%)" }}
     >
       {/* Logo */}
       <div className="flex flex-col items-center px-5 py-5 border-b border-white/10">
@@ -40,7 +39,7 @@ export default function SidebarAlumno() {
         <img src="/logo-blanco.png" alt="I.E.S. Privada Margarita Cabrera"
           style={{ width: 90, height: "auto" }} />
         <p className="text-white/70 text-xs mt-2 text-center leading-tight">
-          Portal Estudiantil
+          Aula Virtual
         </p>
       </div>
 
@@ -48,7 +47,7 @@ export default function SidebarAlumno() {
       <nav className="flex-1 px-3 py-4 space-y-1">
         {NAV_ITEMS.map(({ href, label, icon: Icon }) => {
           const active = pathname === href ||
-            (href !== "/portal" && pathname.startsWith(href + "/"));
+            (href !== "/aula-virtual" && pathname.startsWith(href + "/"));
           return (
             <Link key={href} href={href}
               className={clsx(
@@ -57,16 +56,16 @@ export default function SidebarAlumno() {
                   ? "bg-white shadow-sm"
                   : "text-white/80 hover:bg-white/15 hover:text-white"
               )}
-              style={active ? { color: "#8a2b1f" } : {}}>
+              style={active ? { color: "#1e293b" } : {}}>
               <Icon size={18} className="shrink-0" />
               <span className="flex-1">{label}</span>
-              {active && <ChevronRight size={14} style={{ color: "#8a2b1f" }} />}
+              {active && <ChevronRight size={14} style={{ color: "#1e293b" }} />}
             </Link>
           );
         })}
       </nav>
 
-      {/* Dark mode + Logout */}
+      {/* Bottom actions */}
       <div className="px-3 pb-5 space-y-1">
         <Link href="/seleccionar"
           className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-white/70 hover:bg-white/10 hover:text-white transition-all duration-150">
