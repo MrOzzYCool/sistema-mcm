@@ -5,17 +5,18 @@ import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import {
   LayoutDashboard, Calendar, BookOpen, CreditCard,
-  FileText, LogOut, ChevronRight, Moon, Sun,
+  FileText, LogOut, ChevronRight, Moon, Sun, MonitorPlay,
 } from "lucide-react";
 import clsx from "clsx";
 import { useTheme } from "@/lib/theme-context";
 
 const NAV_ITEMS = [
-  { href: "/portal",            label: "Inicio",      icon: LayoutDashboard },
-  { href: "/portal/calendario", label: "Calendario",  icon: Calendar        },
-  { href: "/portal/cursos",     label: "Cursos",      icon: BookOpen        },
-  { href: "/portal/pagos",      label: "Pagos",       icon: CreditCard      },
-  { href: "/portal/tramites",   label: "Trámites",    icon: FileText        },
+  { href: "/portal",              label: "Inicio",        icon: LayoutDashboard },
+  { href: "/portal/aula-virtual", label: "Aula Virtual",  icon: MonitorPlay     },
+  { href: "/portal/calendario",   label: "Calendario",    icon: Calendar        },
+  { href: "/portal/cursos",       label: "Cursos",        icon: BookOpen        },
+  { href: "/portal/pagos",        label: "Pagos",         icon: CreditCard      },
+  { href: "/portal/tramites",     label: "Trámites",      icon: FileText        },
 ];
 
 export default function SidebarAlumno() {
