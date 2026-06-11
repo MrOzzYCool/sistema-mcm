@@ -65,7 +65,7 @@ function ProfesorCombobox({
         onChange={e => { setSearch(e.target.value); setOpen(true); }}
         onFocus={() => { setOpen(true); setSearch(""); }}
         placeholder="Buscar profesor..."
-        className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#a93526] focus:outline-none"
+        className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#C62828] focus:outline-none"
       />
       {open && (
         <div className="absolute z-50 mt-1 w-full bg-white border border-mcm-border rounded-lg shadow-lg max-h-48 overflow-y-auto">
@@ -412,7 +412,7 @@ function CiclosContent() {
         {(["aperturas", "horarios"] as const).map(t => (
           <button key={t} onClick={() => setTab(t)}
             className={clsx("px-4 py-2 text-sm font-semibold border-b-2 transition-colors capitalize",
-              tab === t ? "border-[#a93526] text-[#a93526]" : "border-transparent text-mcm-muted hover:text-mcm-text")}>
+              tab === t ? "border-[#C62828] text-[#C62828]" : "border-transparent text-mcm-muted hover:text-mcm-text")}>
             {t === "aperturas" ? <><Calendar size={14} className="inline mr-1" />Aperturas</> : <><Clock size={14} className="inline mr-1" />Horarios</>}
           </button>
         ))}
@@ -442,7 +442,7 @@ function CiclosContent() {
                       <td className="py-3 px-4">
                         <div className="flex gap-2">
                           <button onClick={() => openEditOpening(o)} title="Editar apertura"
-                            className="text-mcm-muted hover:text-[#a93526]"><Pencil size={14} /></button>
+                            className="text-mcm-muted hover:text-[#C62828]"><Pencil size={14} /></button>
                           <button onClick={() => handleDeleteOpening(o.id, o.cycle_number)} title="Eliminar apertura"
                             className="text-mcm-muted hover:text-red-600"><Trash2 size={14} /></button>
                         </div>
@@ -462,7 +462,7 @@ function CiclosContent() {
             {["todos", "1", "2", "3", "4", "5", "6"].map(c => (
               <button key={c} onClick={() => setFilterCiclo(c)}
                 className={clsx("px-3 py-1.5 rounded-full text-xs font-semibold transition-colors",
-                  filterCiclo === c ? "bg-[#a93526] text-white" : "bg-slate-100 text-mcm-muted hover:bg-slate-200")}>
+                  filterCiclo === c ? "bg-[#C62828] text-white" : "bg-slate-100 text-mcm-muted hover:bg-slate-200")}>
                 {c === "todos" ? "Todos" : `Ciclo ${c}`}
               </button>
             ))}
@@ -616,7 +616,7 @@ function CiclosContent() {
                       <td className="py-3 px-4">
                         <div className="flex gap-2">
                           <button onClick={() => openEditSchedule(s)} title="Editar horario"
-                            className="text-mcm-muted hover:text-[#a93526]"><Pencil size={14} /></button>
+                            className="text-mcm-muted hover:text-[#C62828]"><Pencil size={14} /></button>
                           <button onClick={() => handleDeleteSchedule(s.id)} title="Eliminar horario"
                             className="text-mcm-muted hover:text-red-600"><Trash2 size={14} /></button>
                         </div>
@@ -643,19 +643,19 @@ function CiclosContent() {
               <div>
                 <label className="block text-sm font-medium text-mcm-text mb-1">Ciclo</label>
                 <select value={openingForm.cycle_number} onChange={e => setOpeningForm({...openingForm, cycle_number: e.target.value})}
-                  className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#a93526]">
+                  className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#C62828]">
                   {[1,2,3,4,5,6].map(n => <option key={n} value={String(n)}>Ciclo {n}</option>)}
                 </select>
               </div>
               <div>
                 <label className="block text-sm font-medium text-mcm-text mb-1">Fecha de inicio</label>
                 <input type="date" value={openingForm.start_date} onChange={e => setOpeningForm({...openingForm, start_date: e.target.value})}
-                  className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#a93526]" />
+                  className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#C62828]" />
               </div>
               <div>
                 <label className="block text-sm font-medium text-mcm-text mb-1">Fecha de culminación</label>
                 <input type="date" value={openingForm.fecha_fin} onChange={e => setOpeningForm({...openingForm, fecha_fin: e.target.value})}
-                  className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#a93526]" />
+                  className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#C62828]" />
               </div>
             </div>
             <div className="flex gap-3 mt-5">
@@ -690,7 +690,7 @@ function CiclosContent() {
               <div>
                 <label className="block text-sm font-medium text-mcm-text mb-1">Carrera</label>
                 <select value={scheduleForm.carrera_id} onChange={e => setScheduleForm({...scheduleForm, carrera_id: e.target.value, curso_id: ""})}
-                  className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#a93526]">
+                  className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#C62828]">
                   <option value="">Seleccionar...</option>
                   {carreras.map(c => <option key={c.id} value={c.id}>{c.nombre_carrera}</option>)}
                 </select>
@@ -698,7 +698,7 @@ function CiclosContent() {
               <div>
                 <label className="block text-sm font-medium text-mcm-text mb-1">Ciclo</label>
                 <select value={scheduleForm.ciclo} onChange={e => setScheduleForm({...scheduleForm, ciclo: e.target.value, curso_id: ""})}
-                  className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#a93526]">
+                  className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#C62828]">
                   {[1,2,3,4,5,6].map(n => <option key={n} value={String(n)}>Ciclo {n}</option>)}
                 </select>
               </div>
@@ -711,7 +711,7 @@ function CiclosContent() {
                   );
                   return (
                     <select value={scheduleForm.curso_id} onChange={e => setScheduleForm({...scheduleForm, curso_id: e.target.value})}
-                      className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#a93526]">
+                      className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#C62828]">
                       <option value="">Seleccionar...</option>
                       {cursosFiltrados.length === 0
                         ? <option value="" disabled>No hay cursos disponibles para esta carrera y ciclo</option>
@@ -725,27 +725,27 @@ function CiclosContent() {
                 <div>
                   <label className="block text-sm font-medium text-mcm-text mb-1">Día</label>
                   <select value={scheduleForm.dia_semana} onChange={e => setScheduleForm({...scheduleForm, dia_semana: e.target.value})}
-                    className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#a93526]">
+                    className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#C62828]">
                     {DAYS.map(d => <option key={d} value={d}>{d.charAt(0).toUpperCase() + d.slice(1)}</option>)}
                   </select>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-mcm-text mb-1">Hora inicio</label>
                   <input type="time" value={scheduleForm.hora_inicio} onChange={e => setScheduleForm({...scheduleForm, hora_inicio: e.target.value})}
-                    className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#a93526]" />
+                    className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#C62828]" />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-sm font-medium text-mcm-text mb-1">Hora fin</label>
                   <input type="time" value={scheduleForm.hora_fin} onChange={e => setScheduleForm({...scheduleForm, hora_fin: e.target.value})}
-                    className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#a93526]" />
+                    className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#C62828]" />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-mcm-text mb-1">Aula (opcional)</label>
                   <input value={scheduleForm.aula} onChange={e => setScheduleForm({...scheduleForm, aula: e.target.value})}
                     placeholder="Ej: A-201"
-                    className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#a93526]" />
+                    className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#C62828]" />
                 </div>
               </div>
             </div>
@@ -774,19 +774,19 @@ function CiclosContent() {
               <div>
                 <label className="block text-sm font-medium text-mcm-text mb-1">Ciclo</label>
                 <select value={editOpeningForm.cycle_number} onChange={e => setEditOpeningForm({...editOpeningForm, cycle_number: e.target.value})}
-                  className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#a93526]">
+                  className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#C62828]">
                   {[1,2,3,4,5,6].map(n => <option key={n} value={String(n)}>Ciclo {n}</option>)}
                 </select>
               </div>
               <div>
                 <label className="block text-sm font-medium text-mcm-text mb-1">Fecha de inicio</label>
                 <input type="date" value={editOpeningForm.start_date} onChange={e => setEditOpeningForm({...editOpeningForm, start_date: e.target.value})}
-                  className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#a93526]" />
+                  className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#C62828]" />
               </div>
               <div>
                 <label className="block text-sm font-medium text-mcm-text mb-1">Fecha de culminación</label>
                 <input type="date" value={editOpeningForm.fecha_fin} onChange={e => setEditOpeningForm({...editOpeningForm, fecha_fin: e.target.value})}
-                  className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#a93526]" />
+                  className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#C62828]" />
               </div>
             </div>
             <div className="flex gap-3 mt-5">
@@ -821,7 +821,7 @@ function CiclosContent() {
               <div>
                 <label className="block text-sm font-medium text-mcm-text mb-1">Ciclo</label>
                 <select value={editScheduleForm.ciclo} onChange={e => setEditScheduleForm({...editScheduleForm, ciclo: e.target.value, curso_id: ""})}
-                  className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#a93526]">
+                  className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#C62828]">
                   {[1,2,3,4,5,6].map(n => <option key={n} value={String(n)}>Ciclo {n}</option>)}
                 </select>
               </div>
@@ -833,7 +833,7 @@ function CiclosContent() {
                   );
                   return (
                     <select value={editScheduleForm.curso_id} onChange={e => setEditScheduleForm({...editScheduleForm, curso_id: e.target.value})}
-                      className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#a93526]">
+                      className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#C62828]">
                       <option value="">Seleccionar...</option>
                       {cursosFiltrados.length === 0
                         ? <option value="" disabled>No hay cursos para este ciclo</option>
@@ -846,7 +846,7 @@ function CiclosContent() {
               <div>
                 <label className="block text-sm font-medium text-mcm-text mb-1">Día</label>
                 <select value={editScheduleForm.dia_semana} onChange={e => setEditScheduleForm({...editScheduleForm, dia_semana: e.target.value})}
-                  className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#a93526]">
+                  className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#C62828]">
                   {["lunes","martes","miercoles","jueves","viernes"].map(d => (
                     <option key={d} value={d}>{d.charAt(0).toUpperCase() + d.slice(1)}</option>
                   ))}
@@ -856,19 +856,19 @@ function CiclosContent() {
                 <div>
                   <label className="block text-sm font-medium text-mcm-text mb-1">Hora inicio</label>
                   <input type="time" value={editScheduleForm.hora_inicio} onChange={e => setEditScheduleForm({...editScheduleForm, hora_inicio: e.target.value})}
-                    className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#a93526]" />
+                    className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#C62828]" />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-mcm-text mb-1">Hora fin</label>
                   <input type="time" value={editScheduleForm.hora_fin} onChange={e => setEditScheduleForm({...editScheduleForm, hora_fin: e.target.value})}
-                    className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#a93526]" />
+                    className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#C62828]" />
                 </div>
               </div>
               <div>
                 <label className="block text-sm font-medium text-mcm-text mb-1">Aula (opcional)</label>
                 <input value={editScheduleForm.aula} onChange={e => setEditScheduleForm({...editScheduleForm, aula: e.target.value})}
                   placeholder="Ej: A-201"
-                  className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#a93526]" />
+                  className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#C62828]" />
               </div>
             </div>
             <div className="flex gap-3 mt-5">

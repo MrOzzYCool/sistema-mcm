@@ -33,7 +33,7 @@ export default function RouteGuard({
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] text-center p-6">
         <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mb-4">
-          <ShieldOff className="w-8 h-8 text-[#a93526]" />
+          <ShieldOff className="w-8 h-8 text-[#C62828]" />
         </div>
         <h2 className="text-xl font-bold text-mcm-text mb-2">Acceso denegado</h2>
         <p className="text-mcm-muted text-sm max-w-xs">

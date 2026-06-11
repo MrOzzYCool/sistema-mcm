@@ -185,7 +185,7 @@ function EvaluacionesContent() {
                       value={r.nombre_concepto}
                       onChange={e => updateRubro(i, "nombre_concepto", e.target.value)}
                       placeholder="Nombre del concepto"
-                      className="flex-1 border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#a93526] focus:outline-none"
+                      className="flex-1 border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#C62828] focus:outline-none"
                     />
                     <div className="flex items-center gap-1 w-24 shrink-0">
                       <input
@@ -194,7 +194,7 @@ function EvaluacionesContent() {
                         max={100}
                         value={r.porcentaje || ""}
                         onChange={e => updateRubro(i, "porcentaje", parseInt(e.target.value) || 0)}
-                        className="w-16 border border-mcm-border rounded-lg px-2 py-2 text-sm text-center focus:ring-2 focus:ring-[#a93526] focus:outline-none"
+                        className="w-16 border border-mcm-border rounded-lg px-2 py-2 text-sm text-center focus:ring-2 focus:ring-[#C62828] focus:outline-none"
                       />
                       <span className="text-mcm-muted text-sm">%</span>
                     </div>

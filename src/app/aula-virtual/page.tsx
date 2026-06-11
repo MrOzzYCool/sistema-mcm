@@ -50,14 +50,6 @@ export default function AulaVirtualDashboard() {
         <h1 className="text-xl font-bold text-gray-800">Mis Cursos</h1>
       </div>
 
-      {/* Banner */}
-      <div className="w-full h-36 rounded-xl mb-5 overflow-hidden bg-gradient-to-r from-[#1e293b] to-[#334155] flex items-center justify-center">
-        <div className="text-center text-white">
-          <h2 className="text-2xl font-bold">Aula Virtual</h2>
-          <p className="text-sm text-white/70 mt-1">I.E.S. Privada Margarita Cabrera</p>
-        </div>
-      </div>
-
       {/* Main grid */}
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-6 min-h-[calc(100vh-300px)]">
         <div className="min-w-0">

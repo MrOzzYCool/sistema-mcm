@@ -150,13 +150,13 @@ function VouchersContent() {
       <div className="flex gap-2 border-b border-mcm-border">
         <button onClick={() => setTab("pendientes")}
           className={`px-4 py-2 text-sm font-semibold border-b-2 transition-colors ${
-            tab === "pendientes" ? "border-[#a93526] text-[#a93526]" : "border-transparent text-mcm-muted hover:text-mcm-text"
+            tab === "pendientes" ? "border-[#C62828] text-[#C62828]" : "border-transparent text-mcm-muted hover:text-mcm-text"
           }`}>
           Pendientes ({vouchers.length})
         </button>
         <button onClick={() => setTab("historial")}
           className={`px-4 py-2 text-sm font-semibold border-b-2 transition-colors ${
-            tab === "historial" ? "border-[#a93526] text-[#a93526]" : "border-transparent text-mcm-muted hover:text-mcm-text"
+            tab === "historial" ? "border-[#C62828] text-[#C62828]" : "border-transparent text-mcm-muted hover:text-mcm-text"
           }`}>
           Historial ({historial.length})
         </button>
@@ -319,7 +319,7 @@ function VouchersContent() {
               <label className="block text-sm font-medium text-mcm-text mb-1">Motivo del rechazo</label>
               <textarea value={rejectReason} onChange={e => setRejectReason(e.target.value)}
                 placeholder="Ej: Voucher ilegible, monto no coincide..."
-                className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#a93526] h-20 resize-none" />
+                className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#C62828] h-20 resize-none" />
             </div>
             <div className="flex gap-3 mt-4">
               <button onClick={() => setRejectModal(null)} className="btn-secondary flex-1 text-sm">Cancelar</button>
@@ -350,18 +350,18 @@ function VouchersContent() {
                 <div>
                   <label className="block text-sm font-medium text-mcm-text mb-1">Serie</label>
                   <input value={manualForm.serie} onChange={e => setManualForm({...manualForm, serie: e.target.value.toUpperCase()})}
-                    placeholder="BBB2" className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#a93526]" />
+                    placeholder="BBB2" className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#C62828]" />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-mcm-text mb-1">Número</label>
                   <input value={manualForm.numero} onChange={e => setManualForm({...manualForm, numero: e.target.value.replace(/\D/g,"")})}
-                    placeholder="4557" className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#a93526]" />
+                    placeholder="4557" className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#C62828]" />
                 </div>
               </div>
               <div>
                 <label className="block text-sm font-medium text-mcm-text mb-1">Tipo</label>
                 <select value={manualForm.tipo} onChange={e => setManualForm({...manualForm, tipo: e.target.value})}
-                  className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#a93526]">
+                  className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#C62828]">
                   <option value="boleta">Boleta</option>
                   <option value="factura">Factura</option>
                 </select>
@@ -381,7 +381,7 @@ function VouchersContent() {
               <div>
                 <label className="block text-sm font-medium text-mcm-text mb-1">O pegar URL directa del PDF</label>
                 <input value={manualForm.url} onChange={e => setManualForm({...manualForm, url: e.target.value})}
-                  placeholder="https://..." className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#a93526]" />
+                  placeholder="https://..." className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#C62828]" />
               </div>
             </div>
             <div className="flex gap-3 mt-5">

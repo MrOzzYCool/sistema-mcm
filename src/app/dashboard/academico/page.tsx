@@ -230,7 +230,7 @@ function AcademicoContent() {
         {(["carreras", "cursos"] as Tab[]).map(t => (
           <button key={t} onClick={() => setTab(t)}
             className={clsx("px-4 py-2 text-sm font-semibold border-b-2 transition-colors",
-              tab === t ? "border-[#a93526] text-[#a93526]" : "border-transparent text-mcm-muted hover:text-mcm-text")}>
+              tab === t ? "border-[#C62828] text-[#C62828]" : "border-transparent text-mcm-muted hover:text-mcm-text")}>
             {t === "carreras" ? <><GraduationCap size={14} className="inline mr-1" />Carreras</> : <><BookOpen size={14} className="inline mr-1" />Cursos</>}
           </button>
         ))}
@@ -281,15 +281,15 @@ function AcademicoContent() {
               <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-mcm-muted" />
               <input value={busqueda} onChange={e => setBusqueda(e.target.value)}
                 placeholder="Buscar por nombre o código..."
-                className="w-full pl-9 pr-3 py-2 border border-mcm-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#a93526]" />
+                className="w-full pl-9 pr-3 py-2 border border-mcm-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#C62828]" />
             </div>
             <select value={filtroCarrera} onChange={e => setFiltroCarrera(e.target.value)}
-              className="border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#a93526]">
+              className="border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#C62828]">
               <option value="todos">Todas las carreras</option>
               {carreras.map(c => <option key={c.id} value={c.id}>{c.nombre_carrera}</option>)}
             </select>
             <select value={filtroCiclo} onChange={e => setFiltroCiclo(e.target.value)}
-              className="border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#a93526]">
+              className="border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#C62828]">
               <option value="todos">Todos los ciclos</option>
               {[1,2,3,4,5,6].map(n => <option key={n} value={String(n)}>Ciclo {n}</option>)}
             </select>
@@ -330,7 +330,7 @@ function AcademicoContent() {
                           </td>
                           <td className="py-3 px-4">
                             <div className="flex gap-2">
-                              <button onClick={() => openEdit(c)} title="Editar curso" className="text-mcm-muted hover:text-[#a93526]"><Pencil size={14} /></button>
+                              <button onClick={() => openEdit(c)} title="Editar curso" className="text-mcm-muted hover:text-[#C62828]"><Pencil size={14} /></button>
                               <button onClick={() => router.push(`/dashboard/academico/evaluaciones?curso_id=${c.id}&nombre=${encodeURIComponent(c.nombre_curso)}`)}
                                 title="Configurar evaluaciones" className="text-mcm-muted hover:text-blue-600"><Settings size={14} /></button>
                               <button onClick={() => setDeleteTarget({ tipo: "curso", id: c.id, nombre: c.nombre_curso })}
@@ -374,7 +374,7 @@ function AcademicoContent() {
             <div className="space-y-1 max-h-40 overflow-y-auto border border-mcm-border rounded-lg p-2">
               {carreras.map(c => (
                 <label key={c.id} className="flex items-center gap-2 text-sm cursor-pointer px-1 py-0.5 hover:bg-slate-50 rounded">
-                  <input type="checkbox" className="accent-[#a93526]"
+                  <input type="checkbox" className="accent-[#C62828]"
                     checked={formCurso.carrera_ids.includes(c.id)}
                     onChange={e => {
                       const ids = e.target.checked ? [...formCurso.carrera_ids, c.id] : formCurso.carrera_ids.filter(id => id !== c.id);
@@ -510,7 +510,7 @@ function Input({ label, value, onChange, type, upper }: {
       <label className="block text-sm font-medium text-mcm-text mb-1">{label}</label>
       <input type={type ?? "text"} value={value} onChange={e => onChange(e.target.value)}
         style={upper ? { textTransform: "uppercase" } : undefined}
-        className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#a93526]" />
+        className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#C62828]" />
     </div>
   );
 }

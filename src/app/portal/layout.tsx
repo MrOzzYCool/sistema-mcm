@@ -62,11 +62,11 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
               <p className="text-xs text-mcm-muted">Alumno</p>
             </div>
             <div className="w-9 h-9 rounded-full flex items-center justify-center text-white font-bold text-sm shrink-0"
-              style={{ background: "linear-gradient(135deg, #a93526, #c45648)" }}>
+              style={{ background: "linear-gradient(135deg, #C62828, #c45648)" }}>
               {user.avatar}
             </div>
             <button onClick={handleLogout} title="Cerrar sesión"
-              className="text-mcm-muted hover:text-[#a93526] transition-colors ml-1">
+              className="text-mcm-muted hover:text-[#C62828] transition-colors ml-1">
               <LogOut size={16} />
             </button>
           </div>

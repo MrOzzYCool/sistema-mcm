@@ -226,7 +226,7 @@ function TramitesExternosContent() {
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {(["todos", "pendiente", "aprobado", "observado"] as const).map((e) => (
           <button key={e} onClick={() => setFiltro(e)}
-            className={clsx("card text-left transition-all", filtro === e ? "ring-2 ring-[#a93526]" : "hover:shadow-md")}>
+            className={clsx("card text-left transition-all", filtro === e ? "ring-2 ring-[#C62828]" : "hover:shadow-md")}>
             <p className="text-xs text-mcm-muted capitalize">{e === "todos" ? "Total" : ESTADO_LABEL[e]}</p>
             <p className="text-2xl font-bold text-mcm-text mt-1">{kpis[e]}</p>
           </button>
@@ -296,14 +296,14 @@ function TramitesExternosContent() {
                           if (urls.length <= 1) {
                             return (
                               <button onClick={() => setLightbox({ url: urls[0] ?? s.voucher_url, titulo: "Voucher de pago" })}
-                                className="flex items-center gap-1 text-xs text-[#a93526] hover:underline font-medium whitespace-nowrap">
+                                className="flex items-center gap-1 text-xs text-[#C62828] hover:underline font-medium whitespace-nowrap">
                                 <Eye size={12} /> Voucher
                               </button>
                             );
                           }
                           return urls.map((url, i) => (
                             <button key={i} onClick={() => setLightbox({ url, titulo: `Voucher ${i + 1} de ${urls.length}` })}
-                              className="flex items-center gap-1 text-xs text-[#a93526] hover:underline font-medium whitespace-nowrap">
+                              className="flex items-center gap-1 text-xs text-[#C62828] hover:underline font-medium whitespace-nowrap">
                               <Eye size={12} /> Voucher {i + 1}
                             </button>
                           ));
@@ -345,7 +345,7 @@ function TramitesExternosContent() {
                           )}
                           {s.estado === "aprobado" && s.pdf_boleta_url && (
                             <a href={s.pdf_boleta_url} target="_blank" rel="noreferrer"
-                              className="flex items-center gap-1 text-xs text-[#a93526] hover:underline font-medium whitespace-nowrap">
+                              className="flex items-center gap-1 text-xs text-[#C62828] hover:underline font-medium whitespace-nowrap">
                               <ExternalLink size={12} /> Comprobante
                             </a>
                           )}
@@ -395,7 +395,7 @@ function TramitesExternosContent() {
               <p className="font-semibold text-mcm-text">{lightbox.titulo}</p>
               <div className="flex items-center gap-3">
                 <a href={lightbox.url} target="_blank" rel="noreferrer"
-                  className="text-xs text-[#a93526] hover:underline flex items-center gap-1">
+                  className="text-xs text-[#C62828] hover:underline flex items-center gap-1">
                   <ExternalLink size={12} /> Abrir en nueva pestaña
                 </a>
                 <button onClick={() => setLightbox(null)} className="text-mcm-muted hover:text-mcm-text">
@@ -455,7 +455,7 @@ function TramitesExternosContent() {
                         ...p,
                         [key]: e.target.checked ? "Documento no válido o ilegible" : "",
                       }))}
-                      className="w-4 h-4 accent-[#a93526]"
+                      className="w-4 h-4 accent-[#C62828]"
                     />
                     <span className="text-sm font-medium text-mcm-text">{label}</span>
                   </label>
@@ -465,7 +465,7 @@ function TramitesExternosContent() {
                       value={obsFields[key]}
                       onChange={(e) => setObsFields((p) => ({ ...p, [key]: e.target.value }))}
                       placeholder="Describe el problema específico..."
-                      className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#a93526] ml-6"
+                      className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#C62828] ml-6"
                     />
                   )}
                 </div>

@@ -33,7 +33,7 @@ const statusLabels: Record<Activity["status"], string> = {
 export default function WeeklyPanel() {
   return (
     <div className="rounded-xl overflow-hidden shadow-sm flex flex-col sticky top-6 min-h-[calc(100vh-140px)]">
-      <div className="bg-[#8a2b1f] px-4 py-3 flex items-center gap-2">
+      <div className="bg-[#8E0000] px-4 py-3 flex items-center gap-2">
         <Calendar size={18} className="text-white" />
         <h2 className="text-base font-bold text-white">Actividades semanales</h2>
       </div>
@@ -53,7 +53,7 @@ export default function WeeklyPanel() {
                 {statusLabels[activity.status]}
               </span>
             </div>
-            <button className="mt-2 flex items-center gap-1 text-xs text-[#a93526] hover:underline">
+            <button className="mt-2 flex items-center gap-1 text-xs text-[#C62828] hover:underline">
               Ir a <ArrowRight size={12} />
             </button>
           </div>

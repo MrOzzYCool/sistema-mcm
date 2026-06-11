@@ -4,10 +4,9 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import SidebarAulaVirtual from "@/components/aula-virtual/SidebarAulaVirtual";
-import { LogOut } from "lucide-react";
 
 export default function AulaVirtualLayout({ children }: { children: React.ReactNode }) {
-  const { user, initializing, forceReady, logout } = useAuth();
+  const { user, initializing, forceReady } = useAuth();
   const router = useRouter();
   const [showEmergency, setShowEmergency] = useState(false);
 
@@ -45,30 +44,21 @@ export default function AulaVirtualLayout({ children }: { children: React.ReactN
 
   if (!user || user.role !== "alumno") return null;
 
-  async function handleLogout() {
-    await logout();
-    router.push("/");
-  }
-
   return (
-    <div className="flex min-h-screen bg-slate-50">
+    <div className="flex min-h-screen bg-gray-50">
       <SidebarAulaVirtual />
       <div className="flex-1 flex flex-col overflow-auto">
         {/* Top header */}
-        <header className="sticky top-0 z-10 bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-end gap-4">
+        <header className="sticky top-0 z-10 bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between gap-4">
+          <p className="text-sm font-medium text-gray-600">Aula Virtual</p>
           <div className="flex items-center gap-3">
             <div className="text-right hidden sm:block">
               <p className="text-sm font-medium text-gray-800 leading-tight">{user.name}</p>
-              <p className="text-xs text-gray-500">Aula Virtual</p>
+              <p className="text-xs text-gray-500">Alumno</p>
             </div>
-            <div className="w-9 h-9 rounded-full flex items-center justify-center text-white font-bold text-sm shrink-0"
-              style={{ background: "linear-gradient(135deg, #1e293b, #334155)" }}>
+            <div className="w-9 h-9 rounded-full flex items-center justify-center text-white font-bold text-sm shrink-0 bg-[#C62828]">
               {user.avatar}
             </div>
-            <button onClick={handleLogout} title="Cerrar sesión"
-              className="text-gray-400 hover:text-red-600 transition-colors ml-1">
-              <LogOut size={16} />
-            </button>
           </div>
         </header>
         {/* Content */}

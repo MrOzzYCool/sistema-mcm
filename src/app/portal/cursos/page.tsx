@@ -265,7 +265,7 @@ export default function CursosAlumnoPage() {
 
       {/* Summary cards */}
       <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-        <div className="card flex items-center gap-4 bg-gradient-to-r from-[#8a2b1f] to-[#a93526] text-white border-0">
+        <div className="card flex items-center gap-4 bg-gradient-to-r from-[#8E0000] to-[#C62828] text-white border-0">
           <div className="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center">
             <TrendingUp className="w-6 h-6 text-white" />
           </div>

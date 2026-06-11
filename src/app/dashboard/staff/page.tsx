@@ -219,7 +219,7 @@ function StaffContent() {
       <div className="relative max-w-xs">
         <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-mcm-muted" />
         <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar..."
-          className="w-full pl-9 pr-3 py-2 border border-mcm-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#a93526]" />
+          className="w-full pl-9 pr-3 py-2 border border-mcm-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#C62828]" />
       </div>
 
       <div className="card overflow-hidden p-0">
@@ -253,7 +253,7 @@ function StaffContent() {
                     </td>
                     <td className="py-3 px-4">
                       <div className="flex gap-1.5">
-                        <button onClick={() => openEdit(p)} title="Editar" className="text-mcm-muted hover:text-[#a93526]"><Pencil size={14} /></button>
+                        <button onClick={() => openEdit(p)} title="Editar" className="text-mcm-muted hover:text-[#C62828]"><Pencil size={14} /></button>
                         <button onClick={() => handleResetPw(p)} title="Restablecer contraseña" className="text-mcm-muted hover:text-amber-600"><Key size={14} /></button>
                         {p.estado === "activo" && p.id !== user?.id && (
                           <button onClick={() => handleDeactivate(p)} title="Desactivar" className="text-mcm-muted hover:text-red-500"><XCircle size={14} /></button>
@@ -286,44 +286,44 @@ function StaffContent() {
                   <label className="block text-sm font-medium text-mcm-text mb-1">Nombres *</label>
                   <input value={createForm.nombres} onChange={e => setCreateForm({...createForm, nombres: e.target.value.toUpperCase()})}
                     style={{ textTransform: "uppercase" }}
-                    className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#a93526]" />
+                    className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#C62828]" />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-mcm-text mb-1">Apellidos *</label>
                   <input value={createForm.apellidos} onChange={e => setCreateForm({...createForm, apellidos: e.target.value.toUpperCase()})}
                     style={{ textTransform: "uppercase" }}
-                    className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#a93526]" />
+                    className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#C62828]" />
                 </div>
               </div>
               <div>
                 <label className="block text-sm font-medium text-mcm-text mb-1">Email *</label>
                 <input type="email" value={createForm.email} onChange={e => setCreateForm({...createForm, email: e.target.value})}
-                  className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#a93526]" />
+                  className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#C62828]" />
               </div>
               <div>
                 <label className="block text-sm font-medium text-mcm-text mb-1">DNI</label>
                 <input value={createForm.dni} onChange={e => setCreateForm({...createForm, dni: e.target.value.replace(/\D/g,"").slice(0,8)})}
-                  maxLength={8} className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#a93526]" />
+                  maxLength={8} className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#C62828]" />
               </div>
               <div>
                 <label className="block text-sm font-medium text-mcm-text mb-1">Cargo *</label>
                 <select value={createForm.rol} onChange={e => setCreateForm({...createForm, rol: e.target.value})}
-                  className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#a93526]">
+                  className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#C62828]">
                   {ASSIGNABLE_ROLES.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
                 </select>
               </div>
               <label className="flex items-center gap-2 text-sm cursor-pointer">
                 <input type="checkbox" checked={createForm.auto_password}
-                  onChange={e => setCreateForm({...createForm, auto_password: e.target.checked})} className="accent-[#a93526]" />
+                  onChange={e => setCreateForm({...createForm, auto_password: e.target.checked})} className="accent-[#C62828]" />
                 Generar contraseña automática
               </label>
               {!createForm.auto_password && (
                 <input value={createForm.password} onChange={e => setCreateForm({...createForm, password: e.target.value})}
-                  placeholder="Contraseña (mín. 6)" className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#a93526]" />
+                  placeholder="Contraseña (mín. 6)" className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#C62828]" />
               )}
               <label className="flex items-center gap-2 text-sm cursor-pointer">
                 <input type="checkbox" checked={createForm.force_change}
-                  onChange={e => setCreateForm({...createForm, force_change: e.target.checked})} className="accent-[#a93526]" />
+                  onChange={e => setCreateForm({...createForm, force_change: e.target.checked})} className="accent-[#C62828]" />
                 Forzar cambio de contraseña al primer ingreso
               </label>
             </div>
@@ -351,31 +351,31 @@ function StaffContent() {
               <div>
                 <label className="block text-sm font-medium text-mcm-text mb-1">Nombre</label>
                 <input value={editForm.nombre_completo} onChange={e => setEditForm({...editForm, nombre_completo: e.target.value.toUpperCase()})}
-                  style={{ textTransform: "uppercase" }} className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#a93526]" />
+                  style={{ textTransform: "uppercase" }} className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#C62828]" />
               </div>
               <div>
                 <label className="block text-sm font-medium text-mcm-text mb-1">Cargo</label>
                 <select value={editForm.rol} onChange={e => setEditForm({...editForm, rol: e.target.value})}
-                  className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#a93526]">
+                  className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#C62828]">
                   {ASSIGNABLE_ROLES.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
                 </select>
               </div>
               <div>
                 <label className="block text-sm font-medium text-mcm-text mb-1">Estado</label>
                 <select value={editForm.estado} onChange={e => setEditForm({...editForm, estado: e.target.value})}
-                  className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#a93526]">
+                  className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#C62828]">
                   <option value="activo">Activo</option>
                   <option value="inactivo">Inactivo</option>
                 </select>
               </div>
               <label className="flex items-center gap-2 text-sm cursor-pointer">
                 <input type="checkbox" checked={editForm.force_change}
-                  onChange={e => setEditForm({...editForm, force_change: e.target.checked})} className="accent-[#a93526]" />
+                  onChange={e => setEditForm({...editForm, force_change: e.target.checked})} className="accent-[#C62828]" />
                 Forzar cambio de contraseña al próximo ingreso
               </label>
               <label className="flex items-center gap-2 text-sm cursor-pointer">
                 <input type="checkbox" checked={editForm.es_profesor}
-                  onChange={e => setEditForm({...editForm, es_profesor: e.target.checked})} className="accent-[#a93526] w-4 h-4" />
+                  onChange={e => setEditForm({...editForm, es_profesor: e.target.checked})} className="accent-[#C62828] w-4 h-4" />
                 <span className="font-medium text-mcm-text">También es profesor</span>
               </label>
               <p className="text-xs text-mcm-muted -mt-2 ml-6">Permite asignar horarios de clase a este trabajador</p>
@@ -404,7 +404,7 @@ function StaffContent() {
               <label className="block text-sm font-medium text-mcm-text mb-1">Nueva contraseña</label>
               <input type="text" value={newPassword} onChange={e => setNewPassword(e.target.value)}
                 placeholder="Mínimo 6 caracteres"
-                className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#a93526]" />
+                className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#C62828]" />
             </div>
             <div className="flex gap-3 mt-5">
               <button onClick={() => setSetPwTarget(null)} className="btn-secondary flex-1 text-sm">Cancelar</button>

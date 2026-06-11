@@ -54,8 +54,8 @@ export default function TramitesPage() {
             <ul className="space-y-1.5">
               {cat.items.map((item) => (
                 <li key={item}>
-                  <Link href="/portal/tramites" className="flex items-center gap-2 text-sm text-mcm-text hover:text-[#a93526] transition-colors group">
-                    <ArrowRight size={12} className="text-mcm-muted group-hover:text-[#a93526]" />
+                  <Link href="/portal/tramites" className="flex items-center gap-2 text-sm text-mcm-text hover:text-[#C62828] transition-colors group">
+                    <ArrowRight size={12} className="text-mcm-muted group-hover:text-[#C62828]" />
                     {item}
                   </Link>
                 </li>

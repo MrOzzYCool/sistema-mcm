@@ -72,7 +72,7 @@ export default function ClockTimePicker({ value, onChange, label }: Props) {
       <button
         type="button"
         onClick={() => setOpen(!open)}
-        className="w-full flex items-center gap-2 border border-mcm-border rounded-lg px-3 py-2 text-sm text-left focus:ring-2 focus:ring-[#a93526] focus:outline-none hover:border-[#a93526] transition-colors"
+        className="w-full flex items-center gap-2 border border-mcm-border rounded-lg px-3 py-2 text-sm text-left focus:ring-2 focus:ring-[#C62828] focus:outline-none hover:border-[#C62828] transition-colors"
       >
         <Clock size={14} className="text-mcm-muted" />
         <span className={displayValue ? "text-mcm-text font-medium" : "text-mcm-muted"}>
@@ -88,7 +88,7 @@ export default function ClockTimePicker({ value, onChange, label }: Props) {
               type="button"
               onClick={() => setMode("hour")}
               className={`text-2xl font-bold px-2 py-1 rounded-lg transition-colors ${
-                mode === "hour" ? "text-[#a93526] bg-red-50" : "text-mcm-muted hover:text-mcm-text"
+                mode === "hour" ? "text-[#C62828] bg-red-50" : "text-mcm-muted hover:text-mcm-text"
               }`}
             >
               {selectedHour !== null ? String(selectedHour).padStart(2, "0") : "--"}
@@ -98,7 +98,7 @@ export default function ClockTimePicker({ value, onChange, label }: Props) {
               type="button"
               onClick={() => selectedHour !== null && setMode("minute")}
               className={`text-2xl font-bold px-2 py-1 rounded-lg transition-colors ${
-                mode === "minute" ? "text-[#a93526] bg-red-50" : "text-mcm-muted hover:text-mcm-text"
+                mode === "minute" ? "text-[#C62828] bg-red-50" : "text-mcm-muted hover:text-mcm-text"
               }`}
             >
               {selectedMinute !== null ? String(selectedMinute).padStart(2, "0") : "--"}
@@ -111,7 +111,7 @@ export default function ClockTimePicker({ value, onChange, label }: Props) {
             <div className="absolute inset-0 rounded-full bg-slate-50 border border-slate-200" />
 
             {/* Center dot */}
-            <div className="absolute top-1/2 left-1/2 w-2 h-2 bg-[#a93526] rounded-full -translate-x-1/2 -translate-y-1/2 z-10" />
+            <div className="absolute top-1/2 left-1/2 w-2 h-2 bg-[#C62828] rounded-full -translate-x-1/2 -translate-y-1/2 z-10" />
 
             {/* Hand line to selected */}
             {mode === "hour" && selectedHour !== null && (
@@ -121,7 +121,7 @@ export default function ClockTimePicker({ value, onChange, label }: Props) {
                 const pos = getPosition(idx, HOURS.length, 75);
                 return (
                   <div
-                    className="absolute top-1/2 left-1/2 origin-left h-[2px] bg-[#a93526] z-5"
+                    className="absolute top-1/2 left-1/2 origin-left h-[2px] bg-[#C62828] z-5"
                     style={{
                       width: 75,
                       transform: `rotate(${Math.atan2(pos.y, pos.x)}rad)`,
@@ -137,7 +137,7 @@ export default function ClockTimePicker({ value, onChange, label }: Props) {
                 const pos = getPosition(idx, MINUTES.length, 75);
                 return (
                   <div
-                    className="absolute top-1/2 left-1/2 origin-left h-[2px] bg-[#a93526] z-5"
+                    className="absolute top-1/2 left-1/2 origin-left h-[2px] bg-[#C62828] z-5"
                     style={{
                       width: 75,
                       transform: `rotate(${Math.atan2(pos.y, pos.x)}rad)`,
@@ -158,8 +158,8 @@ export default function ClockTimePicker({ value, onChange, label }: Props) {
                   onClick={() => selectHour(h)}
                   className={`absolute w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold transition-all ${
                     isSelected
-                      ? "bg-[#a93526] text-white shadow-md scale-110"
-                      : "hover:bg-red-50 text-mcm-text hover:text-[#a93526]"
+                      ? "bg-[#C62828] text-white shadow-md scale-110"
+                      : "hover:bg-red-50 text-mcm-text hover:text-[#C62828]"
                   }`}
                   style={{
                     top: `calc(50% + ${pos.y}px - 18px)`,
@@ -181,8 +181,8 @@ export default function ClockTimePicker({ value, onChange, label }: Props) {
                   onClick={() => selectMinute(m)}
                   className={`absolute w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold transition-all ${
                     isSelected
-                      ? "bg-[#a93526] text-white shadow-md scale-110"
-                      : "hover:bg-red-50 text-mcm-text hover:text-[#a93526]"
+                      ? "bg-[#C62828] text-white shadow-md scale-110"
+                      : "hover:bg-red-50 text-mcm-text hover:text-[#C62828]"
                   }`}
                   style={{
                     top: `calc(50% + ${pos.y}px - 18px)`,

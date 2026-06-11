@@ -91,7 +91,7 @@ export default function CourseCard({
           </div>
           <div className="w-full bg-gray-200 rounded-full h-1.5">
             <div
-              className="bg-[#a93526] h-1.5 rounded-full transition-all duration-300"
+              className="bg-[#C62828] h-1.5 rounded-full transition-all duration-300"
               style={{ width: `${progressWidth}%` }}
             />
           </div>

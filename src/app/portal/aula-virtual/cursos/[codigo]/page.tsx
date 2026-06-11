@@ -120,7 +120,7 @@ export default function CourseDetailPage() {
   if (error || !course) return (
     <div className="flex flex-col items-center justify-center min-h-[50vh] gap-4">
       <p className="text-mcm-muted text-lg">{error || "Curso no encontrado"}</p>
-      <Link href="/portal/aula-virtual" className="text-[#a93526] hover:underline flex items-center gap-1">
+      <Link href="/portal/aula-virtual" className="text-[#C62828] hover:underline flex items-center gap-1">
         <ArrowLeft size={16} /> Volver al inicio
       </Link>
     </div>
@@ -130,7 +130,7 @@ export default function CourseDetailPage() {
 
   return (
     <div className="p-4 w-full max-w-[1200px] mx-auto">
-      <Link href="/portal/aula-virtual" className="inline-flex items-center gap-1 text-sm text-[#a93526] hover:underline mb-4">
+      <Link href="/portal/aula-virtual" className="inline-flex items-center gap-1 text-sm text-[#C62828] hover:underline mb-4">
         <ArrowLeft size={16} /> Volver a cursos
       </Link>
 
@@ -161,7 +161,7 @@ export default function CourseDetailPage() {
               {course.modalidad && (
                 <span className="text-xs bg-white/90 text-gray-700 px-3 py-1 rounded-full font-medium">{course.modalidad}</span>
               )}
-              <a href="#" className="inline-flex items-center gap-2 bg-[#a93526] text-white px-4 py-2 rounded-lg font-medium text-sm hover:bg-[#8a2b1f] transition-colors">
+              <a href="#" className="inline-flex items-center gap-2 bg-[#C62828] text-white px-4 py-2 rounded-lg font-medium text-sm hover:bg-[#8E0000] transition-colors">
                 <MonitorPlay size={16} /> Clase en Vivo
               </a>
             </div>
@@ -176,8 +176,8 @@ export default function CourseDetailPage() {
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`px-5 py-3.5 text-sm font-medium transition-colors whitespace-nowrap ${activeTab === tab.id ? "text-[#a93526]" : "text-gray-500 hover:text-[#a93526]"}`}
-              style={activeTab === tab.id ? { borderBottomWidth: "3px", borderBottomColor: "#a93526" } : {}}
+              className={`px-5 py-3.5 text-sm font-medium transition-colors whitespace-nowrap ${activeTab === tab.id ? "text-[#C62828]" : "text-gray-500 hover:text-[#C62828]"}`}
+              style={activeTab === tab.id ? { borderBottomWidth: "3px", borderBottomColor: "#C62828" } : {}}
             >
               {tab.label}
             </button>
@@ -192,7 +192,7 @@ export default function CourseDetailPage() {
             const isOpen = openWeeks.has(week);
             const weekContent = getContentForWeek(week);
             return (
-              <div key={week} className={`bg-white rounded-lg shadow-sm overflow-hidden transition-all duration-200 ${isOpen ? "border-l-4 border-[#a93526]" : "border border-gray-200"}`}>
+              <div key={week} className={`bg-white rounded-lg shadow-sm overflow-hidden transition-all duration-200 ${isOpen ? "border-l-4 border-[#C62828]" : "border border-gray-200"}`}>
                 <button onClick={() => toggleWeek(week)} className="w-full flex items-center justify-between px-5 py-4 text-left hover:bg-gray-50 transition-colors">
                   <span className="font-medium text-gray-800">Semana {week}</span>
                   <ChevronDown size={20} className={`text-gray-400 transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`} />
@@ -205,7 +205,7 @@ export default function CourseDetailPage() {
                           <li key={item.id} className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 transition-colors">
                             {getIconForType(item.tipo)}
                             <span className="flex-1 text-sm text-gray-700">{item.titulo}</span>
-                            <a href={item.url} target="_blank" rel="noopener noreferrer" className="text-xs font-medium text-[#a93526] hover:underline px-3 py-1 border border-[#a93526] rounded-md">
+                            <a href={item.url} target="_blank" rel="noopener noreferrer" className="text-xs font-medium text-[#C62828] hover:underline px-3 py-1 border border-[#C62828] rounded-md">
                               {item.tipo === "pdf" ? "Descargar" : "Ver"}
                             </a>
                           </li>
@@ -237,7 +237,7 @@ export default function CourseDetailPage() {
                 <div className="flex items-center gap-3">
                   {getStatusBadge(tarea.estado)}
                   {tarea.estado === "pendiente" && (
-                    <button onClick={() => openUploadModal(tarea)} className="inline-flex items-center gap-1.5 text-sm font-medium text-white bg-[#a93526] px-4 py-2 rounded-lg hover:bg-[#8a2b1f] transition-colors">
+                    <button onClick={() => openUploadModal(tarea)} className="inline-flex items-center gap-1.5 text-sm font-medium text-white bg-[#C62828] px-4 py-2 rounded-lg hover:bg-[#8E0000] transition-colors">
                       <Upload size={14} /> Entregar
                     </button>
                   )}
@@ -268,7 +268,7 @@ export default function CourseDetailPage() {
             </button>
             <h2 className="text-lg font-bold text-gray-800 mb-1">Entregar tarea</h2>
             <p className="text-sm text-gray-500 mb-4">{selectedTarea?.titulo}</p>
-            <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-[#a93526] transition-colors cursor-pointer" onClick={() => fileInputRef.current?.click()}>
+            <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-[#C62828] transition-colors cursor-pointer" onClick={() => fileInputRef.current?.click()}>
               <Upload size={32} className="mx-auto text-gray-400 mb-2" />
               <p className="text-sm text-gray-600">Haz clic para seleccionar un archivo</p>
               <p className="text-xs text-gray-400 mt-1">PDF, DOCX, ZIP (máx. 10MB)</p>
@@ -276,7 +276,7 @@ export default function CourseDetailPage() {
             </div>
             <div className="flex justify-end gap-3 mt-6">
               <button onClick={() => setShowUploadModal(false)} className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 transition-colors">Cancelar</button>
-              <button className="px-5 py-2 text-sm font-medium text-white bg-[#a93526] rounded-lg hover:bg-[#8a2b1f] transition-colors">Subir archivo</button>
+              <button className="px-5 py-2 text-sm font-medium text-white bg-[#C62828] rounded-lg hover:bg-[#8E0000] transition-colors">Subir archivo</button>
             </div>
           </div>
         </div>

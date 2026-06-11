@@ -39,7 +39,7 @@ export default function Sidebar() {
   return (
     <aside
       className="w-64 min-h-screen flex flex-col shrink-0"
-      style={{ background: "linear-gradient(180deg, #a93526 0%, #8a2b1f 100%)" }}
+      style={{ background: "linear-gradient(180deg, #C62828 0%, #8E0000 100%)" }}
     >
       {/* Logo blanco */}
       <div className="flex flex-col items-center px-5 py-5 border-b border-white/10">
@@ -85,11 +85,11 @@ export default function Sidebar() {
                   ? "bg-white shadow-sm"
                   : "text-white/80 hover:bg-white/15 hover:text-white"
               )}
-              style={active ? { color: "#8a2b1f" } : {}}
+              style={active ? { color: "#8E0000" } : {}}
             >
               <Icon size={18} className="shrink-0" />
               <span className="flex-1">{label}</span>
-              {active && <ChevronRight size={14} style={{ color: "#8a2b1f" }} />}
+              {active && <ChevronRight size={14} style={{ color: "#8E0000" }} />}
             </Link>
           );
         })}

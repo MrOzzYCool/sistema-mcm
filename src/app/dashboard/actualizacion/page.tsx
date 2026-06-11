@@ -89,7 +89,7 @@ function ActualizacionContent() {
             className={clsx(
               "px-4 py-2 text-sm font-semibold border-b-2 transition-colors capitalize",
               vista === v
-                ? "border-[#a93526] text-[#a93526]"
+                ? "border-[#C62828] text-[#C62828]"
                 : "border-transparent text-mcm-muted hover:text-mcm-text"
             )}>
             {v === "solicitudes" ? "📋 Solicitudes" : "📊 Reportes"}
@@ -204,8 +204,8 @@ function SolicitudesView({ todas, loading, tabActiva, setTabActiva, setTodas, se
               className={clsx(
                 "px-4 py-2.5 rounded-xl text-xs font-semibold border-2 transition-all",
                 tabActiva === a.id
-                  ? "border-[#a93526] bg-[#a93526] text-white shadow-sm"
-                  : "border-mcm-border text-mcm-muted hover:border-[#a93526] hover:text-[#a93526]"
+                  ? "border-[#C62828] bg-[#C62828] text-white shadow-sm"
+                  : "border-mcm-border text-mcm-muted hover:border-[#C62828] hover:text-[#C62828]"
               )}>
               {a.label}
               <span className={clsx("ml-2 px-1.5 py-0.5 rounded-full text-xs",
@@ -221,7 +221,7 @@ function SolicitudesView({ todas, loading, tabActiva, setTabActiva, setTodas, se
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {(["todos", "pendiente", "aprobado", "observado"] as const).map((e) => (
           <button key={e} onClick={() => setFiltro(e)}
-            className={clsx("card text-left transition-all", filtro === e ? "ring-2 ring-[#a93526]" : "hover:shadow-md")}>
+            className={clsx("card text-left transition-all", filtro === e ? "ring-2 ring-[#C62828]" : "hover:shadow-md")}>
             <p className="text-xs text-mcm-muted capitalize">{e === "todos" ? "Total" : ESTADO_LABEL[e]}</p>
             <p className="text-2xl font-bold text-mcm-text mt-1">{kpis[e]}</p>
           </button>
@@ -265,7 +265,7 @@ function SolicitudesView({ todas, loading, tabActiva, setTabActiva, setTodas, se
                       <div className="flex flex-col gap-1.5">
                         {s.voucher_url && (
                           <button onClick={() => setLightbox({ url: s.voucher_url, titulo: "Voucher" })}
-                            className="flex items-center gap-1 text-xs text-[#a93526] hover:underline font-medium">
+                            className="flex items-center gap-1 text-xs text-[#C62828] hover:underline font-medium">
                             <Eye size={12} /> Voucher
                           </button>
                         )}
@@ -287,7 +287,7 @@ function SolicitudesView({ todas, loading, tabActiva, setTabActiva, setTodas, se
                       <span className={ESTADO_BADGE[s.estado ?? "pendiente"]}>{ESTADO_LABEL[s.estado ?? "pendiente"]}</span>
                       {s.estado === "aprobado" && s.pdf_boleta_url && (
                         <a href={s.pdf_boleta_url} target="_blank" rel="noreferrer"
-                          className="flex items-center gap-1 text-xs text-[#a93526] hover:underline font-medium mt-1">
+                          className="flex items-center gap-1 text-xs text-[#C62828] hover:underline font-medium mt-1">
                           <ExternalLink size={11} /> Comprobante
                         </a>
                       )}
@@ -341,7 +341,7 @@ function SolicitudesView({ todas, loading, tabActiva, setTabActiva, setTodas, se
               <p className="font-semibold text-mcm-text">{lightbox.titulo}</p>
               <div className="flex items-center gap-3">
                 <a href={lightbox.url} target="_blank" rel="noreferrer"
-                  className="text-xs text-[#a93526] hover:underline flex items-center gap-1">
+                  className="text-xs text-[#C62828] hover:underline flex items-center gap-1">
                   <ExternalLink size={12} /> Abrir
                 </a>
                 <button onClick={() => setLightbox(null)} className="text-mcm-muted hover:text-mcm-text">
@@ -375,14 +375,14 @@ function SolicitudesView({ todas, loading, tabActiva, setTabActiva, setTodas, se
                   <label className="flex items-center gap-2 mb-1.5 cursor-pointer">
                     <input type="checkbox" checked={!!obsFields[key]}
                       onChange={(e) => setObsFields((p) => ({ ...p, [key]: e.target.checked ? "Documento no válido o ilegible" : "" }))}
-                      className="w-4 h-4 accent-[#a93526]" />
+                      className="w-4 h-4 accent-[#C62828]" />
                     <span className="text-sm font-medium text-mcm-text">{label}</span>
                   </label>
                   {obsFields[key] !== "" && (
                     <input type="text" value={obsFields[key]}
                       onChange={(e) => setObsFields((p) => ({ ...p, [key]: e.target.value }))}
                       placeholder="Describe el problema..."
-                      className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#a93526] ml-6" />
+                      className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#C62828] ml-6" />
                   )}
                 </div>
               ))}

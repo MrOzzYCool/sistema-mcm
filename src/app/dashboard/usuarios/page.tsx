@@ -362,12 +362,12 @@ function UsuariosContent() {
         <div className="relative flex-1 max-w-xs">
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-mcm-muted" />
           <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Buscar por nombre o email..."
-            className="w-full pl-9 pr-3 py-2 border border-mcm-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#a93526]" />
+            className="w-full pl-9 pr-3 py-2 border border-mcm-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#C62828]" />
         </div>
         {["todos", "alumno", "profesor"].map(r => (
           <button key={r} onClick={() => setFiltroRol(r)}
             className={clsx("px-3 py-1.5 rounded-full text-xs font-semibold transition-colors capitalize",
-              filtroRol === r ? "bg-[#a93526] text-white" : "bg-slate-100 text-mcm-muted hover:bg-slate-200")}>
+              filtroRol === r ? "bg-[#C62828] text-white" : "bg-slate-100 text-mcm-muted hover:bg-slate-200")}>
             {r}
           </button>
         ))}
@@ -375,7 +375,7 @@ function UsuariosContent() {
         {["todos", "activo", "inactivo", "eliminado"].map(e => (
           <button key={`e-${e}`} onClick={() => setFiltroEstado(e)}
             className={clsx("px-3 py-1.5 rounded-full text-xs font-semibold transition-colors capitalize",
-              filtroEstado === e ? "bg-[#a93526] text-white" : "bg-slate-100 text-mcm-muted hover:bg-slate-200")}>
+              filtroEstado === e ? "bg-[#C62828] text-white" : "bg-slate-100 text-mcm-muted hover:bg-slate-200")}>
             {e === "todos" ? "todos los estados" : e}
           </button>
         ))}
@@ -383,7 +383,7 @@ function UsuariosContent() {
           <>
             <span className="text-mcm-border">|</span>
             <select value={filtroCiclo} onChange={e => setFiltroCiclo(e.target.value)}
-              className="border border-mcm-border rounded-lg px-3 py-1.5 text-xs font-semibold focus:ring-2 focus:ring-[#a93526] focus:outline-none">
+              className="border border-mcm-border rounded-lg px-3 py-1.5 text-xs font-semibold focus:ring-2 focus:ring-[#C62828] focus:outline-none">
               <option value="todos">Todos los ciclos</option>
               {ciclosDisponibles.map(c => <option key={c} value={String(c)}>Ciclo {c}</option>)}
             </select>
@@ -421,13 +421,13 @@ function UsuariosContent() {
                       <div className="flex gap-2">
                         {canEdit && (
                           <button onClick={() => openEditModal(p)} title="Editar usuario"
-                            className="text-mcm-muted hover:text-[#a93526]"><Pencil size={14} /></button>
+                            className="text-mcm-muted hover:text-[#C62828]"><Pencil size={14} /></button>
                         )}
                         <button onClick={() => handleReset(p.id)} title="Restablecer contraseña"
-                          className="text-mcm-muted hover:text-[#a93526]"><Key size={14} /></button>
+                          className="text-mcm-muted hover:text-[#C62828]"><Key size={14} /></button>
                         {p.estado !== "eliminado" && (
                           <button onClick={() => handleToggle(p.id, p.estado)} title={p.estado === "activo" ? "Desactivar" : "Activar"}
-                            className="text-mcm-muted hover:text-[#a93526]">
+                            className="text-mcm-muted hover:text-[#C62828]">
                             {p.estado === "activo" ? <XCircle size={14} /> : <CheckCircle size={14} />}
                           </button>
                         )}
@@ -468,7 +468,7 @@ function UsuariosContent() {
               <div>
                 <label className="block text-sm font-medium text-mcm-text mb-1">Tipo</label>
                 <select value={form.tipo} onChange={e => setForm({...form, tipo: e.target.value})}
-                  className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#a93526]">
+                  className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#C62828]">
                   <option value="alumno">Alumno</option>
                   <option value="profesor">Profesor</option>
                 </select>
@@ -478,26 +478,26 @@ function UsuariosContent() {
                   <label className="block text-sm font-medium text-mcm-text mb-1">Nombres *</label>
                   <input value={form.nombres} onChange={e => setForm({...form, nombres: e.target.value.toUpperCase()})}
                     placeholder="JUAN CARLOS" style={{ textTransform: "uppercase" }}
-                    className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#a93526]" />
+                    className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#C62828]" />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-mcm-text mb-1">Apellidos *</label>
                   <input value={form.apellidos} onChange={e => setForm({...form, apellidos: e.target.value.toUpperCase()})}
                     placeholder="PÉREZ GARCÍA" style={{ textTransform: "uppercase" }}
-                    className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#a93526]" />
+                    className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#C62828]" />
                 </div>
               </div>
               <div>
                 <label className="block text-sm font-medium text-mcm-text mb-1">Correo electrónico</label>
                 <input type="email" value={form.email} onChange={e => setForm({...form, email: e.target.value})}
                   placeholder="usuario@margaritacabrera.edu.pe"
-                  className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#a93526]" />
+                  className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#C62828]" />
               </div>
               <div>
                 <label className="block text-sm font-medium text-mcm-text mb-1">DNI (opcional)</label>
                 <input value={form.dni} onChange={e => setForm({...form, dni: e.target.value.replace(/\D/g,"").slice(0,8)})}
                   placeholder="12345678" maxLength={8}
-                  className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#a93526]" />
+                  className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#C62828]" />
               </div>
               {/* Campos de carrera y ciclo — solo para alumnos */}
               {form.tipo === "alumno" && (
@@ -506,7 +506,7 @@ function UsuariosContent() {
                     <div>
                       <label className="block text-sm font-medium text-mcm-text mb-1">Carrera *</label>
                       <select value={form.carrera_id} onChange={e => setForm({...form, carrera_id: e.target.value})}
-                        className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#a93526]">
+                        className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#C62828]">
                         <option value="">Seleccionar...</option>
                         {carrerasDisp.map(c => <option key={c.id} value={c.id}>{c.nombre_carrera}</option>)}
                       </select>
@@ -515,7 +515,7 @@ function UsuariosContent() {
                     <div>
                       <label className="block text-sm font-medium text-mcm-text mb-1">Ciclo inicial *</label>
                       <select value={form.ciclo_inicial} onChange={e => setForm({...form, ciclo_inicial: e.target.value})}
-                        className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#a93526]">
+                        className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#C62828]">
                         {[1,2,3,4,5,6].map(n => <option key={n} value={String(n)}>Ciclo {n}</option>)}
                       </select>
                     </div>
@@ -526,7 +526,7 @@ function UsuariosContent() {
                       <label className="block text-sm font-medium text-mcm-text mb-1">Fecha de inicio de clases</label>
                       <input type="date" value={form.fecha_inicio_ciclo}
                         onChange={e => setForm({...form, fecha_inicio_ciclo: e.target.value})}
-                        className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#a93526]" />
+                        className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#C62828]" />
                       <p className="text-xs text-mcm-muted mt-1">
                         {form.fecha_inicio_ciclo
                           ? new Date(form.fecha_inicio_ciclo + "T00:00:00").getDay() === 1
@@ -541,22 +541,22 @@ function UsuariosContent() {
               <div className="space-y-2">
                 <label className="flex items-center gap-2 text-sm cursor-pointer">
                   <input type="checkbox" checked={form.auto_password}
-                    onChange={e => setForm({...form, auto_password: e.target.checked})} className="accent-[#a93526]" />
+                    onChange={e => setForm({...form, auto_password: e.target.checked})} className="accent-[#C62828]" />
                   Generar contraseña automática
                 </label>
                 {!form.auto_password && (
                   <input type="text" value={form.password} onChange={e => setForm({...form, password: e.target.value})}
                     placeholder="Contraseña (mín. 6 caracteres)"
-                    className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#a93526]" />
+                    className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#C62828]" />
                 )}
                 <label className="flex items-center gap-2 text-sm cursor-pointer">
                   <input type="checkbox" checked={form.force_change}
-                    onChange={e => setForm({...form, force_change: e.target.checked})} className="accent-[#a93526]" />
+                    onChange={e => setForm({...form, force_change: e.target.checked})} className="accent-[#C62828]" />
                   Forzar cambio de contraseña al primer ingreso
                 </label>
                 <label className="flex items-center gap-2 text-sm cursor-pointer">
                   <input type="checkbox" checked={form.notify_email}
-                    onChange={e => setForm({...form, notify_email: e.target.checked})} className="accent-[#a93526]" />
+                    onChange={e => setForm({...form, notify_email: e.target.checked})} className="accent-[#C62828]" />
                   Notificar por email con credenciales
                 </label>
               </div>
@@ -588,7 +588,7 @@ function UsuariosContent() {
               <div>
                 <label className="block text-sm font-medium text-mcm-text mb-1">Carrera *</label>
                 <select value={enrollForm.carrera_id} onChange={e => setEnrollForm({...enrollForm, carrera_id: e.target.value})}
-                  className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#a93526]">
+                  className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#C62828]">
                   <option value="">Seleccionar carrera...</option>
                   {carrerasDisp.map(c => <option key={c.id} value={c.id}>{c.nombre_carrera}</option>)}
                 </select>
@@ -596,7 +596,7 @@ function UsuariosContent() {
               <div>
                 <label className="block text-sm font-medium text-mcm-text mb-1">Ciclo *</label>
                 <select value={enrollForm.ciclo} onChange={e => setEnrollForm({...enrollForm, ciclo: e.target.value})}
-                  className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#a93526]">
+                  className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#C62828]">
                   {[1,2,3,4,5,6].map(n => <option key={n} value={String(n)}>Ciclo {n}</option>)}
                 </select>
               </div>
@@ -604,7 +604,7 @@ function UsuariosContent() {
                 <label className="block text-sm font-medium text-mcm-text mb-1">Fecha de inicio de clases</label>
                 <input type="date" value={enrollForm.fecha_inicio_ciclo}
                   onChange={e => setEnrollForm({...enrollForm, fecha_inicio_ciclo: e.target.value})}
-                  className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#a93526]" />
+                  className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#C62828]" />
                 <p className="text-xs text-mcm-muted mt-1">
                   {enrollForm.fecha_inicio_ciclo
                     ? new Date(enrollForm.fecha_inicio_ciclo + "T00:00:00").getDay() === 1
@@ -638,18 +638,18 @@ function UsuariosContent() {
                 <label className="block text-sm font-medium text-mcm-text mb-1">Nombre completo</label>
                 <input value={editForm.nombre_completo} onChange={e => setEditForm({...editForm, nombre_completo: e.target.value.toUpperCase()})}
                   style={{ textTransform: "uppercase" }}
-                  className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#a93526]" />
+                  className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#C62828]" />
               </div>
               <div>
                 <label className="block text-sm font-medium text-mcm-text mb-1">Email</label>
                 <input type="email" value={editForm.email} onChange={e => setEditForm({...editForm, email: e.target.value})}
-                  className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#a93526]" />
+                  className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#C62828]" />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-sm font-medium text-mcm-text mb-1">Rol</label>
                   <select value={editForm.rol} onChange={e => setEditForm({...editForm, rol: e.target.value})}
-                    className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#a93526]">
+                    className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#C62828]">
                     <option value="alumno">Alumno</option>
                     <option value="profesor">Profesor</option>
                   </select>
@@ -657,7 +657,7 @@ function UsuariosContent() {
                 <div>
                   <label className="block text-sm font-medium text-mcm-text mb-1">Estado</label>
                   <select value={editForm.estado} onChange={e => setEditForm({...editForm, estado: e.target.value})}
-                    className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#a93526]">
+                    className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#C62828]">
                     <option value="activo">Activo</option>
                     <option value="inactivo">Inactivo</option>
                   </select>
@@ -667,13 +667,13 @@ function UsuariosContent() {
                 <label className="block text-sm font-medium text-mcm-text mb-1">DNI</label>
                 <input value={editForm.dni} onChange={e => setEditForm({...editForm, dni: e.target.value.replace(/\D/g,"").slice(0,8)})}
                   placeholder="12345678" maxLength={8}
-                  className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#a93526]" />
+                  className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#C62828]" />
               </div>
               {editForm.rol === "alumno" && (
                 <div>
                   <label className="block text-sm font-medium text-mcm-text mb-1">Ciclo actual</label>
                   <select value={editForm.ciclo} onChange={e => setEditForm({...editForm, ciclo: e.target.value})}
-                    className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#a93526]">
+                    className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#C62828]">
                     {[1,2,3,4,5,6].map(n => <option key={n} value={String(n)}>Ciclo {n}</option>)}
                   </select>
                 </div>
@@ -682,7 +682,7 @@ function UsuariosContent() {
                 <label className="flex items-center gap-2 text-sm cursor-pointer">
                   <input type="checkbox" checked={editForm.es_profesor}
                     onChange={e => setEditForm({...editForm, es_profesor: e.target.checked})}
-                    className="accent-[#a93526] w-4 h-4" />
+                    className="accent-[#C62828] w-4 h-4" />
                   <span className="font-medium text-mcm-text">También es profesor</span>
                 </label>
                 <p className="text-xs text-mcm-muted mt-1">Permite asignar horarios de clase a este usuario</p>
@@ -725,7 +725,7 @@ function UsuariosContent() {
                     <label className="block text-sm font-medium text-mcm-text mb-1">Escribe &quot;ELIMINAR&quot; para confirmar</label>
                     <input value={deleteModal.confirmText} onChange={e => setDeleteModal(prev => ({ ...prev, confirmText: e.target.value }))}
                       placeholder="ELIMINAR"
-                      className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#a93526]" />
+                      className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#C62828]" />
                   </div>
                 </>
               )}

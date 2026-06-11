@@ -192,7 +192,7 @@ function AdminDashboard() {
                       formatter={(value) => [`S/ ${Number(value).toFixed(2)}`, "Ingresos"]}
                       contentStyle={{ borderRadius: 12, border: "1px solid #e2e8f0", fontSize: 13 }}
                     />
-                    <Bar dataKey="ingresos" fill="#a93526" radius={[6, 6, 0, 0]} />
+                    <Bar dataKey="ingresos" fill="#C62828" radius={[6, 6, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
@@ -392,15 +392,15 @@ function ActionCard({ href, icon, label, desc }: {
 }) {
   return (
     <Link href={href}
-      className="flex items-center gap-4 p-4 rounded-xl border border-mcm-border hover:border-[#a93526]/30 hover:bg-red-50/30 transition-all group">
-      <div className="p-3 rounded-xl bg-red-50 text-[#a93526] group-hover:bg-[#a93526] group-hover:text-white transition-colors shrink-0">
+      className="flex items-center gap-4 p-4 rounded-xl border border-mcm-border hover:border-[#C62828]/30 hover:bg-red-50/30 transition-all group">
+      <div className="p-3 rounded-xl bg-red-50 text-[#C62828] group-hover:bg-[#C62828] group-hover:text-white transition-colors shrink-0">
         {icon}
       </div>
       <div>
         <p className="text-sm font-semibold text-mcm-text">{label}</p>
         <p className="text-xs text-mcm-muted mt-0.5">{desc}</p>
       </div>
-      <ArrowRight size={16} className="text-mcm-muted ml-auto shrink-0 group-hover:text-[#a93526] transition-colors" />
+      <ArrowRight size={16} className="text-mcm-muted ml-auto shrink-0 group-hover:text-[#C62828] transition-colors" />
     </Link>
   );
 }

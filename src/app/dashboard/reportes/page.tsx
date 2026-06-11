@@ -210,7 +210,7 @@ function ReportesContent() {
                     contentStyle={{ borderRadius: 8, border: "1px solid #e2e8f0", fontSize: 12 }}
                     formatter={(v) => [`${v} solicitudes`, "Cantidad"]}
                   />
-                  <Bar dataKey="cantidad" fill="#a93526" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="cantidad" fill="#C62828" radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             )}
@@ -235,8 +235,8 @@ function ReportesContent() {
                     formatter={(v) => [`S/ ${Number(v).toLocaleString("es-PE")}`, "Ingresos"]}
                   />
                   <Legend wrapperStyle={{ fontSize: 12 }} />
-                  <Line type="monotone" dataKey="total" name="Ingresos" stroke="#a93526"
-                    strokeWidth={2.5} dot={{ fill: "#a93526", r: 4 }} activeDot={{ r: 6 }} />
+                  <Line type="monotone" dataKey="total" name="Ingresos" stroke="#C62828"
+                    strokeWidth={2.5} dot={{ fill: "#C62828", r: 4 }} activeDot={{ r: 6 }} />
                 </LineChart>
               </ResponsiveContainer>
             )}
@@ -261,7 +261,7 @@ function ReportesContent() {
                 {([10, 20, 50, "todos"] as const).map((n) => (
                   <button key={n} onClick={() => cambiarPorPagina(n)}
                     className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-colors ${
-                      porPagina === n ? "bg-[#a93526] text-white" : "bg-slate-100 text-mcm-muted hover:bg-slate-200"
+                      porPagina === n ? "bg-[#C62828] text-white" : "bg-slate-100 text-mcm-muted hover:bg-slate-200"
                     }`}>
                     {n === "todos" ? "Todos" : n}
                   </button>
@@ -272,7 +272,7 @@ function ReportesContent() {
             {/* Filtros pill por estado */}
             <div className="flex flex-wrap gap-2">
               {([
-                { key: "todos",     label: "Todos",      cls: filtroEstado === "todos"     ? "bg-[#a93526] text-white" : "bg-slate-100 text-mcm-muted hover:bg-slate-200" },
+                { key: "todos",     label: "Todos",      cls: filtroEstado === "todos"     ? "bg-[#C62828] text-white" : "bg-slate-100 text-mcm-muted hover:bg-slate-200" },
                 { key: "pendiente", label: "Pendientes", cls: filtroEstado === "pendiente" ? "bg-yellow-400 text-white" : "bg-yellow-50 text-yellow-700 hover:bg-yellow-100" },
                 { key: "aprobado",  label: "Aprobadas",  cls: filtroEstado === "aprobado"  ? "bg-green-500 text-white"  : "bg-green-50 text-green-700 hover:bg-green-100"  },
                 { key: "rechazado", label: "Rechazadas", cls: filtroEstado === "rechazado" ? "bg-red-500 text-white"    : "bg-red-50 text-red-700 hover:bg-red-100"         },
@@ -355,7 +355,7 @@ function ReportesContent() {
                     <button key={p} onClick={() => setPagina(p)}
                       className={`px-3 py-1 text-xs rounded border transition-colors ${
                         p === pagina
-                          ? "bg-[#a93526] text-white border-[#a93526]"
+                          ? "bg-[#C62828] text-white border-[#C62828]"
                           : "border-mcm-border hover:bg-slate-50"
                       }`}
                     >{p}</button>

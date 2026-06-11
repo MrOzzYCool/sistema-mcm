@@ -369,7 +369,7 @@ function PagosAlumnoContent() {
           <div>
             <label className="block text-xs font-medium text-mcm-text mb-1">Concepto</label>
             <select value={benefitForm.tipo} onChange={e => setBenefitForm({...benefitForm, tipo: e.target.value})}
-              className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#a93526]">
+              className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#C62828]">
               <option value="matricula">Matrícula (S/ 250)</option>
               <option value="cuota">Cuotas (S/ 400 c/u)</option>
             </select>
@@ -379,13 +379,13 @@ function PagosAlumnoContent() {
             <input type="number" step="0.01" value={benefitForm.monto}
               onChange={e => setBenefitForm({...benefitForm, monto: e.target.value})}
               placeholder={benefitForm.tipo === "matricula" ? "Ej: 100" : "Ej: 150"}
-              className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#a93526]" />
+              className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#C62828]" />
           </div>
           <div>
             <label className="flex items-center gap-2 text-xs cursor-pointer mt-5">
               <input type="checkbox" checked={benefitForm.permanente}
                 onChange={e => setBenefitForm({...benefitForm, permanente: e.target.checked})}
-                className="accent-[#a93526]" />
+                className="accent-[#C62828]" />
               Permanente
             </label>
           </div>
@@ -413,14 +413,14 @@ function PagosAlumnoContent() {
               <div>
                 <label className="block text-sm font-medium text-mcm-text mb-1">Ciclo</label>
                 <select value={genForm.ciclo} onChange={e => setGenForm({...genForm, ciclo: e.target.value})}
-                  className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#a93526]">
+                  className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#C62828]">
                   {[1,2,3,4,5,6].map(n => <option key={n} value={String(n)}>Ciclo {n}</option>)}
                 </select>
               </div>
               <div>
                 <label className="block text-sm font-medium text-mcm-text mb-1">Año</label>
                 <input type="number" value={genForm.year} onChange={e => setGenForm({...genForm, year: e.target.value})}
-                  className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#a93526]" />
+                  className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#C62828]" />
               </div>
               <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 text-xs text-blue-700">
                 Se generará: MATRÍCULA (S/ 250) + CUOTAS 01-04 (S/ 400 c/u) = S/ 1,850 total
@@ -456,7 +456,7 @@ function PagosAlumnoContent() {
                 <input type="number" step="0.01" min="0" max={editOriginal}
                   value={editDescuento} onChange={e => setEditDescuento(e.target.value)}
                   placeholder="0.00"
-                  className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#a93526]" />
+                  className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#C62828]" />
                 {parseFloat(editDescuento) > editOriginal && (
                   <p className="text-red-500 text-xs mt-1">El descuento no puede ser mayor al monto original</p>
                 )}
@@ -504,18 +504,18 @@ function PagosAlumnoContent() {
                 <div>
                   <label className="block text-sm font-medium text-mcm-text mb-1">Serie</label>
                   <input value={manualForm.serie} onChange={e => setManualForm({...manualForm, serie: e.target.value.toUpperCase()})}
-                    placeholder="BBB2" className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#a93526]" />
+                    placeholder="BBB2" className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#C62828]" />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-mcm-text mb-1">Número</label>
                   <input value={manualForm.numero} onChange={e => setManualForm({...manualForm, numero: e.target.value.replace(/\D/g,"")})}
-                    placeholder="4557" className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#a93526]" />
+                    placeholder="4557" className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#C62828]" />
                 </div>
               </div>
               <div>
                 <label className="block text-sm font-medium text-mcm-text mb-1">Tipo</label>
                 <select value={manualForm.tipo} onChange={e => setManualForm({...manualForm, tipo: e.target.value})}
-                  className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#a93526]">
+                  className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#C62828]">
                   <option value="boleta">Boleta</option>
                   <option value="factura">Factura</option>
                 </select>
@@ -535,7 +535,7 @@ function PagosAlumnoContent() {
               <div>
                 <label className="block text-sm font-medium text-mcm-text mb-1">O pegar URL directa del PDF</label>
                 <input value={manualForm.url} onChange={e => setManualForm({...manualForm, url: e.target.value})}
-                  placeholder="https://..." className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#a93526]" />
+                  placeholder="https://..." className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#C62828]" />
               </div>
             </div>
             <div className="flex gap-3 mt-5">

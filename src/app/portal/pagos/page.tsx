@@ -241,7 +241,7 @@ function VoucherUploadBtn({ installmentId, onSuccess }: { installmentId: string;
     return (
       <>
         <button onClick={() => inputRef.current?.click()}
-          className="flex items-center gap-1 text-xs font-medium text-[#a93526] hover:text-[#8a2b1f]">
+          className="flex items-center gap-1 text-xs font-medium text-[#C62828] hover:text-[#8E0000]">
           <Paperclip size={12} /> Adjuntar voucher
         </button>
         <input ref={inputRef} type="file" accept="image/*,.pdf" className="hidden" onChange={handleSelect} />
@@ -273,13 +273,13 @@ function VoucherUploadBtn({ installmentId, onSuccess }: { installmentId: string;
         <div className="grid grid-cols-2 gap-2">
           <button type="button" onClick={() => setTipoComprobante("boleta")}
             className={`py-2 rounded-lg border text-xs font-semibold transition-all ${
-              tipoComprobante === "boleta" ? "border-[#a93526] bg-red-50 text-[#a93526]" : "border-mcm-border text-mcm-muted"
+              tipoComprobante === "boleta" ? "border-[#C62828] bg-red-50 text-[#C62828]" : "border-mcm-border text-mcm-muted"
             }`}>
             🧾 Boleta
           </button>
           <button type="button" onClick={() => setTipoComprobante("factura")}
             className={`py-2 rounded-lg border text-xs font-semibold transition-all ${
-              tipoComprobante === "factura" ? "border-[#a93526] bg-red-50 text-[#a93526]" : "border-mcm-border text-mcm-muted"
+              tipoComprobante === "factura" ? "border-[#C62828] bg-red-50 text-[#C62828]" : "border-mcm-border text-mcm-muted"
             }`}>
             🏢 Factura
           </button>
@@ -292,16 +292,16 @@ function VoucherUploadBtn({ installmentId, onSuccess }: { installmentId: string;
           <p className="text-xs font-medium text-mcm-text">Datos de la empresa:</p>
           <input value={facturaData.ruc} onChange={e => setFacturaData({...facturaData, ruc: e.target.value.replace(/\D/g,"").slice(0,11)})}
             placeholder="RUC (11 dígitos)" maxLength={11}
-            className="w-full border border-mcm-border rounded px-2 py-1.5 text-xs focus:ring-1 focus:ring-[#a93526]" />
+            className="w-full border border-mcm-border rounded px-2 py-1.5 text-xs focus:ring-1 focus:ring-[#C62828]" />
           <input value={facturaData.razon_social} onChange={e => setFacturaData({...facturaData, razon_social: e.target.value.toUpperCase()})}
             placeholder="Razón Social" style={{ textTransform: "uppercase" }}
-            className="w-full border border-mcm-border rounded px-2 py-1.5 text-xs focus:ring-1 focus:ring-[#a93526]" />
+            className="w-full border border-mcm-border rounded px-2 py-1.5 text-xs focus:ring-1 focus:ring-[#C62828]" />
           <input value={facturaData.direccion_fiscal} onChange={e => setFacturaData({...facturaData, direccion_fiscal: e.target.value})}
             placeholder="Dirección Fiscal"
-            className="w-full border border-mcm-border rounded px-2 py-1.5 text-xs focus:ring-1 focus:ring-[#a93526]" />
+            className="w-full border border-mcm-border rounded px-2 py-1.5 text-xs focus:ring-1 focus:ring-[#C62828]" />
           <input value={facturaData.email_empresa} onChange={e => setFacturaData({...facturaData, email_empresa: e.target.value})}
             placeholder="Email empresa (opcional)"
-            className="w-full border border-mcm-border rounded px-2 py-1.5 text-xs focus:ring-1 focus:ring-[#a93526]" />
+            className="w-full border border-mcm-border rounded px-2 py-1.5 text-xs focus:ring-1 focus:ring-[#C62828]" />
           {facturaData.ruc && facturaData.ruc.length !== 11 && (
             <p className="text-red-500 text-xs">RUC debe tener 11 dígitos</p>
           )}
@@ -311,7 +311,7 @@ function VoucherUploadBtn({ installmentId, onSuccess }: { installmentId: string;
       {/* Actions */}
       <div className="flex gap-2">
         <button onClick={handleSubmit} disabled={uploading || !facturaValid}
-          className="flex items-center gap-1 text-xs font-semibold text-white bg-[#a93526] hover:bg-[#8a2b1f] px-3 py-1.5 rounded-lg disabled:opacity-50">
+          className="flex items-center gap-1 text-xs font-semibold text-white bg-[#C62828] hover:bg-[#8E0000] px-3 py-1.5 rounded-lg disabled:opacity-50">
           {uploading ? <Loader2 size={12} className="animate-spin" /> : <CheckCircle size={12} />}
           {uploading ? "Enviando..." : "Enviar voucher"}
         </button>

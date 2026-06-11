@@ -23,7 +23,7 @@ export function EmailField({ value, onChange }: {
         // Bloquear copiar desde este campo
         onCopy={(e) => e.preventDefault()}
         onCut={(e) => e.preventDefault()}
-        className="w-full border border-mcm-border rounded-lg px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#a93526]"
+        className="w-full border border-mcm-border rounded-lg px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#C62828]"
       />
     </div>
   );
@@ -65,7 +65,7 @@ export function EmailConfirmField({ value, onChange, emailOriginal }: {
         className={`w-full border rounded-lg px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 transition ${
           noCoincide
             ? "border-red-400 bg-red-50 focus:ring-red-400"
-            : "border-mcm-border focus:ring-[#a93526]"
+            : "border-mcm-border focus:ring-[#C62828]"
         }`}
       />
       {pasteWarning && (

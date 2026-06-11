@@ -65,14 +65,14 @@ export default function AulaVirtualDashboard() {
             <p className="text-sm font-bold text-mcm-text">Hola, {user?.name?.split(" ")[0]}</p>
             <p className="text-xs text-mcm-muted">Estudiante</p>
           </div>
-          <div className="w-9 h-9 rounded-full bg-[#a93526] flex items-center justify-center text-white font-bold text-sm">
+          <div className="w-9 h-9 rounded-full bg-[#C62828] flex items-center justify-center text-white font-bold text-sm">
             {user?.avatar ?? "?"}
           </div>
         </div>
       </div>
 
       {/* Banner */}
-      <div className="w-full h-40 rounded-xl mb-5 overflow-hidden bg-gradient-to-r from-[#a93526] to-[#8a2b1f] flex items-center justify-center">
+      <div className="w-full h-40 rounded-xl mb-5 overflow-hidden bg-gradient-to-r from-[#C62828] to-[#8E0000] flex items-center justify-center">
         <div className="text-center text-white">
           <h2 className="text-2xl font-bold">Aula Virtual MCM</h2>
           <p className="text-sm text-white/80 mt-1">I.E.S. Privada Margarita Cabrera</p>
@@ -90,7 +90,7 @@ export default function AulaVirtualDashboard() {
                 <select
                   value={selectedPeriodo}
                   onChange={(e) => setSelectedPeriodo(e.target.value)}
-                  className="appearance-none text-sm border border-mcm-border rounded-md px-3 py-1.5 pr-8 bg-white text-mcm-text focus:outline-none focus:ring-2 focus:ring-[#a93526]/30 focus:border-[#a93526]"
+                  className="appearance-none text-sm border border-mcm-border rounded-md px-3 py-1.5 pr-8 bg-white text-mcm-text focus:outline-none focus:ring-2 focus:ring-[#C62828]/30 focus:border-[#C62828]"
                 >
                   <option value="actual">Periodo actual</option>
                   <option value="todos">Todos los periodos</option>

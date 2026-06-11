@@ -137,20 +137,20 @@ export default function CalendarioPage() {
           <h1 className="text-xl font-bold text-mcm-text">Mi Horario</h1>
           {carrera && ciclo && (
             <div className="flex items-center gap-1.5">
-              <span className="text-xs px-2 py-0.5 rounded-full bg-red-50 text-[#8a2b1f] font-medium border border-red-200">{carrera}</span>
+              <span className="text-xs px-2 py-0.5 rounded-full bg-red-50 text-[#8E0000] font-medium border border-red-200">{carrera}</span>
               <span className="text-xs px-2 py-0.5 rounded-full bg-green-50 text-green-700 font-medium border border-green-200">Ciclo {ciclo}</span>
             </div>
           )}
         </div>
         <div className="flex items-center gap-2">
-          <button onClick={goPrev} className="p-1.5 rounded-lg border border-mcm-border hover:bg-red-50 hover:border-[#a93526]/30 transition">
-            <ChevronLeft size={16} className="text-[#8a2b1f]" />
+          <button onClick={goPrev} className="p-1.5 rounded-lg border border-mcm-border hover:bg-red-50 hover:border-[#C62828]/30 transition">
+            <ChevronLeft size={16} className="text-[#8E0000]" />
           </button>
-          <button onClick={goToday} className="px-3 py-1 text-xs font-semibold rounded-lg bg-[#a93526] text-white hover:bg-[#8a2b1f] transition">
+          <button onClick={goToday} className="px-3 py-1 text-xs font-semibold rounded-lg bg-[#C62828] text-white hover:bg-[#8E0000] transition">
             Hoy
           </button>
-          <button onClick={goNext} className="p-1.5 rounded-lg border border-mcm-border hover:bg-red-50 hover:border-[#a93526]/30 transition">
-            <ChevronRight size={16} className="text-[#8a2b1f]" />
+          <button onClick={goNext} className="p-1.5 rounded-lg border border-mcm-border hover:bg-red-50 hover:border-[#C62828]/30 transition">
+            <ChevronRight size={16} className="text-[#8E0000]" />
           </button>
           <span className="text-xs text-mcm-muted ml-2">
             Sem {weekNum}: {formatShortDate(weekDates[0])} - {formatShortDate(weekDates[6])}
@@ -192,7 +192,7 @@ export default function CalendarioPage() {
                 <div key={i} className="p-2 text-center border-l border-mcm-border">
                   <p className="text-[10px] text-mcm-muted uppercase font-medium">{DIAS_CORTOS[i]}</p>
                   <p className={`text-sm font-bold mt-0.5 ${isToday
-                    ? "w-7 h-7 rounded-full bg-[#a93526] text-white flex items-center justify-center mx-auto"
+                    ? "w-7 h-7 rounded-full bg-[#C62828] text-white flex items-center justify-center mx-auto"
                     : "text-mcm-text"}`}>
                     {date.getDate()}
                   </p>
@@ -266,7 +266,7 @@ export default function CalendarioPage() {
           <div className="bg-white rounded-2xl shadow-xl p-5 w-full max-w-sm mx-4" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-bold text-mcm-text text-lg">{selectedClase.curso}</h3>
-              <button onClick={() => setSelectedClase(null)} className="text-mcm-muted hover:text-[#a93526]">
+              <button onClick={() => setSelectedClase(null)} className="text-mcm-muted hover:text-[#C62828]">
                 <X size={20} />
               </button>
             </div>
@@ -287,15 +287,15 @@ export default function CalendarioPage() {
                 <span className="font-medium w-20 shrink-0">Modalidad:</span>
                 <span className="flex items-center gap-1">
                   {selectedClase.url_clase ? (
-                    <><Video size={14} className="text-[#a93526]" /> Virtual</>
+                    <><Video size={14} className="text-[#C62828]" /> Virtual</>
                   ) : (
-                    <><MapPin size={14} className="text-[#a93526]" /> Presencial</>
+                    <><MapPin size={14} className="text-[#C62828]" /> Presencial</>
                   )}
                 </span>
               </div>
               {selectedClase.url_clase ? (
                 <a href={selectedClase.url_clase} target="_blank" rel="noopener noreferrer"
-                  className="block w-full text-center py-2.5 rounded-xl bg-[#a93526] text-white text-sm font-semibold hover:bg-[#8a2b1f] transition mt-4">
+                  className="block w-full text-center py-2.5 rounded-xl bg-[#C62828] text-white text-sm font-semibold hover:bg-[#8E0000] transition mt-4">
                   Unirse a la clase
                 </a>
               ) : selectedClase.aula ? null : (

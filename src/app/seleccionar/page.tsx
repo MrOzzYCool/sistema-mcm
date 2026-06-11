@@ -64,7 +64,7 @@ export default function SeleccionarModulo() {
           <p className="text-sm text-white/70 mt-3">
             Pagos, calendario, cursos matriculados y trámites académicos
           </p>
-          <span className="mt-5 text-xs font-semibold text-white bg-white/20 px-4 py-1.5 rounded-full group-hover:bg-white group-hover:text-[#a93526] transition-colors">
+          <span className="mt-5 text-xs font-semibold text-white bg-white/20 px-4 py-1.5 rounded-full group-hover:bg-white group-hover:text-[#C62828] transition-colors">
             Ingresar →
           </span>
         </Link>
@@ -80,7 +80,7 @@ export default function SeleccionarModulo() {
           <p className="text-sm text-white/70 mt-3">
             Clases, contenido semanal, tareas y evaluaciones de tus cursos
           </p>
-          <span className="mt-5 text-xs font-semibold text-white bg-white/20 px-4 py-1.5 rounded-full group-hover:bg-white group-hover:text-[#a93526] transition-colors">
+          <span className="mt-5 text-xs font-semibold text-white bg-white/20 px-4 py-1.5 rounded-full group-hover:bg-white group-hover:text-[#C62828] transition-colors">
             Ingresar →
           </span>
         </Link>
