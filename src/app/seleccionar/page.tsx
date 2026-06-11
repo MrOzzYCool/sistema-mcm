@@ -20,7 +20,7 @@ export default function SeleccionarModulo() {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center"
-        style={{ background: "linear-gradient(160deg,#a93526 0%,#8a2b1f 100%)" }}>
+        style={{ background: "linear-gradient(160deg,#C62828 0%,#8E0000 100%)" }}>
         <div className="text-center">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/logo-blanco.png" alt="Logo" style={{ width: 80, height: "auto", margin: "0 auto 16px" }} />
@@ -34,13 +34,13 @@ export default function SeleccionarModulo() {
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center px-4"
-      style={{ background: "linear-gradient(160deg, #a93526 0%, #6b1d14 50%, #3d1210 100%)" }}>
+      style={{ background: "linear-gradient(160deg, #C62828 0%, #8E0000 50%, #4E0000 100%)" }}>
 
       {/* Logo */}
       <div className="mb-8">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/logo-blanco.png" alt="I.E.S. Privada Margarita Cabrera"
-          className="w-24 h-auto mx-auto drop-shadow-lg" />
+        <img src="/logo-mc-icon.png" alt="I.E.S. Privada Margarita Cabrera"
+          className="w-20 h-20 mx-auto drop-shadow-lg" />
       </div>
 
       {/* Header */}

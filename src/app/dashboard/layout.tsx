@@ -26,7 +26,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   if (initializing) {
     return (
       <div className="min-h-screen flex items-center justify-center"
-        style={{ background: "linear-gradient(160deg,#a93526 0%,#8a2b1f 100%)" }}>
+        style={{ background: "linear-gradient(160deg,#C62828 0%,#8E0000 100%)" }}>
         <div className="text-center">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/logo-blanco.png" alt="Logo" style={{ width: 80, height: "auto", margin: "0 auto 16px" }} />

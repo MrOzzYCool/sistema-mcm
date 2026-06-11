@@ -36,10 +36,10 @@ export default function SidebarAulaVirtual() {
   if (!expanded) {
     return (
       <aside className="w-16 min-h-screen flex flex-col items-center shrink-0 py-4 bg-[#C62828]">
-        {/* Logo */}
+        {/* Logo icon */}
         <div className="mb-4">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/logo-blanco.png" alt="MC" className="w-9 h-9 object-contain" />
+          <img src="/logo-mc-icon.png" alt="MC" className="w-10 h-10 object-contain" />
         </div>
 
         {/* Menu toggle */}
@@ -82,10 +82,7 @@ export default function SidebarAulaVirtual() {
       {/* Header: Logo */}
       <div className="flex flex-col items-center px-5 py-5 border-b border-white/10">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/logo-blanco.png" alt="I.E.S. Privada Margarita Cabrera" className="w-20 h-auto" />
-        <p className="text-white/70 text-[10px] mt-1.5 text-center leading-tight">
-          I.E.S. Privada<br />MARGARITA CABRERA
-        </p>
+        <img src="/logo-mc.png" alt="I.E.S. Privada Margarita Cabrera" className="w-full max-w-[180px] h-auto" />
       </div>
 
       {/* Close button */}
