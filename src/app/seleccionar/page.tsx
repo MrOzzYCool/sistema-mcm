@@ -70,7 +70,7 @@ export default function SeleccionarModulo() {
         </Link>
 
         {/* Aula Virtual */}
-        <Link href="/portal/aula-virtual"
+        <Link href="/aula-virtual"
           className="group bg-white/10 backdrop-blur-sm rounded-2xl border border-white/20 hover:bg-white/20 hover:border-white/40 transition-all duration-300 p-8 flex flex-col items-center text-center">
           <div className="w-16 h-16 rounded-2xl bg-white/20 flex items-center justify-center mb-5 group-hover:scale-110 group-hover:bg-white/30 transition-all">
             <MonitorPlay size={28} className="text-white" />
