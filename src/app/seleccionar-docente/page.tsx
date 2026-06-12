@@ -14,7 +14,7 @@ export default function SeleccionarDocente() {
     if (loading) return;
     if (!user) router.replace("/");
     else if (user.forcePasswordReset) router.replace("/cambiar-contrasena");
-    else if (user.role !== "profesor") router.replace("/dashboard");
+    else if (user.role !== "profesor") router.replace("/");
   }, [user, loading, router]);
 
   if (loading) {

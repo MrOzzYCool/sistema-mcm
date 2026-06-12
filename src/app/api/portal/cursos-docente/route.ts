@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { supabase } from "@/lib/supabase";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 
 /**
@@ -12,17 +11,18 @@ export async function GET(req: NextRequest) {
   const token = (req.headers.get("authorization") ?? "").replace("Bearer ", "");
   if (!token) return NextResponse.json({ error: "No autenticado" }, { status: 401 });
 
-  const { data: { user } } = await supabase.auth.getUser(token);
-  if (!user) return NextResponse.json({ error: "No autenticado" }, { status: 401 });
+  // Use supabaseAdmin for token validation (bypass RLS issues)
+  const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token);
+  if (authError || !user) return NextResponse.json({ error: "No autenticado" }, { status: 401 });
 
-  // Verify role is profesor
+  // Verify role is profesor (check both rol field and es_profesor flag)
   const { data: profile } = await supabaseAdmin
     .from("profiles")
-    .select("rol")
+    .select("rol, es_profesor")
     .eq("id", user.id)
     .single();
 
-  if (!profile || profile.rol !== "profesor") {
+  if (!profile || (profile.rol !== "profesor" && !profile.es_profesor)) {
     return NextResponse.json({ error: "Acceso denegado" }, { status: 403 });
   }
 

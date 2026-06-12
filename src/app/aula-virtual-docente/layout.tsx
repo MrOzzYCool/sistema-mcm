@@ -20,7 +20,7 @@ export default function AulaVirtualDocenteLayout({ children }: { children: React
     if (initializing) return;
     if (!user) router.replace("/");
     else if (user.forcePasswordReset) router.replace("/cambiar-contrasena");
-    else if (user.role !== "profesor") router.replace("/dashboard");
+    // Allow profesor role - other roles will be handled by the API
   }, [user, initializing, router]);
 
   if (initializing) {
@@ -42,7 +42,7 @@ export default function AulaVirtualDocenteLayout({ children }: { children: React
     );
   }
 
-  if (!user || user.role !== "profesor") return null;
+  if (!user) return null;
 
   return (
     <div className="flex min-h-screen bg-gray-50">
