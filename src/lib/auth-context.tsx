@@ -55,15 +55,17 @@ async function resolveUser(su: SupabaseUser): Promise<AppUser> {
     // Try API endpoint first (bypasses RLS reliably)
     // Get token from localStorage directly to avoid calling getSession() which can deadlock
     let token: string | undefined;
-    try {
-      const storageKeys = Object.keys(localStorage).filter(k => k.startsWith("sb-"));
-      for (const key of storageKeys) {
-        try {
-          const data = JSON.parse(localStorage.getItem(key) ?? "");
-          if (data?.access_token) { token = data.access_token; break; }
-        } catch { /* skip */ }
-      }
-    } catch { /* localStorage not available */ }
+    if (typeof window !== "undefined") {
+      try {
+        const storageKeys = Object.keys(localStorage).filter(k => k.startsWith("sb-"));
+        for (const key of storageKeys) {
+          try {
+            const data = JSON.parse(localStorage.getItem(key) ?? "");
+            if (data?.access_token) { token = data.access_token; break; }
+          } catch { /* skip */ }
+        }
+      } catch { /* localStorage not available */ }
+    }
 
     if (token) {
       try {
