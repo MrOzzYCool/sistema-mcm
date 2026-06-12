@@ -1,8 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useAuth } from "@/lib/auth-context";
-import { supabase } from "@/lib/supabase";
+import { useEffect, useState, useRef } from "react";
 import { getAccessToken } from "@/lib/get-token";
 import { Course } from "@/types/course";
 import CourseCard from "@/components/aula-virtual/CourseCard";
@@ -10,74 +8,49 @@ import WeeklyPanel from "@/components/aula-virtual/WeeklyPanel";
 import { Loader2, GraduationCap } from "lucide-react";
 
 export default function AulaVirtualDashboard() {
-  const { user } = useAuth();
   const [courses, setCourses] = useState<Course[]>([]);
   const [carrera, setCarrera] = useState<string | null>(null);
   const [ciclo, setCiclo] = useState<number | null>(null);
+  const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const mountedRef = useRef(true);
 
   useEffect(() => {
+    mountedRef.current = true;
     async function fetchMyCourses() {
       try {
         const token = await getAccessToken();
+        if (!mountedRef.current) return;
         if (!token) { setError("Sesión no disponible"); setLoading(false); return; }
 
-        // 1. Get alumno's inscription (carrera_id + ciclo_actual)
-        const { data: { user: authUser } } = await supabase.auth.getUser(token);
-        if (!authUser) { setError("No autenticado"); setLoading(false); return; }
+        const res = await fetch("/api/portal/mis-cursos-aula", {
+          headers: { Authorization: `Bearer ${token}` },
+          cache: "no-store",
+        });
 
-        const { data: inscripcion } = await supabase
-          .from("inscripciones")
-          .select("carrera_id, ciclo_actual, carreras:carrera_id(nombre_carrera)")
-          .eq("alumno_id", authUser.id)
-          .order("created_at", { ascending: false })
-          .limit(1)
-          .single();
+        if (!mountedRef.current) return;
 
-        if (!inscripcion || !inscripcion.carrera_id || !inscripcion.ciclo_actual) {
-          setError("No se encontró inscripción activa");
+        const data = await res.json();
+
+        if (!res.ok) {
+          setError(data.error ?? "Error al cargar cursos");
           setLoading(false);
           return;
         }
 
-        const carreraObj = inscripcion.carreras as unknown as { nombre_carrera?: string } | null;
-        setCarrera(carreraObj?.nombre_carrera ?? null);
-        setCiclo(inscripcion.ciclo_actual);
-
-        // 2. Get curso_ids from malla_curricular for this carrera
-        const { data: malla } = await supabase
-          .from("malla_curricular")
-          .select("curso_id")
-          .eq("carrera_id", inscripcion.carrera_id);
-
-        const cursoIds = (malla ?? []).map((m) => m.curso_id).filter(Boolean);
-
-        if (cursoIds.length === 0) {
-          setCourses([]);
-          setLoading(false);
-          return;
-        }
-
-        // 3. Get courses filtered by ciclo_perteneciente = ciclo_actual
-        const { data: cursosData, error: cursosError } = await supabase
-          .from("cursos")
-          .select("*")
-          .in("id", cursoIds)
-          .eq("ciclo_perteneciente", inscripcion.ciclo_actual);
-
-        if (cursosError) {
-          setError(`Error al cargar cursos: ${cursosError.message}`);
-        } else {
-          setCourses(cursosData ?? []);
-        }
+        setCourses(data.cursos ?? []);
+        setCarrera(data.carrera ?? null);
+        setCiclo(data.ciclo ?? null);
+        setMessage(data.message ?? null);
       } catch (err: unknown) {
-        setError(err instanceof Error ? err.message : String(err));
+        if (mountedRef.current) setError(err instanceof Error ? err.message : String(err));
       } finally {
-        setLoading(false);
+        if (mountedRef.current) setLoading(false);
       }
     }
     fetchMyCourses();
+    return () => { mountedRef.current = false; };
   }, []);
 
   return (
@@ -112,7 +85,9 @@ export default function AulaVirtualDashboard() {
           {!loading && !error && courses.length === 0 && (
             <div className="flex flex-col items-center justify-center min-h-[30vh] gap-2">
               <GraduationCap size={40} className="text-gray-300" />
-              <p className="text-gray-500">No tienes cursos asignados para tu ciclo actual.</p>
+              <p className="text-gray-500 text-center">
+                {message ?? "No tienes cursos asignados para tu ciclo actual."}
+              </p>
             </div>
           )}
           {!loading && !error && courses.length > 0 && (
