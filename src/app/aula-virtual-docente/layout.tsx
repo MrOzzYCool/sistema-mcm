@@ -1,0 +1,71 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/lib/auth-context";
+import SidebarDocenteAV from "@/components/aula-virtual/SidebarDocenteAV";
+
+export default function AulaVirtualDocenteLayout({ children }: { children: React.ReactNode }) {
+  const { user, initializing, forceReady } = useAuth();
+  const router = useRouter();
+  const [showEmergency, setShowEmergency] = useState(false);
+
+  useEffect(() => {
+    if (!initializing) { setShowEmergency(false); return; }
+    const timer = setTimeout(() => setShowEmergency(true), 7000);
+    return () => clearTimeout(timer);
+  }, [initializing]);
+
+  useEffect(() => {
+    if (initializing) return;
+    if (!user) router.replace("/");
+    else if (user.forcePasswordReset) router.replace("/cambiar-contrasena");
+    else if (user.role !== "profesor") router.replace("/dashboard");
+  }, [user, initializing, router]);
+
+  if (initializing) {
+    return (
+      <div className="min-h-screen flex items-center justify-center"
+        style={{ background: "linear-gradient(160deg,#C62828 0%,#8E0000 100%)" }}>
+        <div className="text-center">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/logo-blanco.png" alt="Logo" style={{ width: 80, height: "auto", margin: "0 auto 16px" }} />
+          <p className="text-white/70 text-sm">Cargando...</p>
+          {showEmergency && (
+            <button onClick={() => { forceReady(); router.replace("/"); }}
+              className="mt-6 px-4 py-2 bg-white/20 hover:bg-white/30 text-white text-xs rounded-lg">
+              Reiniciar sesión
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  if (!user || user.role !== "profesor") return null;
+
+  return (
+    <div className="flex min-h-screen bg-gray-50">
+      <SidebarDocenteAV />
+      <div className="flex-1 flex flex-col overflow-auto">
+        <header className="sticky top-0 z-10 bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between gap-4">
+          <p className="text-sm font-medium text-gray-600">Aula Virtual — Docente</p>
+          <div className="flex items-center gap-3">
+            <div className="text-right hidden sm:block">
+              <p className="text-sm font-medium text-gray-800 leading-tight">{user.name}</p>
+              <p className="text-xs text-gray-500">Profesor</p>
+            </div>
+            <div className="w-9 h-9 rounded-full flex items-center justify-center text-white font-bold text-sm shrink-0 bg-[#C62828]">
+              {user.avatar}
+            </div>
+          </div>
+        </header>
+        <main className="flex-1 overflow-auto">
+          <div className="w-full px-6 lg:px-10 xl:px-16">
+            {children}
+          </div>
+        </main>
+      </div>
+    </div>
+  );
+}

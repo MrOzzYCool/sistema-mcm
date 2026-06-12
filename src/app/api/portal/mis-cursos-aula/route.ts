@@ -66,8 +66,43 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "Error al consultar cursos" }, { status: 500 });
     }
 
+    // 4. Get professor names from class_schedules for these courses
+    const foundCursoIds = (cursosData ?? []).map(c => c.id);
+    let profesorMap: Record<string, string> = {};
+
+    if (foundCursoIds.length > 0) {
+      const { data: schedules } = await supabaseAdmin
+        .from("class_schedules")
+        .select("course_id, professor_id")
+        .in("course_id", foundCursoIds);
+
+      const profesorIds = [...new Set((schedules ?? []).map(s => s.professor_id).filter(Boolean))];
+
+      if (profesorIds.length > 0) {
+        const { data: profProfiles } = await supabaseAdmin
+          .from("profiles")
+          .select("id, nombre_completo")
+          .in("id", profesorIds);
+
+        const profNameMap = new Map((profProfiles ?? []).map(p => [p.id, p.nombre_completo]));
+
+        // Map course_id → professor name
+        for (const sched of schedules ?? []) {
+          if (sched.course_id && sched.professor_id && !profesorMap[sched.course_id]) {
+            profesorMap[sched.course_id] = profNameMap.get(sched.professor_id) ?? "";
+          }
+        }
+      }
+    }
+
+    // 5. Enrich courses with professor names
+    const cursosEnriquecidos = (cursosData ?? []).map(c => ({
+      ...c,
+      profesor: profesorMap[c.id] || c.profesor || null,
+    }));
+
     return NextResponse.json({
-      cursos: cursosData ?? [],
+      cursos: cursosEnriquecidos,
       carrera: nombreCarrera,
       ciclo: inscripcion.ciclo_actual,
     }, {
