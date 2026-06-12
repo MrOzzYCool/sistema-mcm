@@ -72,19 +72,31 @@ async function resolveUser(su: SupabaseUser): Promise<AppUser> {
       return { id: su.id, email, name, role: (profile.rol as AppRole) ?? "alumno", avatar: initials, forcePasswordReset: !!profile.force_password_reset };
     }
 
-    // If direct query failed or returned null rol, try via API (uses supabaseAdmin, bypasses RLS)
-    log(`⚠️ Direct profile query returned null rol, trying API fallback...`);
-    const token = (await supabase.auth.getSession()).data.session?.access_token;
-    if (token) {
-      const res = await fetch("/api/auth/me", { headers: { Authorization: `Bearer ${token}` } });
-      if (res.ok) {
-        const apiProfile = await res.json();
-        if (apiProfile.rol) {
-          const name = apiProfile.nombre_completo ?? email.split("@")[0];
-          const initials = name.split(" ").map((w: string) => w[0]).join("").toUpperCase().slice(0, 2);
-          log(`👤 API Profile found: ${name} (${apiProfile.rol})`);
-          return { id: su.id, email, name, role: (apiProfile.rol as AppRole), avatar: initials, forcePasswordReset: !!apiProfile.force_password_reset };
+    // If direct query returned data with a name but null rol, try API fallback
+    if (profile && !profile.rol) {
+      log(`⚠️ Direct profile query returned null rol, trying API fallback...`);
+      try {
+        const token = (await supabase.auth.getSession()).data.session?.access_token;
+        if (token) {
+          const controller = new AbortController();
+          const timeout = setTimeout(() => controller.abort(), 3000);
+          const res = await fetch("/api/auth/me", {
+            headers: { Authorization: `Bearer ${token}` },
+            signal: controller.signal,
+          });
+          clearTimeout(timeout);
+          if (res.ok) {
+            const apiProfile = await res.json();
+            if (apiProfile.rol) {
+              const name = apiProfile.nombre_completo ?? email.split("@")[0];
+              const initials = name.split(" ").map((w: string) => w[0]).join("").toUpperCase().slice(0, 2);
+              log(`👤 API Profile found: ${name} (${apiProfile.rol})`);
+              return { id: su.id, email, name, role: (apiProfile.rol as AppRole), avatar: initials, forcePasswordReset: !!apiProfile.force_password_reset };
+            }
+          }
         }
+      } catch {
+        log(`⚠️ API fallback failed or timed out`);
       }
     }
   } catch (err) {
