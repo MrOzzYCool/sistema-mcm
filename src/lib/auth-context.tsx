@@ -52,7 +52,34 @@ async function resolveUser(su: SupabaseUser): Promise<AppUser> {
   }
 
   try {
-    // Query with timeout to prevent hanging
+    // Always use API endpoint to resolve profile (bypasses RLS reliably)
+    const sessionData = await supabase.auth.getSession();
+    const token = sessionData.data.session?.access_token;
+
+    if (token) {
+      try {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 4000);
+        const res = await fetch("/api/auth/me", {
+          headers: { Authorization: `Bearer ${token}` },
+          signal: controller.signal,
+        });
+        clearTimeout(timeout);
+        if (res.ok) {
+          const apiProfile = await res.json();
+          if (apiProfile.rol) {
+            const name = apiProfile.nombre_completo ?? email.split("@")[0];
+            const initials = name.split(" ").map((w: string) => w[0]).join("").toUpperCase().slice(0, 2);
+            log(`👤 Profile via API: ${name} (${apiProfile.rol})`);
+            return { id: su.id, email, name, role: (apiProfile.rol as AppRole), avatar: initials, forcePasswordReset: !!apiProfile.force_password_reset };
+          }
+        }
+      } catch {
+        log(`⚠️ API /auth/me failed, trying direct query...`);
+      }
+    }
+
+    // Fallback: direct query (may fail due to RLS)
     const profilePromise = supabase
       .from("profiles")
       .select("nombre_completo, rol, estado, force_password_reset")
@@ -60,7 +87,7 @@ async function resolveUser(su: SupabaseUser): Promise<AppUser> {
       .single();
 
     const timeoutPromise = new Promise<{ data: null; error: { message: string } }>((resolve) =>
-      setTimeout(() => resolve({ data: null, error: { message: "Profile query timeout" } }), 4000)
+      setTimeout(() => resolve({ data: null, error: { message: "Profile query timeout" } }), 3000)
     );
 
     const { data: profile } = await Promise.race([profilePromise, timeoutPromise]);
@@ -68,39 +95,11 @@ async function resolveUser(su: SupabaseUser): Promise<AppUser> {
     if (profile && profile.rol) {
       const name = profile.nombre_completo ?? email.split("@")[0];
       const initials = name.split(" ").map((w: string) => w[0]).join("").toUpperCase().slice(0, 2);
-      log(`👤 Profile found: ${name} (${profile.rol})`);
-      return { id: su.id, email, name, role: (profile.rol as AppRole) ?? "alumno", avatar: initials, forcePasswordReset: !!profile.force_password_reset };
-    }
-
-    // If direct query returned data with a name but null rol, try API fallback
-    if (profile && !profile.rol) {
-      log(`⚠️ Direct profile query returned null rol, trying API fallback...`);
-      try {
-        const token = (await supabase.auth.getSession()).data.session?.access_token;
-        if (token) {
-          const controller = new AbortController();
-          const timeout = setTimeout(() => controller.abort(), 3000);
-          const res = await fetch("/api/auth/me", {
-            headers: { Authorization: `Bearer ${token}` },
-            signal: controller.signal,
-          });
-          clearTimeout(timeout);
-          if (res.ok) {
-            const apiProfile = await res.json();
-            if (apiProfile.rol) {
-              const name = apiProfile.nombre_completo ?? email.split("@")[0];
-              const initials = name.split(" ").map((w: string) => w[0]).join("").toUpperCase().slice(0, 2);
-              log(`👤 API Profile found: ${name} (${apiProfile.rol})`);
-              return { id: su.id, email, name, role: (apiProfile.rol as AppRole), avatar: initials, forcePasswordReset: !!apiProfile.force_password_reset };
-            }
-          }
-        }
-      } catch {
-        log(`⚠️ API fallback failed or timed out`);
-      }
+      log(`👤 Profile direct: ${name} (${profile.rol})`);
+      return { id: su.id, email, name, role: (profile.rol as AppRole), avatar: initials, forcePasswordReset: !!profile.force_password_reset };
     }
   } catch (err) {
-    log(`⚠️ Profile query failed: ${err}`);
+    log(`⚠️ Profile resolution failed: ${err}`);
   }
 
   // Fallback — use metadata
