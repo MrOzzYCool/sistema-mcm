@@ -21,6 +21,7 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
     if (initializing) return;
     if (!user) router.replace("/");
     else if (user.forcePasswordReset) router.replace("/cambiar-contrasena");
+    else if (user.role === "profesor") router.replace("/seleccionar-docente");
     else if (user.role !== "alumno") router.replace("/dashboard");
   }, [user, initializing, router]);
 
