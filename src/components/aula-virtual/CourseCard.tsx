@@ -13,6 +13,7 @@ export interface CourseCardProps {
   periodo?: string | null;
   carrera?: string | null;
   imagen_url?: string | null;
+  basePath?: string; // Override link base path
 }
 
 function Placeholder() {
@@ -29,6 +30,7 @@ export default function CourseCard({
   periodo,
   carrera,
   imagen_url,
+  basePath,
 }: CourseCardProps) {
   const hasNombre = nombre !== null && nombre !== "";
   const hasProfesor = profesor !== null && profesor !== "";
@@ -45,11 +47,13 @@ export default function CourseCard({
         ? `https://picsum.photos/seed/${id}/400/200`
         : `https://picsum.photos/seed/default/400/200`;
 
-  const linkHref = codigo
-    ? `/aula-virtual/cursos/${codigo}`
-    : id
-      ? `/aula-virtual/cursos/${id}`
-      : "#";
+  const linkHref = basePath
+    ? `${basePath}/${id}`
+    : codigo
+      ? `/aula-virtual/cursos/${codigo}`
+      : id
+        ? `/aula-virtual/cursos/${id}`
+        : "#";
 
   const cardContent = (
     <>

@@ -89,7 +89,8 @@ export default function DocenteDashboard() {
             <CourseCard key={course.id} id={course.id} codigo={course.codigo}
               nombre={course.nombre ?? course.nombre_curso} profesor={null}
               progreso={null} modalidad={course.modalidad}
-              periodo={`Ciclo ${course.ciclo_perteneciente}`} carrera={course.carrera} imagen_url={course.imagen_url} />
+              periodo={`Ciclo ${course.ciclo_perteneciente}`} carrera={course.carrera} imagen_url={course.imagen_url}
+              basePath="/aula-virtual-docente/curso" />
           ))}
         </div>
       )}
