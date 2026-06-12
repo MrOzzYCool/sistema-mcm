@@ -52,19 +52,27 @@ async function resolveUser(su: SupabaseUser): Promise<AppUser> {
   }
 
   try {
-    // Always use API endpoint to resolve profile (bypasses RLS reliably)
-    const sessionData = await supabase.auth.getSession();
-    const token = sessionData.data.session?.access_token;
+    // Try API endpoint first (bypasses RLS reliably)
+    let token: string | undefined;
+    try {
+      const sessionResult = await Promise.race([
+        supabase.auth.getSession(),
+        new Promise<{ data: { session: null } }>((resolve) => setTimeout(() => resolve({ data: { session: null } }), 2000)),
+      ]);
+      token = sessionResult.data.session?.access_token;
+    } catch {
+      token = undefined;
+    }
 
     if (token) {
       try {
         const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 4000);
+        const tid = setTimeout(() => controller.abort(), 3000);
         const res = await fetch("/api/auth/me", {
           headers: { Authorization: `Bearer ${token}` },
           signal: controller.signal,
         });
-        clearTimeout(timeout);
+        clearTimeout(tid);
         if (res.ok) {
           const apiProfile = await res.json();
           if (apiProfile.rol) {
@@ -75,11 +83,11 @@ async function resolveUser(su: SupabaseUser): Promise<AppUser> {
           }
         }
       } catch {
-        log(`⚠️ API /auth/me failed, trying direct query...`);
+        log(`⚠️ API /auth/me failed`);
       }
     }
 
-    // Fallback: direct query (may fail due to RLS)
+    // Fallback: direct query
     const profilePromise = supabase
       .from("profiles")
       .select("nombre_completo, rol, estado, force_password_reset")
@@ -87,7 +95,7 @@ async function resolveUser(su: SupabaseUser): Promise<AppUser> {
       .single();
 
     const timeoutPromise = new Promise<{ data: null; error: { message: string } }>((resolve) =>
-      setTimeout(() => resolve({ data: null, error: { message: "Profile query timeout" } }), 3000)
+      setTimeout(() => resolve({ data: null, error: { message: "timeout" } }), 3000)
     );
 
     const { data: profile } = await Promise.race([profilePromise, timeoutPromise]);
