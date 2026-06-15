@@ -29,6 +29,23 @@ const seedTareas: Tarea[] = [
   { id: "t4", curso_id: "", titulo: "Práctica calificada 1", fecha_entrega: "2026-05-15", estado: "entregado", created_at: "" },
 ];
 
+function getCarreraSlug(carrera: string): string {
+  const map: Record<string, string> = {
+    "asistencia administrativa": "asistencia-administrativa",
+    "gestión de recursos humanos": "recursos-humanos",
+    "gestion de recursos humanos": "recursos-humanos",
+    "recursos humanos": "recursos-humanos",
+  };
+  const lower = carrera.toLowerCase().trim();
+  return map[lower] ?? lower.replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
+}
+
+function getBannerUrl(course: { carrera?: string | null; imagen_url?: string | null }): string {
+  if (course.imagen_url?.trim()) return course.imagen_url;
+  if (course.carrera) return `/cursos/banner/${getCarreraSlug(course.carrera)}.jpg`;
+  return `/cursos/banner/asistencia-administrativa.jpg`;
+}
+
 function getIconForType(tipo: string) {
   switch (tipo) {
     case "pdf": return <FileText size={18} className="text-red-600" />;
@@ -104,7 +121,7 @@ export default function CourseDetailPage() {
       {/* Banner */}
       <div className="relative rounded-xl overflow-hidden mb-6 shadow-sm">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={course.imagen_url?.trim() ? course.imagen_url : `https://picsum.photos/seed/${codigo}/1200/300`} alt={displayName} className="w-full h-48 lg:h-56 object-cover" />
+        <img src={getBannerUrl(course)} alt={displayName} className="w-full h-48 lg:h-56 object-cover" />
         <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent" />
         <div className="absolute bottom-0 left-0 right-0 p-6">
           <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">

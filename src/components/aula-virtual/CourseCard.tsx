@@ -20,6 +20,24 @@ function Placeholder() {
   return <span className="text-gray-400 italic text-xs">No disponible</span>;
 }
 
+function getCarreraSlug(carrera: string): string {
+  const map: Record<string, string> = {
+    "asistencia administrativa": "asistencia-administrativa",
+    "gestión de recursos humanos": "recursos-humanos",
+    "gestion de recursos humanos": "recursos-humanos",
+    "recursos humanos": "recursos-humanos",
+  };
+  const lower = carrera.toLowerCase().trim();
+  return map[lower] ?? lower.replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
+}
+
+// Grid image extensions
+function getGridImageUrl(carrera: string | null | undefined, id: string | undefined): string {
+  if (!carrera) return id ? `https://picsum.photos/seed/${id}/400/200` : "/cursos/grid/asistencia-administrativa.jpg";
+  const slug = getCarreraSlug(carrera);
+  return `/cursos/grid/${slug}.jpg`;
+}
+
 export default function CourseCard({
   id,
   codigo,
@@ -43,9 +61,7 @@ export default function CourseCard({
   const imageUrl =
     imagen_url && imagen_url.trim() !== ""
       ? imagen_url
-      : id
-        ? `https://picsum.photos/seed/${id}/400/200`
-        : `https://picsum.photos/seed/default/400/200`;
+      : getGridImageUrl(carrera, id);
 
   const linkHref = basePath
     ? `${basePath}/${id}`
