@@ -11,8 +11,9 @@ import {
   CheckCircle2, AlertCircle, MessageSquare, BookOpen, PenTool,
 } from "lucide-react";
 
-type TabId = "contenido" | "tareas" | "foros" | "notas" | "zoom";
+type TabId = "silabo" | "contenido" | "tareas" | "foros" | "notas" | "zoom";
 const tabs: { id: TabId; label: string }[] = [
+  { id: "silabo", label: "Sílabo" },
   { id: "contenido", label: "Contenido" },
   { id: "tareas", label: "Tareas" },
   { id: "foros", label: "Foros" },
@@ -168,6 +169,16 @@ export default function CourseDetailPage() {
         </div>
       </div>
 
+      {/* Tab: Sílabo */}
+      {activeTab === "silabo" && (
+        <div className="bg-white rounded-xl shadow-sm p-6">
+          <h2 className="font-semibold text-gray-800 mb-4">Sílabo del Curso</h2>
+          <p className="text-sm text-gray-400 text-center py-8">
+            El sílabo estará disponible cuando el docente lo suba al sistema.
+          </p>
+        </div>
+      )}
+
       {/* Tab: Contenido — Acordeón semanal con 3 secciones */}
       {activeTab === "contenido" && (
         <div className="space-y-3">
@@ -305,7 +316,7 @@ export default function CourseDetailPage() {
       )}
 
       {/* Other tabs */}
-      {activeTab !== "contenido" && (
+      {activeTab !== "contenido" && activeTab !== "silabo" && (
         <div className="bg-white rounded-xl shadow-sm p-12 flex items-center justify-center min-h-[200px]">
           <p className="text-gray-400 text-center">
             <span className="block text-lg font-medium text-gray-500 mb-1">{tabs.find(t => t.id === activeTab)?.label}</span>
