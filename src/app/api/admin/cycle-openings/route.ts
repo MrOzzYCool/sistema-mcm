@@ -54,17 +54,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "cycle_number debe ser un entero positivo" }, { status: 400 });
   }
 
-  // Check if there's already an active opening for this cycle
-  const { data: existing } = await supabaseAdmin
-    .from("cycle_openings")
-    .select("id")
-    .eq("cycle_number", cycle_number)
-    .eq("status", "activo")
-    .limit(1);
-
-  if (existing && existing.length > 0) {
-    return NextResponse.json({ error: `Ya existe una apertura activa para el ciclo ${cycle_number}` }, { status: 409 });
-  }
+  // No restriction — multiple active openings of the same cycle can coexist
+  // (different groups of students, different date ranges)
 
   const { data, error } = await supabaseAdmin
     .from("cycle_openings")
