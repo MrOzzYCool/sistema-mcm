@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
@@ -8,8 +8,8 @@ import { getAccessToken } from "@/lib/get-token";
 import { Course, ContenidoSemana, Tarea } from "@/types/course";
 import {
   ArrowLeft, Video as VideoIcon, FileText, ExternalLink,
-  ChevronDown, User, Upload, X, Plus, Loader2, Users, ClipboardList,
-  CheckCircle2, Clock, AlertCircle, Trash2,
+  ChevronDown, Upload, X, Plus, Loader2, Users, ClipboardList,
+  CheckCircle2, Clock, AlertCircle, Trash2, FileSpreadsheet, Image,
 } from "lucide-react";
 
 type TabId = "contenido" | "tareas" | "notas" | "alumnos" | "asistencia" | "foros";
@@ -22,22 +22,33 @@ const tabs: { id: TabId; label: string; icon: typeof FileText }[] = [
   { id: "foros", label: "Foros", icon: ExternalLink },
 ];
 
-const seedContent: ContenidoSemana[] = [
-  { id: "s1", curso_id: "", semana: 1, titulo: "Guía de Bienvenida al Curso", tipo: "pdf", url: "#", created_at: "" },
-  { id: "s2", curso_id: "", semana: 1, titulo: "Video Introductorio", tipo: "video", url: "#", created_at: "" },
-];
-const seedTareas: Tarea[] = [
-  { id: "t1", curso_id: "", titulo: "Tarea 1: Ensayo introductorio", fecha_entrega: "2026-06-01", estado: "pendiente", created_at: "" },
-  { id: "t2", curso_id: "", titulo: "Tarea 2: Mapa conceptual", fecha_entrega: "2026-06-08", estado: "pendiente", created_at: "" },
-];
+interface Material {
+  id: string;
+  curso_id: string;
+  semana: number | null;
+  nombre_archivo: string;
+  tipo_archivo: string;
+  tamano: number;
+  url: string;
+  fecha_subida: string;
+}
 
 function getIconForType(tipo: string) {
   switch (tipo) {
     case "pdf": return <FileText size={16} className="text-red-600" />;
-    case "video": return <VideoIcon size={16} className="text-blue-600" />;
-    case "link": return <ExternalLink size={16} className="text-green-600" />;
+    case "mp4": return <VideoIcon size={16} className="text-blue-600" />;
+    case "docx": return <FileText size={16} className="text-blue-500" />;
+    case "xlsx": return <FileSpreadsheet size={16} className="text-green-600" />;
+    case "pptx": return <FileText size={16} className="text-orange-500" />;
+    case "jpg": case "png": return <Image size={16} className="text-purple-500" />;
     default: return <FileText size={16} className="text-gray-500" />;
   }
+}
+
+function formatSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
 export default function DocenteCursoPage() {
@@ -45,12 +56,26 @@ export default function DocenteCursoPage() {
   const cursoId = params.id as string;
 
   const [course, setCourse] = useState<Course | null>(null);
-  const [content, setContent] = useState<ContenidoSemana[]>([]);
-  const [tareas, setTareas] = useState<Tarea[]>([]);
+  const [materiales, setMateriales] = useState<Material[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<TabId>("contenido");
   const [openWeeks, setOpenWeeks] = useState<Set<number>>(new Set([1]));
+  const [uploading, setUploading] = useState(false);
+  const [uploadWeek, setUploadWeek] = useState<number | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const fetchMateriales = useCallback(async () => {
+    const token = await getAccessToken();
+    if (!token) return;
+    const res = await fetch(`/api/portal/materiales?curso_id=${cursoId}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (res.ok) {
+      const data = await res.json();
+      setMateriales(data.materiales ?? []);
+    }
+  }, [cursoId]);
 
   useEffect(() => {
     async function fetchData() {
@@ -58,22 +83,75 @@ export default function DocenteCursoPage() {
         const { data: courseData } = await supabase.from("cursos").select("*").eq("id", cursoId).single();
         if (!courseData) { setError("Curso no encontrado"); setLoading(false); return; }
         setCourse(courseData);
-
-        const { data: contentData } = await supabase.from("contenido_semanas").select("*").eq("curso_id", cursoId).order("semana");
-        setContent(contentData && contentData.length > 0 ? contentData : seedContent);
-
-        const { data: tareasData } = await supabase.from("entregas").select("*").eq("curso_id", cursoId);
-        setTareas(tareasData && tareasData.length > 0 ? tareasData : seedTareas);
+        await fetchMateriales();
       } catch (err: unknown) { setError(err instanceof Error ? err.message : String(err)); }
       finally { setLoading(false); }
     }
     fetchData();
-  }, [cursoId]);
+  }, [cursoId, fetchMateriales]);
 
   const toggleWeek = (week: number) => {
     setOpenWeeks(prev => { const next = new Set(prev); if (next.has(week)) next.delete(week); else next.add(week); return next; });
   };
-  const getContentForWeek = (week: number) => content.filter(c => c.semana === week);
+
+  function triggerUpload(semana: number | null) {
+    setUploadWeek(semana);
+    fileInputRef.current?.click();
+  }
+
+  async function handleFileSelected(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploading(true);
+    try {
+      const token = await getAccessToken();
+      if (!token) throw new Error("Sesion no disponible");
+
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("curso_id", cursoId);
+      if (uploadWeek !== null) formData.append("semana", String(uploadWeek));
+      formData.append("seccion", "material");
+
+      const res = await fetch("/api/portal/materiales", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+        body: formData,
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Error subiendo archivo");
+
+      alert(`Archivo "${file.name}" subido correctamente`);
+      await fetchMateriales();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Error al subir archivo");
+    } finally {
+      setUploading(false);
+      setUploadWeek(null);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  }
+
+  async function handleDelete(materialId: string, nombre: string) {
+    if (!confirm(`¿Eliminar "${nombre}"?`)) return;
+    try {
+      const token = await getAccessToken();
+      if (!token) return;
+      const res = await fetch("/api/portal/materiales", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ material_id: materialId }),
+      });
+      if (!res.ok) { const d = await res.json(); throw new Error(d.error); }
+      await fetchMateriales();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Error eliminando");
+    }
+  }
+
+  const getMaterialesForWeek = (week: number) => materiales.filter(m => m.semana === week);
 
   if (loading) return <div className="flex items-center justify-center min-h-[50vh]"><Loader2 className="animate-spin text-gray-400" size={24} /></div>;
   if (error || !course) return (
@@ -87,6 +165,11 @@ export default function DocenteCursoPage() {
 
   return (
     <div className="py-4 w-full">
+      {/* Hidden file input */}
+      <input ref={fileInputRef} type="file" className="hidden"
+        accept=".pdf,.docx,.xlsx,.pptx,.jpg,.jpeg,.png,.mp4"
+        onChange={handleFileSelected} />
+
       <Link href="/aula-virtual-docente" className="inline-flex items-center gap-1 text-sm text-[#C62828] hover:underline mb-4">
         <ArrowLeft size={16} /> Volver a mis cursos
       </Link>
@@ -97,12 +180,20 @@ export default function DocenteCursoPage() {
         <p className="text-white/70 text-sm mt-1">Ciclo {course.ciclo_perteneciente} · {course.creditos} créditos</p>
       </div>
 
+      {/* Upload indicator */}
+      {uploading && (
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4 flex items-center gap-3">
+          <Loader2 size={16} className="animate-spin text-blue-600" />
+          <span className="text-sm text-blue-700">Subiendo archivo...</span>
+        </div>
+      )}
+
       {/* Tabs */}
       <div className="bg-white rounded-xl shadow-sm mb-6 overflow-x-auto">
         <div className="flex border-b border-gray-200 min-w-max">
           {tabs.map(tab => (
             <button key={tab.id} onClick={() => setActiveTab(tab.id)}
-              className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap flex items-center gap-2 ${activeTab === tab.id ? "text-[#C62828] border-b-3 border-[#C62828]" : "text-gray-500 hover:text-[#C62828]"}`}
+              className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap flex items-center gap-2 ${activeTab === tab.id ? "text-[#C62828]" : "text-gray-500 hover:text-[#C62828]"}`}
               style={activeTab === tab.id ? { borderBottomWidth: "3px", borderBottomColor: "#C62828" } : {}}>
               <tab.icon size={16} /> {tab.label}
             </button>
@@ -115,38 +206,46 @@ export default function DocenteCursoPage() {
         <div className="space-y-3">
           <div className="flex items-center justify-between mb-2">
             <h2 className="font-semibold text-gray-800">Material por Semana</h2>
-            <button className="inline-flex items-center gap-1.5 text-sm font-medium text-white bg-[#C62828] px-3 py-1.5 rounded-lg hover:bg-[#8E0000] transition-colors">
+            <button onClick={() => triggerUpload(null)} disabled={uploading}
+              className="inline-flex items-center gap-1.5 text-sm font-medium text-white bg-[#C62828] px-3 py-1.5 rounded-lg hover:bg-[#8E0000] transition-colors disabled:opacity-50">
               <Plus size={14} /> Agregar material
             </button>
           </div>
           {Array.from({ length: 16 }, (_, i) => i + 1).map(week => {
             const isOpen = openWeeks.has(week);
-            const weekContent = getContentForWeek(week);
+            const weekMats = getMaterialesForWeek(week);
             return (
               <div key={week} className={`bg-white rounded-lg shadow-sm overflow-hidden ${isOpen ? "border-l-4 border-[#C62828]" : "border border-gray-200"}`}>
                 <button onClick={() => toggleWeek(week)} className="w-full flex items-center justify-between px-5 py-3.5 text-left hover:bg-gray-50">
                   <span className="font-medium text-gray-800 text-sm">Semana {week}</span>
                   <div className="flex items-center gap-2">
-                    <span className="text-xs text-gray-400">{weekContent.length} archivos</span>
+                    <span className="text-xs text-gray-400">{weekMats.length} archivos</span>
                     <ChevronDown size={18} className={`text-gray-400 transition-transform ${isOpen ? "rotate-180" : ""}`} />
                   </div>
                 </button>
                 {isOpen && (
                   <div className="px-5 pb-4 border-t border-gray-100">
-                    {weekContent.length > 0 ? (
+                    {weekMats.length > 0 ? (
                       <ul className="space-y-2 mt-3">
-                        {weekContent.map(item => (
-                          <li key={item.id} className="flex items-center gap-3 p-2.5 rounded-lg hover:bg-gray-50 group">
-                            {getIconForType(item.tipo)}
-                            <span className="flex-1 text-sm text-gray-700">{item.titulo}</span>
-                            <button className="text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"><Trash2 size={14} /></button>
+                        {weekMats.map(mat => (
+                          <li key={mat.id} className="flex items-center gap-3 p-2.5 rounded-lg hover:bg-gray-50 group">
+                            {getIconForType(mat.tipo_archivo)}
+                            <div className="flex-1 min-w-0">
+                              <a href={mat.url} target="_blank" rel="noopener noreferrer" className="text-sm text-gray-700 hover:text-[#C62828] truncate block">{mat.nombre_archivo}</a>
+                              <p className="text-[10px] text-gray-400">{formatSize(mat.tamano)} · {mat.tipo_archivo.toUpperCase()}</p>
+                            </div>
+                            <button onClick={() => handleDelete(mat.id, mat.nombre_archivo)}
+                              className="text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity">
+                              <Trash2 size={14} />
+                            </button>
                           </li>
                         ))}
                       </ul>
                     ) : (
-                      <p className="text-sm text-gray-400 mt-3 italic">Sin contenido. Usa el botón para agregar material.</p>
+                      <p className="text-sm text-gray-400 mt-3 italic">Sin contenido para esta semana.</p>
                     )}
-                    <button className="mt-3 text-xs text-[#C62828] hover:underline flex items-center gap-1">
+                    <button onClick={() => triggerUpload(week)} disabled={uploading}
+                      className="mt-3 text-xs text-[#C62828] hover:underline flex items-center gap-1 disabled:opacity-50">
                       <Upload size={12} /> Subir archivo a esta semana
                     </button>
                   </div>
@@ -159,79 +258,17 @@ export default function DocenteCursoPage() {
 
       {/* Tab: Tareas */}
       {activeTab === "tareas" && (
-        <div className="space-y-3">
-          <div className="flex items-center justify-between mb-2">
-            <h2 className="font-semibold text-gray-800">Tareas del curso</h2>
-            <button className="inline-flex items-center gap-1.5 text-sm font-medium text-white bg-[#C62828] px-3 py-1.5 rounded-lg hover:bg-[#8E0000] transition-colors">
-              <Plus size={14} /> Nueva tarea
-            </button>
-          </div>
-          {tareas.map(tarea => (
-            <div key={tarea.id} className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="font-medium text-gray-800 text-sm">{tarea.titulo}</h3>
-                  <p className="text-xs text-gray-500 mt-0.5">
-                    Entrega: {new Date(tarea.fecha_entrega).toLocaleDateString("es-PE", { day: "2-digit", month: "long", year: "numeric" })}
-                  </p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-800">0 entregas</span>
-                  <button className="text-gray-400 hover:text-red-500"><Trash2 size={14} /></button>
-                </div>
-              </div>
-            </div>
-          ))}
-          {tareas.length === 0 && <p className="text-sm text-gray-400 text-center py-8">No hay tareas creadas aún.</p>}
+        <div className="bg-white rounded-xl shadow-sm p-6">
+          <h2 className="font-semibold text-gray-800 mb-4">Tareas del curso</h2>
+          <p className="text-sm text-gray-400 text-center py-8">Funcionalidad de tareas disponible pr&oacute;ximamente.</p>
         </div>
       )}
 
-      {/* Tab: Notas */}
-      {activeTab === "notas" && (
+      {/* Other tabs */}
+      {activeTab !== "contenido" && activeTab !== "tareas" && (
         <div className="bg-white rounded-xl shadow-sm p-6">
-          <h2 className="font-semibold text-gray-800 mb-4">Libro de Notas</h2>
           <p className="text-sm text-gray-400 text-center py-8">
-            Las notas estarán disponibles cuando se configuren las evaluaciones del curso.
-          </p>
-        </div>
-      )}
-
-      {/* Tab: Alumnos */}
-      {activeTab === "alumnos" && (
-        <div className="bg-white rounded-xl shadow-sm p-6">
-          <h2 className="font-semibold text-gray-800 mb-4">Alumnos Matriculados</h2>
-          <p className="text-sm text-gray-400 text-center py-8">
-            La lista de alumnos se mostrará según los inscritos en este ciclo y carrera.
-          </p>
-        </div>
-      )}
-
-      {/* Tab: Asistencia */}
-      {activeTab === "asistencia" && (
-        <div className="bg-white rounded-xl shadow-sm p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="font-semibold text-gray-800">Control de Asistencia</h2>
-            <button className="inline-flex items-center gap-1.5 text-sm font-medium text-white bg-[#C62828] px-3 py-1.5 rounded-lg hover:bg-[#8E0000]">
-              <Plus size={14} /> Nueva sesión
-            </button>
-          </div>
-          <p className="text-sm text-gray-400 text-center py-8">
-            Registra la asistencia de cada sesión de clase.
-          </p>
-        </div>
-      )}
-
-      {/* Tab: Foros */}
-      {activeTab === "foros" && (
-        <div className="bg-white rounded-xl shadow-sm p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="font-semibold text-gray-800">Foros de Discusión</h2>
-            <button className="inline-flex items-center gap-1.5 text-sm font-medium text-white bg-[#C62828] px-3 py-1.5 rounded-lg hover:bg-[#8E0000]">
-              <Plus size={14} /> Crear foro
-            </button>
-          </div>
-          <p className="text-sm text-gray-400 text-center py-8">
-            Crea foros para que los alumnos participen en debates académicos.
+            {tabs.find(t => t.id === activeTab)?.label} — disponible pr&oacute;ximamente.
           </p>
         </div>
       )}
