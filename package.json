@@ -9,6 +9,8 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1071.0",
+    "@aws-sdk/s3-request-presigner": "^3.1071.0",
     "@supabase/supabase-js": "^2.100.1",
     "clsx": "^2.1.1",
     "jspdf": "2.5.2",

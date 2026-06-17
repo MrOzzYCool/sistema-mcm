@@ -1,14 +1,11 @@
 /**
  * StorageService — Servicio desacoplado de almacenamiento de archivos.
  *
- * Actualmente usa Supabase Storage como fallback temporal.
- * Diseñado para ser reemplazado por MinIO/S3 sin cambiar el resto del código.
- *
- * Para migrar a MinIO:
- * 1. Instalar: npm install @aws-sdk/client-s3
- * 2. Configurar env vars: MINIO_ENDPOINT, MINIO_ACCESS_KEY, MINIO_SECRET_KEY, MINIO_BUCKET
- * 3. Reemplazar las implementaciones de upload/delete/getUrl en este archivo
+ * Conectado a MinIO (S3-compatible) para materiales académicos.
+ * Los buckets de Supabase (tramites-mcm, vouchers) NO se tocan.
  */
+
+import { S3Client, PutObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
 
 export interface UploadResult {
   url: string;
@@ -17,22 +14,35 @@ export interface UploadResult {
 }
 
 export interface StorageConfig {
-  provider: "supabase" | "minio" | "local";
+  provider: "supabase" | "minio";
   bucket: string;
-  publicBaseUrl?: string;
+  publicBaseUrl: string;
 }
 
-// ─── Configuración actual ────────────────────────────────────────────────────
-// TODO: Cuando MinIO esté listo, cambiar provider a "minio" y agregar env vars
+// ─── Configuración: MinIO activo ─────────────────────────────────────────────
+
 const config: StorageConfig = {
-  provider: "supabase", // Temporal hasta que MinIO esté configurado
-  bucket: "materiales-academicos",
-  publicBaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL
-    ? `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/materiales-academicos`
-    : "",
+  provider: (process.env.STORAGE_PROVIDER as "minio" | "supabase") || "minio",
+  bucket: "aula-virtual",
+  publicBaseUrl: process.env.MINIO_PUBLIC_URL ?? "http://192.168.1.42:9000",
 };
 
-// Tipos de archivo permitidos para materiales académicos
+// ─── S3 Client para MinIO ────────────────────────────────────────────────────
+
+function getS3Client(): S3Client {
+  return new S3Client({
+    endpoint: process.env.MINIO_ENDPOINT ?? "http://192.168.1.42:9000",
+    region: "us-east-1",
+    credentials: {
+      accessKeyId: process.env.MINIO_ACCESS_KEY ?? "",
+      secretAccessKey: process.env.MINIO_SECRET_KEY ?? "",
+    },
+    forcePathStyle: true, // Requerido para MinIO
+  });
+}
+
+// ─── Tipos de archivo permitidos ─────────────────────────────────────────────
+
 export const ALLOWED_MIME_TYPES: Record<string, string> = {
   "application/pdf": "pdf",
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document": "docx",
@@ -88,10 +98,7 @@ export function getFileExtension(fileName: string): string {
 }
 
 /**
- * Sube un archivo al almacenamiento
- *
- * NOTA: Esta función se ejecuta en el SERVER (API route).
- * Cuando se migre a MinIO, aquí se reemplaza por S3Client.putObject()
+ * Sube un archivo al almacenamiento (MinIO/S3)
  */
 export async function uploadToStorage(
   fileBuffer: Buffer,
@@ -99,27 +106,20 @@ export async function uploadToStorage(
   contentType: string
 ): Promise<UploadResult> {
   if (config.provider === "minio") {
-    // TODO: Implementar cuando MinIO esté listo
-    // const s3 = new S3Client({
-    //   endpoint: process.env.MINIO_ENDPOINT,
-    //   region: "us-east-1",
-    //   credentials: {
-    //     accessKeyId: process.env.MINIO_ACCESS_KEY!,
-    //     secretAccessKey: process.env.MINIO_SECRET_KEY!,
-    //   },
-    //   forcePathStyle: true,
-    // });
-    // await s3.send(new PutObjectCommand({
-    //   Bucket: config.bucket,
-    //   Key: path,
-    //   Body: fileBuffer,
-    //   ContentType: contentType,
-    // }));
-    // return { url: `${process.env.MINIO_PUBLIC_URL}/${config.bucket}/${path}`, path, size: fileBuffer.length };
-    throw new Error("MinIO no configurado aún. Usa Supabase Storage temporalmente.");
+    const s3 = getS3Client();
+
+    await s3.send(new PutObjectCommand({
+      Bucket: config.bucket,
+      Key: path,
+      Body: fileBuffer,
+      ContentType: contentType,
+    }));
+
+    const url = `${config.publicBaseUrl}/${config.bucket}/${path}`;
+    return { url, path, size: fileBuffer.length };
   }
 
-  // Supabase Storage (temporal)
+  // Fallback: Supabase Storage (no debería usarse para materiales)
   const { createClient } = await import("@supabase/supabase-js");
   const supabaseAdmin = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -128,12 +128,12 @@ export async function uploadToStorage(
   );
 
   const { error } = await supabaseAdmin.storage
-    .from(config.bucket)
+    .from("materiales-academicos")
     .upload(path, fileBuffer, { contentType, upsert: true });
 
   if (error) throw new Error(`Error subiendo archivo: ${error.message}`);
 
-  const url = `${config.publicBaseUrl}/${path}`;
+  const url = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/materiales-academicos/${path}`;
   return { url, path, size: fileBuffer.length };
 }
 
@@ -142,10 +142,17 @@ export async function uploadToStorage(
  */
 export async function deleteFromStorage(path: string): Promise<void> {
   if (config.provider === "minio") {
-    // TODO: s3.send(new DeleteObjectCommand({ Bucket, Key: path }))
-    throw new Error("MinIO no configurado aún.");
+    const s3 = getS3Client();
+
+    await s3.send(new DeleteObjectCommand({
+      Bucket: config.bucket,
+      Key: path,
+    }));
+
+    return;
   }
 
+  // Fallback: Supabase
   const { createClient } = await import("@supabase/supabase-js");
   const supabaseAdmin = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -153,19 +160,13 @@ export async function deleteFromStorage(path: string): Promise<void> {
     { auth: { autoRefreshToken: false, persistSession: false } }
   );
 
-  const { error } = await supabaseAdmin.storage
-    .from(config.bucket)
-    .remove([path]);
-
-  if (error) console.error(`Error eliminando archivo: ${error.message}`);
+  await supabaseAdmin.storage.from("materiales-academicos").remove([path]);
 }
 
 /**
  * Obtiene la URL pública de un archivo
+ * Formato MinIO: http://192.168.1.42:9000/aula-virtual/{path}
  */
 export function getPublicUrl(path: string): string {
-  if (config.provider === "minio") {
-    return `${process.env.MINIO_PUBLIC_URL ?? ""}/${config.bucket}/${path}`;
-  }
-  return `${config.publicBaseUrl}/${path}`;
+  return `${config.publicBaseUrl}/${config.bucket}/${path}`;
 }
