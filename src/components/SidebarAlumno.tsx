@@ -113,11 +113,6 @@ export default function SidebarAlumno() {
           className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-white/70 hover:bg-white/10 hover:text-white transition-all">
           <ArrowLeftRight size={18} /> <span>Cambiar módulo</span>
         </Link>
-        <button onClick={toggleTheme}
-          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-white/70 hover:bg-white/10 hover:text-white transition-all">
-          {theme === "dark" ? <Sun size={18} /> : <Moon size={18} />}
-          <span>{theme === "dark" ? "Modo claro" : "Modo oscuro"}</span>
-        </button>
         <button onClick={handleLogout}
           className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-white/70 hover:bg-white/10 hover:text-white transition-all">
           <LogOut size={18} /> <span>Cerrar sesión</span>
