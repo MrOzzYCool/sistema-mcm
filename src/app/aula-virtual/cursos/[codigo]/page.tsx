@@ -6,6 +6,7 @@ import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { getAccessToken } from "@/lib/get-token";
 import { Course } from "@/types/course";
+import MaterialViewer from "@/components/aula-virtual/MaterialViewer";
 import {
   ArrowLeft, Video as VideoIcon, FileText, ExternalLink, LinkIcon,
   ChevronDown, ChevronUp, User,
@@ -108,6 +109,14 @@ export default function CourseDetailPage() {
   const [openWeeks, setOpenWeeks] = useState<Set<number>>(new Set([1]));
   const [openSections, setOpenSections] = useState<Set<string>>(new Set());
 
+  // Material Viewer state
+  const [viewerOpen, setViewerOpen] = useState(false);
+  const [viewerMaterial, setViewerMaterial] = useState<MaterialCurso | null>(null);
+  const [viewerUrl, setViewerUrl] = useState<string | null>(null);
+  const [viewerLoading, setViewerLoading] = useState(false);
+  const [viewerList, setViewerList] = useState<MaterialCurso[]>([]);
+  const [viewerIndex, setViewerIndex] = useState(0);
+
   useEffect(() => {
     async function fetchData() {
       try {
@@ -158,17 +167,52 @@ export default function CourseDetailPage() {
   };
 
   async function openFile(materialId: string) {
+    const mat = materialCurso.find(m => m.id === materialId);
+    if (!mat) return;
+
+    // Get siblings (same semana + seccion) for navigation
+    const siblings = materialCurso.filter(m => m.semana === mat.semana && m.seccion === mat.seccion);
+    const idx = siblings.findIndex(m => m.id === materialId);
+
+    setViewerMaterial(mat);
+    setViewerList(siblings);
+    setViewerIndex(idx >= 0 ? idx : 0);
+    setViewerOpen(true);
+    setViewerLoading(true);
+    setViewerUrl(null);
+
     const token = await getAccessToken();
-    if (!token) { alert("Sesión no disponible"); return; }
+    if (!token) { setViewerLoading(false); return; }
     const res = await fetch(`/api/portal/materiales/presigned?material_id=${materialId}`, {
       headers: { Authorization: `Bearer ${token}` },
     });
     if (res.ok) {
       const { url } = await res.json();
-      window.open(url, "_blank");
-    } else {
-      alert("Error al abrir archivo");
+      setViewerUrl(url);
     }
+    setViewerLoading(false);
+  }
+
+  async function handleViewerNavigate(materialId: string) {
+    const mat = viewerList.find(m => m.id === materialId);
+    if (!mat) return;
+    const idx = viewerList.findIndex(m => m.id === materialId);
+
+    setViewerMaterial(mat);
+    setViewerIndex(idx >= 0 ? idx : 0);
+    setViewerLoading(true);
+    setViewerUrl(null);
+
+    const token = await getAccessToken();
+    if (!token) { setViewerLoading(false); return; }
+    const res = await fetch(`/api/portal/materiales/presigned?material_id=${materialId}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (res.ok) {
+      const { url } = await res.json();
+      setViewerUrl(url);
+    }
+    setViewerLoading(false);
   }
 
   // Helper: get material_curso items for a specific week and section
@@ -187,6 +231,19 @@ export default function CourseDetailPage() {
 
   return (
     <div className="py-4 w-full max-w-[1200px] mx-auto">
+      {/* Material Viewer Modal */}
+      {viewerOpen && viewerMaterial && (
+        <MaterialViewer
+          material={viewerMaterial}
+          presignedUrl={viewerUrl}
+          allMaterials={viewerList}
+          currentIndex={viewerIndex}
+          onClose={() => setViewerOpen(false)}
+          onNavigate={handleViewerNavigate}
+          loading={viewerLoading}
+        />
+      )}
+
       <Link href="/aula-virtual" className="inline-flex items-center gap-1 text-sm text-[#C62828] hover:underline mb-4">
         <ArrowLeft size={16} /> Volver a cursos
       </Link>

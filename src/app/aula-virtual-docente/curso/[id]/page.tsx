@@ -6,6 +6,7 @@ import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { getAccessToken } from "@/lib/get-token";
 import { Course } from "@/types/course";
+import MaterialViewer from "@/components/aula-virtual/MaterialViewer";
 import {
   ArrowLeft, FileText, ChevronDown, ChevronUp, Upload, Plus, Loader2,
   Users, ClipboardList, CheckCircle2, Clock, ExternalLink, Trash2,
@@ -60,6 +61,14 @@ export default function DocenteCursoPage() {
   const [uploading, setUploading] = useState(false);
   const [uploadTarget, setUploadTarget] = useState<{ semana: number | null; seccion: string }>({ semana: null, seccion: "material" });
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Material Viewer state
+  const [viewerOpen, setViewerOpen] = useState(false);
+  const [viewerMaterial, setViewerMaterial] = useState<Material | null>(null);
+  const [viewerUrl, setViewerUrl] = useState<string | null>(null);
+  const [viewerLoading, setViewerLoading] = useState(false);
+  const [viewerList, setViewerList] = useState<Material[]>([]);
+  const [viewerIndex, setViewerIndex] = useState(0);
 
   const fetchMateriales = useCallback(async () => {
     const token = await getAccessToken();
@@ -130,11 +139,49 @@ export default function DocenteCursoPage() {
   }
 
   async function openFile(materialId: string) {
+    // Find the material and its sibling list for navigation
+    const mat = materiales.find(m => m.id === materialId);
+    if (!mat) return;
+
+    // Get siblings (same semana + seccion) for Anterior/Siguiente navigation
+    const siblings = materiales.filter(m => m.semana === mat.semana && m.seccion === mat.seccion);
+    const idx = siblings.findIndex(m => m.id === materialId);
+
+    setViewerMaterial(mat);
+    setViewerList(siblings);
+    setViewerIndex(idx >= 0 ? idx : 0);
+    setViewerOpen(true);
+    setViewerLoading(true);
+    setViewerUrl(null);
+
     const token = await getAccessToken();
-    if (!token) return;
+    if (!token) { setViewerLoading(false); return; }
     const res = await fetch(`/api/portal/materiales/presigned?material_id=${materialId}`, { headers: { Authorization: `Bearer ${token}` } });
-    if (res.ok) { const { url } = await res.json(); window.open(url, "_blank"); }
-    else alert("Error al abrir archivo");
+    if (res.ok) {
+      const { url } = await res.json();
+      setViewerUrl(url);
+    }
+    setViewerLoading(false);
+  }
+
+  async function handleViewerNavigate(materialId: string) {
+    const mat = viewerList.find(m => m.id === materialId);
+    if (!mat) return;
+    const idx = viewerList.findIndex(m => m.id === materialId);
+
+    setViewerMaterial(mat);
+    setViewerIndex(idx >= 0 ? idx : 0);
+    setViewerLoading(true);
+    setViewerUrl(null);
+
+    const token = await getAccessToken();
+    if (!token) { setViewerLoading(false); return; }
+    const res = await fetch(`/api/portal/materiales/presigned?material_id=${materialId}`, { headers: { Authorization: `Bearer ${token}` } });
+    if (res.ok) {
+      const { url } = await res.json();
+      setViewerUrl(url);
+    }
+    setViewerLoading(false);
   }
 
   const getMatsForWeek = (week: number, seccion: string) => materiales.filter(m => m.semana === week && m.seccion === seccion);
@@ -152,6 +199,19 @@ export default function DocenteCursoPage() {
   return (
     <div className="py-4 w-full">
       <input ref={fileInputRef} type="file" className="hidden" accept=".pdf,.docx,.xlsx,.pptx,.jpg,.jpeg,.png,.mp4" onChange={handleFileSelected} />
+
+      {/* Material Viewer Modal */}
+      {viewerOpen && viewerMaterial && (
+        <MaterialViewer
+          material={viewerMaterial}
+          presignedUrl={viewerUrl}
+          allMaterials={viewerList}
+          currentIndex={viewerIndex}
+          onClose={() => setViewerOpen(false)}
+          onNavigate={handleViewerNavigate}
+          loading={viewerLoading}
+        />
+      )}
 
       <Link href="/aula-virtual-docente" className="inline-flex items-center gap-1 text-sm text-[#C62828] hover:underline mb-4">
         <ArrowLeft size={16} /> Volver a mis cursos
