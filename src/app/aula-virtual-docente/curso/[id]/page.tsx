@@ -196,12 +196,11 @@ export default function DocenteCursoPage() {
 
   const displayName = course.nombre ?? course.nombre_curso ?? "Curso";
 
-  return (
-    <div className="py-4 w-full">
-      <input ref={fileInputRef} type="file" className="hidden" accept=".pdf,.docx,.xlsx,.pptx,.jpg,.jpeg,.png,.mp4" onChange={handleFileSelected} />
-
-      {/* Material Viewer Modal */}
-      {viewerOpen && viewerMaterial && (
+  // If viewer is open, show it INLINE (within the layout, sidebar stays)
+  if (viewerOpen && viewerMaterial) {
+    return (
+      <div className="h-[calc(100vh-64px)]">
+        <input ref={fileInputRef} type="file" className="hidden" accept=".pdf,.docx,.xlsx,.pptx,.jpg,.jpeg,.png,.mp4" onChange={handleFileSelected} />
         <MaterialViewer
           material={viewerMaterial}
           presignedUrl={viewerUrl}
@@ -211,7 +210,13 @@ export default function DocenteCursoPage() {
           onNavigate={handleViewerNavigate}
           loading={viewerLoading}
         />
-      )}
+      </div>
+    );
+  }
+
+  return (
+    <div className="py-4 w-full">
+      <input ref={fileInputRef} type="file" className="hidden" accept=".pdf,.docx,.xlsx,.pptx,.jpg,.jpeg,.png,.mp4" onChange={handleFileSelected} />
 
       <Link href="/aula-virtual-docente" className="inline-flex items-center gap-1 text-sm text-[#C62828] hover:underline mb-4">
         <ArrowLeft size={16} /> Volver a mis cursos

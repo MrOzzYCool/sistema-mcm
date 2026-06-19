@@ -239,10 +239,10 @@ export default function CourseDetailPage() {
 
   const displayName = course.nombre ?? course.nombre_curso ?? "Curso";
 
-  return (
-    <div className="py-4 w-full max-w-[1200px] mx-auto">
-      {/* Material Viewer Modal */}
-      {viewerOpen && viewerMaterial && (
+  // If viewer is open, show it INLINE (within the layout, sidebar stays)
+  if (viewerOpen && viewerMaterial) {
+    return (
+      <div className="h-[calc(100vh-64px)]">
         <MaterialViewer
           material={viewerMaterial}
           presignedUrl={viewerUrl}
@@ -252,10 +252,14 @@ export default function CourseDetailPage() {
           onNavigate={handleViewerNavigate}
           loading={viewerLoading}
         />
-      )}
+      </div>
+    );
+  }
 
-      {/* Foro Viewer */}
-      {foroOpen && course && (
+  // If foro is open, show it INLINE
+  if (foroOpen && course) {
+    return (
+      <div className="h-[calc(100vh-64px)]">
         <ForoViewer
           semana={foroSemana}
           cursoId={course.id}
@@ -263,12 +267,16 @@ export default function CourseDetailPage() {
           totalItems={3}
           currentIndex={0}
           onPrev={() => {}}
-          onNext={() => { setForoOpen(false); /* go to materials section */ }}
+          onNext={() => { setForoOpen(false); }}
           canGoPrev={false}
           canGoNext={true}
         />
-      )}
+      </div>
+    );
+  }
 
+  return (
+    <div className="py-4 w-full max-w-[1200px] mx-auto">
       <Link href="/aula-virtual" className="inline-flex items-center gap-1 text-sm text-[#C62828] hover:underline mb-4">
         <ArrowLeft size={16} /> Volver a cursos
       </Link>

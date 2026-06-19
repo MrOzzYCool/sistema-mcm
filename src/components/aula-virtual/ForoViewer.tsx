@@ -117,7 +117,7 @@ export default function ForoViewer({
   }, [onClose]);
 
   return (
-    <div className="fixed inset-0 z-50 bg-white flex flex-col overflow-hidden">
+    <div className="flex flex-col h-full">
       {/* Top bar */}
       <div className="flex items-center justify-between px-6 py-3 border-b border-gray-200 bg-white shrink-0">
         <button onClick={onClose} className="inline-flex items-center gap-1 text-sm text-[#C62828] hover:underline">
