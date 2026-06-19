@@ -115,12 +115,16 @@ export default function CourseDetailPage() {
   const [viewerMaterial, setViewerMaterial] = useState<MaterialCurso | null>(null);
   const [viewerUrl, setViewerUrl] = useState<string | null>(null);
   const [viewerLoading, setViewerLoading] = useState(false);
-  const [viewerList, setViewerList] = useState<MaterialCurso[]>([]);
-  const [viewerIndex, setViewerIndex] = useState(0);
+  const [viewerWeek, setViewerWeek] = useState(1);
 
   // Foro Viewer state
   const [foroOpen, setForoOpen] = useState(false);
   const [foroSemana, setForoSemana] = useState(1);
+
+  // Unified navigation: all items for a week in order [foro, ...materiales, ...actividades]
+  type WeekItem = { type: "foro"; week: number } | { type: "material"; id: string; mat: MaterialCurso };
+  const [weekItems, setWeekItems] = useState<WeekItem[]>([]);
+  const [weekItemIndex, setWeekItemIndex] = useState(0);
 
   useEffect(() => {
     async function fetchData() {
@@ -171,21 +175,42 @@ export default function CourseDetailPage() {
     setOpenSections(prev => { const n = new Set(prev); if (n.has(key)) n.delete(key); else n.add(key); return n; });
   };
 
-  async function openFile(materialId: string) {
-    const mat = materialCurso.find(m => m.id === materialId);
-    if (!mat) return;
+  // Build the ordered list of items for a given week
+  function buildWeekItems(week: number): WeekItem[] {
+    const items: WeekItem[] = [];
+    // 1. Foro always first
+    items.push({ type: "foro", week });
+    // 2. Materiales
+    const mats = materialCurso.filter(m => m.semana === week && m.seccion === "material");
+    mats.forEach(mat => items.push({ type: "material", id: mat.id, mat }));
+    // 3. Actividades
+    const acts = materialCurso.filter(m => m.semana === week && m.seccion === "actividad");
+    acts.forEach(mat => items.push({ type: "material", id: mat.id, mat }));
+    return items;
+  }
 
-    // Get siblings (same semana + seccion) for navigation
-    const siblings = materialCurso.filter(m => m.semana === mat.semana && m.seccion === mat.seccion);
-    const idx = siblings.findIndex(m => m.id === materialId);
+  function navigateToItem(items: WeekItem[], index: number) {
+    const item = items[index];
+    if (!item) return;
+    setWeekItems(items);
+    setWeekItemIndex(index);
 
-    setViewerMaterial(mat);
-    setViewerList(siblings);
-    setViewerIndex(idx >= 0 ? idx : 0);
-    setViewerOpen(true);
-    setViewerLoading(true);
-    setViewerUrl(null);
+    if (item.type === "foro") {
+      setViewerOpen(false);
+      setForoSemana(item.week);
+      setForoOpen(true);
+    } else {
+      setForoOpen(false);
+      setViewerMaterial(item.mat);
+      setViewerWeek(item.mat.semana ?? 1);
+      setViewerOpen(true);
+      setViewerLoading(true);
+      setViewerUrl(null);
+      loadPresignedUrl(item.id);
+    }
+  }
 
+  async function loadPresignedUrl(materialId: string) {
     const token = await getAccessToken();
     if (!token) { setViewerLoading(false); return; }
     const res = await fetch(`/api/portal/materiales/presigned?material_id=${materialId}`, {
@@ -198,31 +223,31 @@ export default function CourseDetailPage() {
     setViewerLoading(false);
   }
 
-  async function handleViewerNavigate(materialId: string) {
-    const mat = viewerList.find(m => m.id === materialId);
+  function openFile(materialId: string) {
+    const mat = materialCurso.find(m => m.id === materialId);
     if (!mat) return;
-    const idx = viewerList.findIndex(m => m.id === materialId);
-
-    setViewerMaterial(mat);
-    setViewerIndex(idx >= 0 ? idx : 0);
-    setViewerLoading(true);
-    setViewerUrl(null);
-
-    const token = await getAccessToken();
-    if (!token) { setViewerLoading(false); return; }
-    const res = await fetch(`/api/portal/materiales/presigned?material_id=${materialId}`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    if (res.ok) {
-      const { url } = await res.json();
-      setViewerUrl(url);
-    }
-    setViewerLoading(false);
+    const week = mat.semana ?? 1;
+    const items = buildWeekItems(week);
+    const idx = items.findIndex(i => i.type === "material" && i.id === materialId);
+    navigateToItem(items, idx >= 0 ? idx : 0);
   }
 
   function openForo(week: number) {
-    setForoSemana(week);
-    setForoOpen(true);
+    const items = buildWeekItems(week);
+    navigateToItem(items, 0); // foro is always index 0
+  }
+
+  function handleNavPrev() {
+    if (weekItemIndex > 0) navigateToItem(weekItems, weekItemIndex - 1);
+  }
+
+  function handleNavNext() {
+    if (weekItemIndex < weekItems.length - 1) navigateToItem(weekItems, weekItemIndex + 1);
+  }
+
+  function handleViewerNavigate(materialId: string) {
+    const idx = weekItems.findIndex(i => i.type === "material" && i.id === materialId);
+    if (idx >= 0) navigateToItem(weekItems, idx);
   }
 
   // Helper: get material_curso items for a specific week and section
@@ -242,15 +267,30 @@ export default function CourseDetailPage() {
   // If viewer is open, show it INLINE (within the layout, sidebar stays)
   if (viewerOpen && viewerMaterial) {
     return (
-      <div className="h-[calc(100vh-64px)]">
+      <div className="py-4 px-4">
+        {/* Course header bar */}
+        <div className="bg-gray-50 border border-gray-200 rounded-lg px-4 py-2 mb-4 flex items-center gap-3">
+          <button onClick={() => { setViewerOpen(false); setForoOpen(false); }} className="text-xs text-[#C62828] hover:underline flex items-center gap-1">
+            <ArrowLeft size={14} /> Volver a contenido
+          </button>
+          <div className="w-px h-4 bg-gray-300" />
+          <span className="text-sm text-gray-700 font-medium">{displayName}</span>
+          <span className="inline-flex items-center text-[10px] px-2 py-0.5 rounded-full bg-teal-600 text-white font-medium">Virtual en vivo</span>
+        </div>
         <MaterialViewer
           material={viewerMaterial}
           presignedUrl={viewerUrl}
-          allMaterials={viewerList}
-          currentIndex={viewerIndex}
+          allMaterials={weekItems.filter(i => i.type === "material").map(i => (i as { type: "material"; id: string; mat: MaterialCurso }).mat)}
+          currentIndex={weekItems.filter((i, idx) => i.type === "material" && idx < weekItemIndex).length}
           onClose={() => setViewerOpen(false)}
           onNavigate={handleViewerNavigate}
           loading={viewerLoading}
+          totalWeekItems={weekItems.length}
+          weekItemIndex={weekItemIndex}
+          onPrev={handleNavPrev}
+          onNext={handleNavNext}
+          canGoPrev={weekItemIndex > 0}
+          canGoNext={weekItemIndex < weekItems.length - 1}
         />
       </div>
     );
@@ -259,17 +299,26 @@ export default function CourseDetailPage() {
   // If foro is open, show it INLINE
   if (foroOpen && course) {
     return (
-      <div className="h-[calc(100vh-64px)]">
+      <div className="py-4 px-4">
+        {/* Course header bar */}
+        <div className="bg-gray-50 border border-gray-200 rounded-lg px-4 py-2 mb-4 flex items-center gap-3">
+          <button onClick={() => { setViewerOpen(false); setForoOpen(false); }} className="text-xs text-[#C62828] hover:underline flex items-center gap-1">
+            <ArrowLeft size={14} /> Volver a contenido
+          </button>
+          <div className="w-px h-4 bg-gray-300" />
+          <span className="text-sm text-gray-700 font-medium">{displayName}</span>
+          <span className="inline-flex items-center text-[10px] px-2 py-0.5 rounded-full bg-teal-600 text-white font-medium">Virtual en vivo</span>
+        </div>
         <ForoViewer
           semana={foroSemana}
           cursoId={course.id}
           onClose={() => setForoOpen(false)}
-          totalItems={3}
-          currentIndex={0}
-          onPrev={() => {}}
-          onNext={() => { setForoOpen(false); }}
-          canGoPrev={false}
-          canGoNext={true}
+          totalItems={weekItems.length}
+          currentIndex={weekItemIndex}
+          onPrev={handleNavPrev}
+          onNext={handleNavNext}
+          canGoPrev={weekItemIndex > 0}
+          canGoNext={weekItemIndex < weekItems.length - 1}
         />
       </div>
     );

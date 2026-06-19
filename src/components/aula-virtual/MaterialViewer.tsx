@@ -30,6 +30,13 @@ interface MaterialViewerProps {
   onClose: () => void;
   onNavigate: (materialId: string) => void;
   loading?: boolean;
+  // Week-level navigation (Anterior/Siguiente across foro/material/actividad)
+  totalWeekItems?: number;
+  weekItemIndex?: number;
+  onPrev?: () => void;
+  onNext?: () => void;
+  canGoPrev?: boolean;
+  canGoNext?: boolean;
 }
 
 function getTypeLabel(tipo: string): string {
@@ -43,12 +50,14 @@ function getSectionLabel(seccion: string): string {
 
 export default function MaterialViewer({
   material, presignedUrl, allMaterials, currentIndex, onClose, onNavigate, loading = false,
+  totalWeekItems, weekItemIndex, onPrev, onNext, canGoPrev, canGoNext,
 }: MaterialViewerProps) {
-  const canGoPrev = currentIndex > 0;
-  const canGoNext = currentIndex < allMaterials.length - 1;
-
-  const handlePrev = useCallback(() => { if (canGoPrev) onNavigate(allMaterials[currentIndex - 1].id); }, [canGoPrev, currentIndex, allMaterials, onNavigate]);
-  const handleNext = useCallback(() => { if (canGoNext) onNavigate(allMaterials[currentIndex + 1].id); }, [canGoNext, currentIndex, allMaterials, onNavigate]);
+  // Use week-level nav if provided, otherwise fallback to material-only nav
+  const usesWeekNav = onPrev !== undefined && onNext !== undefined;
+  const navPrev = usesWeekNav ? onPrev! : () => { if (currentIndex > 0) onNavigate(allMaterials[currentIndex - 1].id); };
+  const navNext = usesWeekNav ? onNext! : () => { if (currentIndex < allMaterials.length - 1) onNavigate(allMaterials[currentIndex + 1].id); };
+  const prevDisabled = usesWeekNav ? !canGoPrev : currentIndex <= 0;
+  const nextDisabled = usesWeekNav ? !canGoNext : currentIndex >= allMaterials.length - 1;
 
   const handleDownload = () => {
     if (presignedUrl) { const a = document.createElement("a"); a.href = presignedUrl; a.download = material.nombre_archivo; a.target = "_blank"; document.body.appendChild(a); a.click(); document.body.removeChild(a); }
@@ -57,12 +66,12 @@ export default function MaterialViewer({
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
       if (e.key === "Escape") onClose();
-      if (e.key === "ArrowLeft" && e.altKey) handlePrev();
-      if (e.key === "ArrowRight" && e.altKey) handleNext();
+      if (e.key === "ArrowLeft" && e.altKey) navPrev();
+      if (e.key === "ArrowRight" && e.altKey) navNext();
     }
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [handlePrev, handleNext, onClose]);
+  }, [navPrev, navNext, onClose]);
 
   return (
     <div className="flex flex-col h-full max-w-5xl mx-auto">
@@ -119,11 +128,11 @@ export default function MaterialViewer({
           </button>
         </div>
         <div className="flex items-center justify-between px-5 py-2.5 border-t border-gray-100">
-          <button onClick={handlePrev} disabled={!canGoPrev}
+          <button onClick={navPrev} disabled={prevDisabled}
             className="inline-flex items-center gap-1 text-sm text-[#C62828] hover:underline disabled:text-gray-300 disabled:cursor-not-allowed">
             <ChevronLeft size={16} /> Anterior
           </button>
-          <button onClick={handleNext} disabled={!canGoNext}
+          <button onClick={navNext} disabled={nextDisabled}
             className="inline-flex items-center gap-1 text-sm text-[#C62828] hover:underline disabled:text-gray-300 disabled:cursor-not-allowed">
             Siguiente <ChevronRight size={16} />
           </button>
@@ -138,7 +147,7 @@ export default function MaterialViewer({
 function PdfViewer({ url }: { url: string }) {
   const [numPages, setNumPages] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
-  const [scale, setScale] = useState(0.6);
+  const [scale, setScale] = useState(0.5);
   const [showSidebar, setShowSidebar] = useState(true);
   const [showSearch, setShowSearch] = useState(false);
   const [searchText, setSearchText] = useState("");
@@ -230,7 +239,7 @@ function PdfViewer({ url }: { url: string }) {
       )}
 
       {/* Main area: sidebar + document */}
-      <div className="flex-1 flex overflow-hidden border border-t-0 border-gray-200 rounded-b-lg bg-gray-50" style={{ maxHeight: "55vh" }}>
+      <div className="flex-1 flex overflow-hidden border border-t-0 border-gray-200 rounded-b-lg bg-gray-50" style={{ maxHeight: "45vh" }}>
         {/* Sidebar: page thumbnails */}
         {showSidebar && (
           <div className="w-[100px] bg-white border-r border-gray-200 overflow-y-auto shrink-0 p-1.5 space-y-1.5">
