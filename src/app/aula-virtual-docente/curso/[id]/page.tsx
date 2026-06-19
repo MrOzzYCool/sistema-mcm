@@ -134,6 +134,25 @@ export default function DocenteCursoPage() {
     }
   }
 
+  async function openFile(materialId: string, nombre: string) {
+    try {
+      const token = await getAccessToken();
+      if (!token) return;
+      const res = await fetch(`/api/portal/materiales/presigned?material_id=${materialId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) {
+        const d = await res.json();
+        alert(d.error ?? "Error al abrir archivo");
+        return;
+      }
+      const { url } = await res.json();
+      window.open(url, "_blank");
+    } catch {
+      alert("Error al abrir archivo");
+    }
+  }
+
   async function handleDelete(materialId: string, nombre: string) {
     if (!confirm(`¿Eliminar "${nombre}"?`)) return;
     try {
@@ -231,7 +250,7 @@ export default function DocenteCursoPage() {
                           <li key={mat.id} className="flex items-center gap-3 p-2.5 rounded-lg hover:bg-gray-50 group">
                             {getIconForType(mat.tipo_archivo)}
                             <div className="flex-1 min-w-0">
-                              <a href={mat.url} target="_blank" rel="noopener noreferrer" className="text-sm text-gray-700 hover:text-[#C62828] truncate block">{mat.nombre_archivo}</a>
+                              <button onClick={() => openFile(mat.id, mat.nombre_archivo)} className="text-sm text-gray-700 hover:text-[#C62828] truncate block text-left">{mat.nombre_archivo}</button>
                               <p className="text-[10px] text-gray-400">{formatSize(mat.tamano)} · {mat.tipo_archivo.toUpperCase()}</p>
                             </div>
                             <button onClick={() => handleDelete(mat.id, mat.nombre_archivo)}

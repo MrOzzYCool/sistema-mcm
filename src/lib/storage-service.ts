@@ -9,7 +9,8 @@
  * Ejemplo: idiomas/ciclo-4/basic-spelling-skills/semana-1/1718900000-separata.pdf
  */
 
-import { S3Client, PutObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
+import { S3Client, PutObjectCommand, DeleteObjectCommand, GetObjectCommand } from "@aws-sdk/client-s3";
+import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
 export interface UploadResult {
   url: string;
@@ -198,4 +199,52 @@ export async function deleteFromStorage(path: string): Promise<void> {
  */
 export function getPublicUrl(path: string): string {
   return buildPublicUrl(path);
+}
+
+
+/**
+ * Genera una URL firmada temporal para acceder a un archivo privado en MinIO.
+ *
+ * @param path - El Key del objeto en el bucket (almacenado en material_curso.url o extraído de ella)
+ * @param expiresIn - Duración en segundos (3600 = 1h para alumnos, 86400 = 24h para docentes)
+ * @returns URL firmada temporal
+ */
+export async function generatePresignedUrl(path: string, expiresIn: number = 3600): Promise<string> {
+  if (config.provider !== "minio") {
+    // Supabase: devolver URL directa (buckets públicos)
+    return `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/materiales-academicos/${path}`;
+  }
+
+  const s3 = getS3Client();
+
+  const command = new GetObjectCommand({
+    Bucket: config.bucket,
+    Key: path,
+  });
+
+  const signedUrl = await getSignedUrl(s3, command, { expiresIn });
+  return signedUrl;
+}
+
+/**
+ * Extrae el path/key del archivo a partir de la URL almacenada en la DB.
+ * La URL almacenada tiene formato: http://192.168.1.42:9000/aula-virtual/{path}
+ * Esta función devuelve solo el {path}.
+ */
+export function extractPathFromUrl(url: string): string {
+  const bucketPrefix = `/aula-virtual/`;
+  const idx = url.indexOf(bucketPrefix);
+  if (idx >= 0) return url.substring(idx + bucketPrefix.length);
+
+  // Fallback: si no tiene el prefix, asumir que ya es un path
+  if (!url.startsWith("http")) return url;
+
+  // Último intento: quitar el host y bucket
+  try {
+    const parsed = new URL(url);
+    const pathParts = parsed.pathname.split("/aula-virtual/");
+    return pathParts.length > 1 ? pathParts[1] : parsed.pathname.slice(1);
+  } catch {
+    return url;
+  }
 }
