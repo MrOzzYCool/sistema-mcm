@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   X, ChevronLeft, ChevronRight, Download, FileText,
   FileSpreadsheet, Image as ImageIcon, Video as VideoIcon, Loader2,
+  ArrowLeft,
 } from "lucide-react";
 
 interface MaterialItem {
@@ -78,13 +79,13 @@ export default function MaterialViewer({
   const canGoPrev = currentIndex > 0;
   const canGoNext = currentIndex < allMaterials.length - 1;
 
-  const handlePrev = () => {
+  const handlePrev = useCallback(() => {
     if (canGoPrev) onNavigate(allMaterials[currentIndex - 1].id);
-  };
+  }, [canGoPrev, currentIndex, allMaterials, onNavigate]);
 
-  const handleNext = () => {
+  const handleNext = useCallback(() => {
     if (canGoNext) onNavigate(allMaterials[currentIndex + 1].id);
-  };
+  }, [canGoNext, currentIndex, allMaterials, onNavigate]);
 
   const handleDownload = () => {
     if (presignedUrl) {
@@ -107,131 +108,127 @@ export default function MaterialViewer({
     }
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentIndex, allMaterials]);
+  }, [handlePrev, handleNext, onClose]);
 
   const isPreviewable = ["pdf", "jpg", "jpeg", "png", "mp4"].includes(material.tipo_archivo);
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden">
-        {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
-          <div className="flex-1 min-w-0">
-            <h2 className="text-lg font-semibold text-gray-800 truncate">{material.nombre_archivo}</h2>
-            <div className="flex items-center gap-2 mt-1">
-              <span className="text-xs text-gray-500">{getSectionLabel(material.seccion)}</span>
-              <span className="text-xs text-gray-300">&bull;</span>
-              <div className="flex items-center gap-1">
-                {getTypeIcon(material.tipo_archivo)}
-                <span className="text-xs text-gray-500">{getTypeLabel(material.tipo_archivo)}</span>
-              </div>
-            </div>
+    <div className="fixed inset-0 z-50 bg-white flex flex-col overflow-hidden">
+      {/* Top bar */}
+      <div className="flex items-center justify-between px-6 py-3 border-b border-gray-200 bg-white shrink-0">
+        <button
+          onClick={onClose}
+          className="inline-flex items-center gap-1 text-sm text-[#C62828] hover:underline"
+        >
+          <ArrowLeft size={16} /> Volver al contenido
+        </button>
+        <span className="text-xs text-gray-400">
+          {currentIndex + 1} de {allMaterials.length}
+        </span>
+      </div>
+
+      {/* Title area */}
+      <div className="px-6 py-4 border-b border-gray-100 shrink-0">
+        <h1 className="text-xl font-bold text-gray-800">{material.nombre_archivo}</h1>
+        <div className="flex items-center gap-2 mt-1">
+          <span className="text-sm text-gray-500">{getSectionLabel(material.seccion)}</span>
+          <span className="text-gray-300">&bull;</span>
+          <div className="flex items-center gap-1">
+            {getTypeIcon(material.tipo_archivo)}
+            <span className="text-sm text-gray-500">{getTypeLabel(material.tipo_archivo)}</span>
           </div>
+        </div>
+      </div>
+
+      {/* Content / Preview - full height */}
+      <div className="flex-1 overflow-auto bg-gray-50">
+        {loading ? (
+          <div className="flex items-center justify-center h-full min-h-[400px]">
+            <Loader2 size={32} className="animate-spin text-gray-400" />
+          </div>
+        ) : presignedUrl ? (
+          <>
+            {material.tipo_archivo === "pdf" && (
+              <iframe
+                src={presignedUrl}
+                className="w-full h-full"
+                style={{ minHeight: "calc(100vh - 280px)", border: "none" }}
+                title={material.nombre_archivo}
+              />
+            )}
+            {["jpg", "jpeg", "png"].includes(material.tipo_archivo) && (
+              <div className="flex items-center justify-center p-8">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={presignedUrl}
+                  alt={material.nombre_archivo}
+                  className="max-w-full max-h-[70vh] object-contain rounded-lg shadow-sm"
+                />
+              </div>
+            )}
+            {material.tipo_archivo === "mp4" && (
+              <div className="flex items-center justify-center p-8">
+                <video
+                  src={presignedUrl}
+                  controls
+                  className="max-w-full max-h-[70vh] rounded-lg shadow-sm"
+                >
+                  Tu navegador no soporta la reproducción de video.
+                </video>
+              </div>
+            )}
+            {!isPreviewable && (
+              <div className="flex flex-col items-center justify-center gap-4 py-16">
+                <div className="w-24 h-24 bg-white rounded-xl shadow-sm flex items-center justify-center">
+                  {getTypeIcon(material.tipo_archivo)}
+                </div>
+                <p className="text-sm text-gray-500">
+                  Vista previa no disponible para archivos {getTypeLabel(material.tipo_archivo)}.
+                </p>
+                <p className="text-xs text-gray-400">Descarga el archivo para verlo.</p>
+              </div>
+            )}
+          </>
+        ) : (
+          <div className="flex items-center justify-center h-full min-h-[400px]">
+            <p className="text-sm text-gray-400">Error al cargar el archivo.</p>
+          </div>
+        )}
+      </div>
+
+      {/* Footer - Download + Navigation */}
+      <div className="border-t border-gray-200 shrink-0 bg-white">
+        {/* Download bar */}
+        <div className="flex items-center justify-between px-6 py-3">
+          <p className="text-sm text-gray-500">Recuerda que puedes descargar el archivo.</p>
           <button
-            onClick={onClose}
-            className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
-            title="Cerrar (Esc)"
+            onClick={handleDownload}
+            disabled={!presignedUrl}
+            className="inline-flex items-center gap-2 px-4 py-2 border border-[#C62828] text-[#C62828] rounded-lg text-sm font-medium hover:bg-red-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <X size={20} />
+            <Download size={16} />
+            Descargar archivo
           </button>
         </div>
 
-        {/* Content / Preview */}
-        <div className="flex-1 overflow-auto bg-gray-100 relative min-h-[400px]">
-          {loading ? (
-            <div className="flex items-center justify-center h-full">
-              <Loader2 size={32} className="animate-spin text-gray-400" />
-            </div>
-          ) : presignedUrl ? (
-            <>
-              {material.tipo_archivo === "pdf" && (
-                <iframe
-                  src={presignedUrl}
-                  className="w-full h-full min-h-[500px]"
-                  title={material.nombre_archivo}
-                  style={{ border: "none" }}
-                />
-              )}
-              {["jpg", "jpeg", "png"].includes(material.tipo_archivo) && (
-                <div className="flex items-center justify-center h-full p-4">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={presignedUrl}
-                    alt={material.nombre_archivo}
-                    className="max-w-full max-h-[60vh] object-contain rounded-lg shadow-sm"
-                  />
-                </div>
-              )}
-              {material.tipo_archivo === "mp4" && (
-                <div className="flex items-center justify-center h-full p-4">
-                  <video
-                    src={presignedUrl}
-                    controls
-                    className="max-w-full max-h-[60vh] rounded-lg shadow-sm"
-                  >
-                    Tu navegador no soporta la reproducción de video.
-                  </video>
-                </div>
-              )}
-              {!isPreviewable && (
-                <div className="flex flex-col items-center justify-center h-full gap-4 py-12">
-                  <div className="w-20 h-20 bg-white rounded-xl shadow-sm flex items-center justify-center">
-                    {getTypeIcon(material.tipo_archivo)}
-                  </div>
-                  <p className="text-sm text-gray-500">
-                    Vista previa no disponible para archivos {getTypeLabel(material.tipo_archivo)}.
-                  </p>
-                  <p className="text-xs text-gray-400">Descarga el archivo para verlo.</p>
-                </div>
-              )}
-            </>
-          ) : (
-            <div className="flex items-center justify-center h-full">
-              <p className="text-sm text-gray-400">Error al cargar el archivo.</p>
-            </div>
-          )}
-        </div>
-
-        {/* Footer - Download + Navigation */}
-        <div className="border-t border-gray-200">
-          {/* Download bar */}
-          <div className="flex items-center justify-between px-6 py-3 bg-gray-50">
-            <p className="text-sm text-gray-500">Recuerda que puedes descargar el archivo.</p>
-            <button
-              onClick={handleDownload}
-              disabled={!presignedUrl}
-              className="inline-flex items-center gap-2 px-4 py-2 border border-[#C62828] text-[#C62828] rounded-lg text-sm font-medium hover:bg-red-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <Download size={16} />
-              Descargar archivo
-            </button>
-          </div>
-
-          {/* Navigation */}
-          {allMaterials.length > 1 && (
-            <div className="flex items-center justify-between px-6 py-3 border-t border-gray-100">
-              <button
-                onClick={handlePrev}
-                disabled={!canGoPrev}
-                className="inline-flex items-center gap-1 text-sm text-[#C62828] hover:underline disabled:text-gray-300 disabled:no-underline disabled:cursor-not-allowed"
-              >
-                <ChevronLeft size={16} />
-                Anterior
-              </button>
-              <span className="text-xs text-gray-400">
-                {currentIndex + 1} de {allMaterials.length}
-              </span>
-              <button
-                onClick={handleNext}
-                disabled={!canGoNext}
-                className="inline-flex items-center gap-1 text-sm text-[#C62828] hover:underline disabled:text-gray-300 disabled:no-underline disabled:cursor-not-allowed"
-              >
-                Siguiente
-                <ChevronRight size={16} />
-              </button>
-            </div>
-          )}
+        {/* Navigation */}
+        <div className="flex items-center justify-between px-6 py-3 border-t border-gray-100">
+          <button
+            onClick={handlePrev}
+            disabled={!canGoPrev}
+            className="inline-flex items-center gap-1 text-sm font-medium text-[#C62828] hover:underline disabled:text-gray-300 disabled:no-underline disabled:cursor-not-allowed"
+          >
+            <ChevronLeft size={16} />
+            Anterior
+          </button>
+          <button
+            onClick={handleNext}
+            disabled={!canGoNext}
+            className="inline-flex items-center gap-1 text-sm font-medium text-[#C62828] hover:underline disabled:text-gray-300 disabled:no-underline disabled:cursor-not-allowed"
+          >
+            Siguiente
+            <ChevronRight size={16} />
+          </button>
         </div>
       </div>
     </div>

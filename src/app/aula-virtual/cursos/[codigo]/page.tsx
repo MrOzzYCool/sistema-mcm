@@ -7,6 +7,7 @@ import { supabase } from "@/lib/supabase";
 import { getAccessToken } from "@/lib/get-token";
 import { Course } from "@/types/course";
 import MaterialViewer from "@/components/aula-virtual/MaterialViewer";
+import ForoViewer from "@/components/aula-virtual/ForoViewer";
 import {
   ArrowLeft, Video as VideoIcon, FileText, ExternalLink, LinkIcon,
   ChevronDown, ChevronUp, User,
@@ -117,6 +118,10 @@ export default function CourseDetailPage() {
   const [viewerList, setViewerList] = useState<MaterialCurso[]>([]);
   const [viewerIndex, setViewerIndex] = useState(0);
 
+  // Foro Viewer state
+  const [foroOpen, setForoOpen] = useState(false);
+  const [foroSemana, setForoSemana] = useState(1);
+
   useEffect(() => {
     async function fetchData() {
       try {
@@ -215,6 +220,11 @@ export default function CourseDetailPage() {
     setViewerLoading(false);
   }
 
+  function openForo(week: number) {
+    setForoSemana(week);
+    setForoOpen(true);
+  }
+
   // Helper: get material_curso items for a specific week and section
   const getMaterialCursoForWeek = (week: number, seccion: string) =>
     materialCurso.filter(m => m.semana === week && m.seccion === seccion);
@@ -241,6 +251,21 @@ export default function CourseDetailPage() {
           onClose={() => setViewerOpen(false)}
           onNavigate={handleViewerNavigate}
           loading={viewerLoading}
+        />
+      )}
+
+      {/* Foro Viewer */}
+      {foroOpen && course && (
+        <ForoViewer
+          semana={foroSemana}
+          cursoId={course.id}
+          onClose={() => setForoOpen(false)}
+          totalItems={3}
+          currentIndex={0}
+          onPrev={() => {}}
+          onNext={() => { setForoOpen(false); /* go to materials section */ }}
+          canGoPrev={false}
+          canGoNext={true}
         />
       )}
 
@@ -310,38 +335,14 @@ export default function CourseDetailPage() {
                     {/* Sección: Foro de Consultas */}
                     {(weekForos.length > 0 || hasContent) && (
                       <div className="border-b border-gray-100">
-                        <button onClick={() => toggleSection(`foro-${week}`)}
+                        <button onClick={() => openForo(week)}
                           className="w-full flex items-center justify-between px-5 py-3 hover:bg-gray-50">
                           <div className="flex items-center gap-2">
                             <MessageSquare size={16} className="text-blue-500" />
                             <span className="text-sm font-medium text-gray-700">Foro de Consultas - Semana {week}</span>
                           </div>
-                          {openSections.has(`foro-${week}`) ? <ChevronUp size={16} className="text-gray-400" /> : <ChevronDown size={16} className="text-gray-400" />}
+                          <span className="text-xs text-[#C62828]">Abrir &rarr;</span>
                         </button>
-                        {openSections.has(`foro-${week}`) && (
-                          <div className="px-5 pb-3">
-                            {weekForos.length > 0 ? weekForos.map(foro => (
-                              <div key={foro.id} className="flex items-center justify-between p-3 rounded-lg bg-gray-50 mb-2">
-                                <div className="flex items-center gap-3">
-                                  <MessageSquare size={16} className="text-gray-400" />
-                                  <div>
-                                    <p className="text-xs text-gray-500">Foro de discusión no calificado</p>
-                                    <p className="text-sm font-medium text-gray-700">{foro.titulo}</p>
-                                  </div>
-                                </div>
-                                <div className="flex items-center gap-4">
-                                  <EstadoBadge estado={foro.estado} />
-                                  <div className="text-right text-[10px] text-gray-400">
-                                    {foro.fecha_inicio && <p>Desde: {formatDate(foro.fecha_inicio)}</p>}
-                                    {foro.fecha_fin && <p>Hasta: {formatDate(foro.fecha_fin)}</p>}
-                                  </div>
-                                </div>
-                              </div>
-                            )) : (
-                              <p className="text-xs text-gray-400 italic py-2">Foro no disponible aún.</p>
-                            )}
-                          </div>
-                        )}
                       </div>
                     )}
 
