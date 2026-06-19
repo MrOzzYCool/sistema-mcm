@@ -75,11 +75,8 @@ export default function MaterialViewer({
 
   return (
     <div className="flex flex-col h-full max-w-5xl mx-auto">
-      {/* Header: title + meta */}
-      <div className="px-5 py-3 border-b border-gray-200 bg-white">
-        <button onClick={onClose} className="inline-flex items-center gap-1 text-xs text-[#C62828] hover:underline mb-2">
-          <ArrowLeft size={14} /> Volver a contenido
-        </button>
+      {/* Title area */}
+      <div className="px-5 py-3">
         <h1 className="text-lg font-bold text-gray-800">{material.nombre_archivo}</h1>
         <div className="flex items-center gap-2 mt-0.5">
           <span className="text-xs text-gray-500">{getSectionLabel(material.seccion)}</span>
@@ -147,7 +144,7 @@ export default function MaterialViewer({
 function PdfViewer({ url }: { url: string }) {
   const [numPages, setNumPages] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
-  const [scale, setScale] = useState(0.5);
+  const [scale, setScale] = useState(0.65);
   const [showSidebar, setShowSidebar] = useState(true);
   const [showSearch, setShowSearch] = useState(false);
   const [searchText, setSearchText] = useState("");
@@ -239,7 +236,7 @@ function PdfViewer({ url }: { url: string }) {
       )}
 
       {/* Main area: sidebar + document */}
-      <div className="flex-1 flex overflow-hidden border border-t-0 border-gray-200 rounded-b-lg bg-gray-50" style={{ maxHeight: "45vh" }}>
+      <div className="flex-1 flex overflow-hidden border border-t-0 border-gray-200 rounded-b-lg bg-gray-50" style={{ maxHeight: "50vh" }}>
         {/* Sidebar: page thumbnails */}
         {showSidebar && (
           <div className="w-[100px] bg-white border-r border-gray-200 overflow-y-auto shrink-0 p-1.5 space-y-1.5">
