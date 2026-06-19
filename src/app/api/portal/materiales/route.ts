@@ -133,6 +133,43 @@ export async function POST(req: NextRequest) {
 }
 
 /**
+ * PATCH /api/portal/materiales
+ * Body: { material_id, visible }
+ * Toggle visibility of a material (only docentes/admin)
+ */
+export async function PATCH(req: NextRequest) {
+  const token = (req.headers.get("authorization") ?? "").replace("Bearer ", "");
+  if (!token) return NextResponse.json({ error: "No autenticado" }, { status: 401 });
+
+  const { data: { user } } = await supabaseAdmin.auth.getUser(token);
+  if (!user) return NextResponse.json({ error: "No autenticado" }, { status: 401 });
+
+  // Verify role
+  const { data: profile } = await supabaseAdmin
+    .from("profiles").select("rol, es_profesor").eq("id", user.id).single();
+
+  if (!profile || (profile.rol !== "profesor" && !profile.es_profesor && profile.rol !== "super_admin")) {
+    return NextResponse.json({ error: "Solo docentes pueden modificar visibilidad" }, { status: 403 });
+  }
+
+  const { material_id, visible } = await req.json();
+  if (!material_id || typeof visible !== "boolean") {
+    return NextResponse.json({ error: "material_id y visible (boolean) son requeridos" }, { status: 400 });
+  }
+
+  const { data, error } = await supabaseAdmin
+    .from("material_curso")
+    .update({ visible })
+    .eq("id", material_id)
+    .select()
+    .single();
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  return NextResponse.json({ success: true, material: data });
+}
+
+/**
  * DELETE /api/portal/materiales
  * Body: { material_id }
  */

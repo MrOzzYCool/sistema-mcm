@@ -1,14 +1,16 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
+import { getAccessToken } from "@/lib/get-token";
 import { Course } from "@/types/course";
 import {
   ArrowLeft, Video as VideoIcon, FileText, ExternalLink, LinkIcon,
-  ChevronDown, ChevronUp, User, MonitorPlay, Upload, X, Clock,
-  CheckCircle2, AlertCircle, MessageSquare, BookOpen, PenTool,
+  ChevronDown, ChevronUp, User,
+  MessageSquare, BookOpen, PenTool,
+  FileSpreadsheet, Image,
 } from "lucide-react";
 
 type TabId = "silabo" | "contenido" | "tareas" | "foros" | "notas" | "zoom";
@@ -24,6 +26,7 @@ const tabs: { id: TabId; label: string }[] = [
 interface ForoSemana { id: string; semana: number; titulo: string; estado: string; fecha_inicio: string | null; fecha_fin: string | null; }
 interface MaterialSemana { id: string; semana: number; tipo: string; titulo: string; descripcion: string | null; url: string | null; estado_revision: string; fecha_limite: string | null; }
 interface ActividadSemana { id: string; semana: number; titulo: string; tipo: string; url: string | null; estado: string; fecha_limite: string | null; }
+interface MaterialCurso { id: string; semana: number | null; nombre_archivo: string; tipo_archivo: string; tamano: number; url: string; visible: boolean; seccion: string; }
 
 function getCarreraSlug(carrera: string): string {
   const map: Record<string, string> = {
@@ -44,8 +47,12 @@ function getBannerUrl(course: { carrera?: string | null; imagen_url?: string | n
 function getIconForType(tipo: string) {
   switch (tipo) {
     case "pdf": return <FileText size={16} className="text-red-500" />;
-    case "video": return <VideoIcon size={16} className="text-blue-500" />;
+    case "video": case "mp4": return <VideoIcon size={16} className="text-blue-500" />;
     case "url": return <LinkIcon size={16} className="text-green-500" />;
+    case "docx": return <FileText size={16} className="text-blue-500" />;
+    case "xlsx": return <FileSpreadsheet size={16} className="text-green-600" />;
+    case "pptx": return <FileText size={16} className="text-orange-500" />;
+    case "jpg": case "png": case "jpeg": return <Image size={16} className="text-purple-500" />;
     default: return <FileText size={16} className="text-gray-400" />;
   }
 }
@@ -81,6 +88,12 @@ function formatDate(d: string | null): string {
   } catch { return d; }
 }
 
+function formatFileSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
 export default function CourseDetailPage() {
   const params = useParams();
   const codigo = params.codigo as string;
@@ -88,6 +101,7 @@ export default function CourseDetailPage() {
   const [foros, setForos] = useState<ForoSemana[]>([]);
   const [materiales, setMateriales] = useState<MaterialSemana[]>([]);
   const [actividades, setActividades] = useState<ActividadSemana[]>([]);
+  const [materialCurso, setMaterialCurso] = useState<MaterialCurso[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<TabId>("contenido");
@@ -116,6 +130,20 @@ export default function CourseDetailPage() {
         setForos(forosRes.data ?? []);
         setMateriales(matsRes.data ?? []);
         setActividades(actsRes.data ?? []);
+
+        // Fetch material_curso (uploaded files) - only visible ones for alumnos
+        const token = await getAccessToken();
+        if (token) {
+          const res = await fetch(`/api/portal/materiales?curso_id=${courseData.id}`, {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          if (res.ok) {
+            const data = await res.json();
+            // Filter only visible items for alumnos
+            const visibleMats = (data.materiales ?? []).filter((m: MaterialCurso) => m.visible !== false);
+            setMaterialCurso(visibleMats);
+          }
+        }
       } catch (err: unknown) { setError(err instanceof Error ? err.message : String(err)); }
       finally { setLoading(false); }
     }
@@ -128,6 +156,24 @@ export default function CourseDetailPage() {
   const toggleSection = (key: string) => {
     setOpenSections(prev => { const n = new Set(prev); if (n.has(key)) n.delete(key); else n.add(key); return n; });
   };
+
+  async function openFile(materialId: string) {
+    const token = await getAccessToken();
+    if (!token) { alert("Sesión no disponible"); return; }
+    const res = await fetch(`/api/portal/materiales/presigned?material_id=${materialId}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (res.ok) {
+      const { url } = await res.json();
+      window.open(url, "_blank");
+    } else {
+      alert("Error al abrir archivo");
+    }
+  }
+
+  // Helper: get material_curso items for a specific week and section
+  const getMaterialCursoForWeek = (week: number, seccion: string) =>
+    materialCurso.filter(m => m.semana === week && m.seccion === seccion);
 
   if (loading) return <div className="flex items-center justify-center min-h-[50vh]"><p className="text-gray-500 animate-pulse">Cargando curso...</p></div>;
   if (error || !course) return (
@@ -187,7 +233,9 @@ export default function CourseDetailPage() {
             const weekForos = foros.filter(f => f.semana === week);
             const weekMats = materiales.filter(m => m.semana === week);
             const weekActs = actividades.filter(a => a.semana === week);
-            const hasContent = weekForos.length > 0 || weekMats.length > 0 || weekActs.length > 0;
+            const weekMaterialFiles = getMaterialCursoForWeek(week, "material");
+            const weekActividadFiles = getMaterialCursoForWeek(week, "actividad");
+            const hasContent = weekForos.length > 0 || weekMats.length > 0 || weekActs.length > 0 || weekMaterialFiles.length > 0 || weekActividadFiles.length > 0;
 
             return (
               <div key={week} className={`bg-white rounded-lg shadow-sm overflow-hidden ${isOpen ? "border-l-4 border-[#C62828]" : "border border-gray-200"}`}>
@@ -241,7 +289,7 @@ export default function CourseDetailPage() {
                     )}
 
                     {/* Sección: Material de estudio */}
-                    {(weekMats.length > 0 || hasContent) && (
+                    {(weekMats.length > 0 || weekMaterialFiles.length > 0 || hasContent) && (
                       <div className="border-b border-gray-100">
                         <button onClick={() => toggleSection(`mat-${week}`)}
                           className="w-full flex items-center justify-between px-5 py-3 hover:bg-gray-50">
@@ -253,7 +301,8 @@ export default function CourseDetailPage() {
                         </button>
                         {openSections.has(`mat-${week}`) && (
                           <div className="px-5 pb-3 space-y-2">
-                            {weekMats.length > 0 ? weekMats.map(mat => (
+                            {/* materiales_semana rows */}
+                            {weekMats.map(mat => (
                               <div key={mat.id} className="flex items-center justify-between p-3 rounded-lg bg-gray-50">
                                 <div className="flex items-center gap-3">
                                   {getIconForType(mat.tipo)}
@@ -267,7 +316,25 @@ export default function CourseDetailPage() {
                                   <span className="text-[10px] text-gray-400">{mat.fecha_limite ? formatDate(mat.fecha_limite) : "Sin fecha límite"}</span>
                                 </div>
                               </div>
-                            )) : (
+                            ))}
+                            {/* material_curso files (uploaded via MinIO) */}
+                            {weekMaterialFiles.map(mat => (
+                              <div key={mat.id} className="flex items-center justify-between p-3 rounded-lg bg-gray-50">
+                                <div className="flex items-center gap-3">
+                                  {getIconForType(mat.tipo_archivo)}
+                                  <div>
+                                    <button onClick={() => openFile(mat.id)} className="text-sm font-medium text-gray-700 hover:text-[#C62828] text-left">
+                                      {mat.nombre_archivo}
+                                    </button>
+                                    <p className="text-[10px] text-gray-400">{mat.tipo_archivo.toUpperCase()} &middot; {formatFileSize(mat.tamano)}</p>
+                                  </div>
+                                </div>
+                                <button onClick={() => openFile(mat.id)} className="text-xs text-[#C62828] hover:underline flex items-center gap-1">
+                                  <ExternalLink size={12} /> Abrir
+                                </button>
+                              </div>
+                            ))}
+                            {weekMats.length === 0 && weekMaterialFiles.length === 0 && (
                               <p className="text-xs text-gray-400 italic py-2">Sin material de estudio para esta semana.</p>
                             )}
                           </div>
@@ -276,7 +343,7 @@ export default function CourseDetailPage() {
                     )}
 
                     {/* Sección: Pon en práctica lo aprendido */}
-                    {weekActs.length > 0 && (
+                    {(weekActs.length > 0 || weekActividadFiles.length > 0) && (
                       <div>
                         <button onClick={() => toggleSection(`act-${week}`)}
                           className="w-full flex items-center justify-between px-5 py-3 hover:bg-gray-50">
@@ -288,6 +355,7 @@ export default function CourseDetailPage() {
                         </button>
                         {openSections.has(`act-${week}`) && (
                           <div className="px-5 pb-3 space-y-2">
+                            {/* actividades_semana rows */}
                             {weekActs.map(act => (
                               <div key={act.id} className="flex items-center justify-between p-3 rounded-lg bg-gray-50">
                                 <div className="flex items-center gap-3">
@@ -301,6 +369,23 @@ export default function CourseDetailPage() {
                                   <EstadoBadge estado={act.estado} />
                                   <span className="text-[10px] text-gray-400">{act.fecha_limite ? formatDate(act.fecha_limite) : "Sin fecha límite"}</span>
                                 </div>
+                              </div>
+                            ))}
+                            {/* material_curso actividades (uploaded via MinIO) */}
+                            {weekActividadFiles.map(mat => (
+                              <div key={mat.id} className="flex items-center justify-between p-3 rounded-lg bg-gray-50">
+                                <div className="flex items-center gap-3">
+                                  {getIconForType(mat.tipo_archivo)}
+                                  <div>
+                                    <button onClick={() => openFile(mat.id)} className="text-sm font-medium text-gray-700 hover:text-[#C62828] text-left">
+                                      {mat.nombre_archivo}
+                                    </button>
+                                    <p className="text-[10px] text-gray-400">{mat.tipo_archivo.toUpperCase()} &middot; {formatFileSize(mat.tamano)}</p>
+                                  </div>
+                                </div>
+                                <button onClick={() => openFile(mat.id)} className="text-xs text-[#C62828] hover:underline flex items-center gap-1">
+                                  <ExternalLink size={12} /> Abrir
+                                </button>
                               </div>
                             ))}
                           </div>
