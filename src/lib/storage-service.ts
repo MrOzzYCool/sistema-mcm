@@ -228,23 +228,42 @@ export async function generatePresignedUrl(path: string, expiresIn: number = 360
 
 /**
  * Extrae el path/key del archivo a partir de la URL almacenada en la DB.
- * La URL almacenada tiene formato: http://192.168.1.42:9000/aula-virtual/{path}
- * Esta función devuelve solo el {path}.
+ *
+ * URLs posibles almacenadas:
+ * - https://archivos.mcm-storage.com/aula-virtual/cursos/123/semana-1/archivo.pdf
+ * - http://192.168.1.42:9000/aula-virtual/idiomas/ciclo-4/basic-spelling-skills/semana-1/1718900000-separata.pdf
+ * - cursos/123/semana-1/archivo.pdf (path directo)
+ *
+ * Resultado esperado: cursos/123/semana-1/archivo.pdf (sin el bucket)
  */
 export function extractPathFromUrl(url: string): string {
-  const bucketPrefix = `/aula-virtual/`;
-  const idx = url.indexOf(bucketPrefix);
-  if (idx >= 0) return url.substring(idx + bucketPrefix.length);
+  // Si no es una URL completa, ya es un path directo
+  if (!url.startsWith("http")) {
+    // Pero verificar que no empiece con el bucket name
+    if (url.startsWith("aula-virtual/")) return url.substring("aula-virtual/".length);
+    return url;
+  }
 
-  // Fallback: si no tiene el prefix, asumir que ya es un path
-  if (!url.startsWith("http")) return url;
-
-  // Último intento: quitar el host y bucket
   try {
     const parsed = new URL(url);
-    const pathParts = parsed.pathname.split("/aula-virtual/");
-    return pathParts.length > 1 ? pathParts[1] : parsed.pathname.slice(1);
+    // pathname será: /aula-virtual/cursos/123/semana-1/archivo.pdf
+    let path = parsed.pathname;
+
+    // Quitar slash inicial
+    if (path.startsWith("/")) path = path.substring(1);
+
+    // Quitar el nombre del bucket del inicio del path
+    if (path.startsWith("aula-virtual/")) {
+      return path.substring("aula-virtual/".length);
+    }
+
+    // Si no tiene el bucket en el path, devolver todo el path
+    return path;
   } catch {
+    // Si falla el parse, intentar split directo
+    const marker = "/aula-virtual/";
+    const idx = url.indexOf(marker);
+    if (idx >= 0) return url.substring(idx + marker.length);
     return url;
   }
 }
