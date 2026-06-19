@@ -65,7 +65,7 @@ export default function MaterialViewer({
   }, [handlePrev, handleNext, onClose]);
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full max-w-5xl mx-auto">
       {/* Header: title + meta */}
       <div className="px-5 py-3 border-b border-gray-200 bg-white">
         <button onClick={onClose} className="inline-flex items-center gap-1 text-xs text-[#C62828] hover:underline mb-2">
@@ -138,7 +138,7 @@ export default function MaterialViewer({
 function PdfViewer({ url }: { url: string }) {
   const [numPages, setNumPages] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
-  const [scale, setScale] = useState(0.8);
+  const [scale, setScale] = useState(0.6);
   const [showSidebar, setShowSidebar] = useState(true);
   const [showSearch, setShowSearch] = useState(false);
   const [searchText, setSearchText] = useState("");
@@ -150,8 +150,8 @@ function PdfViewer({ url }: { url: string }) {
     setNumPages(n);
   }
 
-  const zoomIn = () => setScale(s => Math.min(s + 0.2, 3));
-  const zoomOut = () => setScale(s => Math.max(s - 0.2, 0.3));
+  const zoomIn = () => setScale(s => Math.min(s + 0.1, 2.5));
+  const zoomOut = () => setScale(s => Math.max(s - 0.1, 0.3));
   const zoomPercent = Math.round(scale * 100);
 
   const goFullscreen = () => {
@@ -164,43 +164,43 @@ function PdfViewer({ url }: { url: string }) {
   };
 
   return (
-    <div className="flex flex-col h-full" ref={mainRef}>
+    <div className="flex flex-col h-full max-w-4xl mx-auto" ref={mainRef}>
       {/* Toolbar */}
-      <div className="flex items-center gap-1 px-3 py-2 bg-white border-b border-gray-200 shrink-0 overflow-x-auto">
+      <div className="flex items-center gap-1 px-3 py-1.5 bg-white border border-gray-200 rounded-t-lg shrink-0 overflow-x-auto">
         {/* Toggle sidebar */}
         <button onClick={() => setShowSidebar(!showSidebar)} title="Panel de páginas"
           className={`p-1.5 rounded transition-colors ${showSidebar ? "bg-blue-100 text-blue-600" : "text-gray-400 hover:bg-gray-100"}`}>
-          <PanelLeft size={18} />
+          <PanelLeft size={16} />
         </button>
 
-        <div className="w-px h-5 bg-gray-200 mx-1" />
+        <div className="w-px h-4 bg-gray-200 mx-1" />
 
         {/* Zoom */}
-        <span className="text-xs text-gray-600 min-w-[40px] text-center">{zoomPercent}%</span>
-        <button onClick={zoomOut} className="p-1.5 text-gray-500 hover:bg-gray-100 rounded" title="Alejar"><ZoomOut size={16} /></button>
-        <button onClick={zoomIn} className="p-1.5 text-gray-500 hover:bg-gray-100 rounded" title="Acercar"><ZoomIn size={16} /></button>
+        <span className="text-xs text-gray-600 min-w-[36px] text-center">{zoomPercent}%</span>
+        <button onClick={zoomOut} className="p-1 text-gray-500 hover:bg-gray-100 rounded" title="Alejar"><ZoomOut size={14} /></button>
+        <button onClick={zoomIn} className="p-1 text-gray-500 hover:bg-gray-100 rounded" title="Acercar"><ZoomIn size={14} /></button>
 
         {/* Drag mode */}
         <button onClick={() => setDragMode(!dragMode)} title="Arrastrar"
           className={`p-1.5 rounded transition-colors ${dragMode ? "bg-blue-100 text-blue-600" : "text-gray-400 hover:bg-gray-100"}`}>
-          <Hand size={16} />
+          <Hand size={14} />
         </button>
 
         {/* Fullscreen */}
-        <button onClick={goFullscreen} className="p-1.5 text-gray-500 hover:bg-gray-100 rounded" title="Pantalla completa"><Maximize size={16} /></button>
+        <button onClick={goFullscreen} className="p-1 text-gray-500 hover:bg-gray-100 rounded" title="Pantalla completa"><Maximize size={14} /></button>
 
         <div className="flex-1" />
 
         {/* Search */}
         <button onClick={() => setShowSearch(!showSearch)} title="Buscar"
           className={`p-1.5 rounded transition-colors ${showSearch ? "bg-blue-100 text-blue-600" : "text-gray-400 hover:bg-gray-100"}`}>
-          <Search size={16} />
+          <Search size={14} />
         </button>
 
         {/* Settings */}
         <div className="relative">
           <button onClick={() => setShowSettings(!showSettings)} className="p-1.5 text-gray-400 hover:bg-gray-100 rounded" title="Opciones">
-            <Settings size={16} />
+            <Settings size={14} />
           </button>
           {showSettings && (
             <div className="absolute right-0 top-8 bg-white border border-gray-200 rounded-lg shadow-lg py-1 z-20 min-w-[160px]">
@@ -217,7 +217,7 @@ function PdfViewer({ url }: { url: string }) {
 
       {/* Search bar */}
       {showSearch && (
-        <div className="flex items-center gap-2 px-3 py-2 bg-yellow-50 border-b border-yellow-200 shrink-0">
+        <div className="flex items-center gap-2 px-3 py-1.5 bg-yellow-50 border-x border-yellow-200 shrink-0">
           <Search size={14} className="text-gray-400" />
           <input
             type="text" value={searchText} onChange={e => setSearchText(e.target.value)}
@@ -230,16 +230,16 @@ function PdfViewer({ url }: { url: string }) {
       )}
 
       {/* Main area: sidebar + document */}
-      <div className="flex-1 flex overflow-hidden">
+      <div className="flex-1 flex overflow-hidden border border-t-0 border-gray-200 rounded-b-lg bg-gray-50" style={{ maxHeight: "55vh" }}>
         {/* Sidebar: page thumbnails */}
         {showSidebar && (
-          <div className="w-[160px] bg-gray-50 border-r border-gray-200 overflow-y-auto shrink-0 p-2 space-y-2">
+          <div className="w-[100px] bg-white border-r border-gray-200 overflow-y-auto shrink-0 p-1.5 space-y-1.5">
             <Document file={url} onLoadSuccess={() => {}} loading="">
               {Array.from({ length: numPages }, (_, i) => i + 1).map(page => (
                 <button key={page} onClick={() => setCurrentPage(page)}
-                  className={`block w-full rounded border-2 transition-colors mb-2 ${currentPage === page ? "border-blue-500" : "border-transparent hover:border-gray-300"}`}>
-                  <Page pageNumber={page} width={130} renderTextLayer={false} renderAnnotationLayer={false} />
-                  <p className="text-[10px] text-gray-500 text-center mt-1">{page}</p>
+                  className={`block w-full rounded border-2 transition-colors ${currentPage === page ? "border-blue-500" : "border-transparent hover:border-gray-300"}`}>
+                  <Page pageNumber={page} width={80} renderTextLayer={false} renderAnnotationLayer={false} />
+                  <p className="text-[9px] text-gray-500 text-center">{page}</p>
                 </button>
               ))}
             </Document>
@@ -247,12 +247,12 @@ function PdfViewer({ url }: { url: string }) {
         )}
 
         {/* Document view */}
-        <div className={`flex-1 overflow-auto p-4 ${dragMode ? "cursor-grab active:cursor-grabbing" : ""}`}>
+        <div className={`flex-1 overflow-auto p-3 ${dragMode ? "cursor-grab active:cursor-grabbing" : ""}`}>
           <Document file={url} onLoadSuccess={onDocumentLoadSuccess}
             loading={<div className="flex items-center justify-center py-12"><Loader2 size={24} className="animate-spin text-gray-400" /></div>}
             error={<p className="text-sm text-red-500 text-center py-8">Error cargando PDF.</p>}>
             {Array.from({ length: numPages }, (_, i) => i + 1).map(page => (
-              <div key={page} className="mb-4 flex justify-center">
+              <div key={page} className="mb-3 flex justify-center">
                 <Page pageNumber={page} scale={scale} className="shadow-sm" />
               </div>
             ))}
