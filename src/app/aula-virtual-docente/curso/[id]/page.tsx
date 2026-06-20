@@ -215,7 +215,7 @@ export default function DocenteCursoPage() {
   }
 
   return (
-    <div className="py-4 w-full">
+    <div className="py-4 w-full max-w-[1200px] mx-auto">
       <input ref={fileInputRef} type="file" className="hidden" accept=".pdf,.docx,.xlsx,.pptx,.jpg,.jpeg,.png,.mp4" onChange={handleFileSelected} />
 
       <Link href="/aula-virtual-docente" className="inline-flex items-center gap-1 text-sm text-[#C62828] hover:underline mb-4">

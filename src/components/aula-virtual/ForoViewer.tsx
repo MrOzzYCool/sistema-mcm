@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { getAccessToken } from "@/lib/get-token";
 import {
-  ArrowLeft, ChevronLeft, ChevronRight, MessageSquare, Send,
+  ChevronLeft, ChevronRight, MessageSquare, Send,
   Calendar, Loader2, User as UserIcon,
 } from "lucide-react";
 
@@ -118,24 +118,9 @@ export default function ForoViewer({
 
   return (
     <div className="flex flex-col h-full">
-      {/* Top bar */}
-      <div className="flex items-center justify-between px-6 py-3 border-b border-gray-200 bg-white shrink-0">
-        <button onClick={onClose} className="inline-flex items-center gap-1 text-sm text-[#C62828] hover:underline">
-          <ArrowLeft size={16} /> Volver al contenido
-        </button>
-        <span className="text-xs text-gray-400">{currentIndex + 1} de {totalItems}</span>
-      </div>
-
-      {/* Banner amarillo */}
-      <div className="bg-amber-400 text-center py-2 px-4 shrink-0">
-        <p className="text-sm text-amber-900 font-medium">
-          ⚠️ El docente aún no califica tu actividad, te notificaremos cuando sea calificada.
-        </p>
-      </div>
-
       {/* Content */}
       <div className="flex-1 overflow-auto">
-        <div className="max-w-3xl mx-auto px-6 py-6">
+        <div className="max-w-3xl mx-auto px-6 py-4">
           {/* Title */}
           <h1 className="text-2xl font-bold text-gray-800 mb-2">Foro de Consulta - Semana {semana}</h1>
           <div className="flex items-center gap-2 mb-6">
