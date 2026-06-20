@@ -398,7 +398,8 @@ export default function CourseDetailPage() {
             const weekActs = actividades.filter(a => a.semana === week);
             const weekMaterialFiles = getMaterialCursoForWeek(week, "material");
             const weekActividadFiles = getMaterialCursoForWeek(week, "actividad");
-            const hasContent = weekForos.length > 0 || weekMats.length > 0 || weekActs.length > 0 || weekMaterialFiles.length > 0 || weekActividadFiles.length > 0;
+            const hasMaterials = weekMats.length > 0 || weekMaterialFiles.length > 0;
+            const hasActividades = weekActs.length > 0 || weekActividadFiles.length > 0;
 
             return (
               <div key={week} className={`bg-white rounded-lg shadow-sm overflow-hidden ${isOpen ? "border-l-4 border-[#C62828]" : "border border-gray-200"}`}>
@@ -409,35 +410,28 @@ export default function CourseDetailPage() {
 
                 {isOpen && (
                   <div className="border-t border-gray-100">
-                    {!hasContent && (
-                      <p className="text-sm text-gray-400 italic px-5 py-4">Contenido no disponible aún para esta semana.</p>
-                    )}
+                    {/* Sección: Foro de Consultas - SIEMPRE visible */}
+                    <div className="border-b border-gray-100">
+                      <button onClick={() => openForo(week)}
+                        className="w-full flex items-center justify-between px-5 py-3 hover:bg-gray-50">
+                        <div className="flex items-center gap-2">
+                          <MessageSquare size={16} className="text-blue-500" />
+                          <span className="text-sm font-medium text-gray-700">Foro de Consultas - Semana {week}</span>
+                        </div>
+                        <span className="text-xs text-[#C62828]">Abrir &rarr;</span>
+                      </button>
+                    </div>
 
-                    {/* Sección: Foro de Consultas */}
-                    {(weekForos.length > 0 || hasContent) && (
-                      <div className="border-b border-gray-100">
-                        <button onClick={() => openForo(week)}
-                          className="w-full flex items-center justify-between px-5 py-3 hover:bg-gray-50">
-                          <div className="flex items-center gap-2">
-                            <MessageSquare size={16} className="text-blue-500" />
-                            <span className="text-sm font-medium text-gray-700">Foro de Consultas - Semana {week}</span>
-                          </div>
-                          <span className="text-xs text-[#C62828]">Abrir &rarr;</span>
-                        </button>
-                      </div>
-                    )}
-
-                    {/* Sección: Material de estudio */}
-                    {(weekMats.length > 0 || weekMaterialFiles.length > 0 || hasContent) && (
-                      <div className="border-b border-gray-100">
-                        <button onClick={() => toggleSection(`mat-${week}`)}
-                          className="w-full flex items-center justify-between px-5 py-3 hover:bg-gray-50">
-                          <div className="flex items-center gap-2">
-                            <BookOpen size={16} className="text-green-500" />
-                            <span className="text-sm font-medium text-gray-700">Material de estudio</span>
-                          </div>
-                          {openSections.has(`mat-${week}`) ? <ChevronUp size={16} className="text-gray-400" /> : <ChevronDown size={16} className="text-gray-400" />}
-                        </button>
+                    {/* Sección: Material de estudio - independiente */}
+                    <div className="border-b border-gray-100">
+                      <button onClick={() => toggleSection(`mat-${week}`)}
+                        className="w-full flex items-center justify-between px-5 py-3 hover:bg-gray-50">
+                        <div className="flex items-center gap-2">
+                          <BookOpen size={16} className="text-green-500" />
+                          <span className="text-sm font-medium text-gray-700">Material de estudio</span>
+                        </div>
+                        {openSections.has(`mat-${week}`) ? <ChevronUp size={16} className="text-gray-400" /> : <ChevronDown size={16} className="text-gray-400" />}
+                      </button>
                         {openSections.has(`mat-${week}`) && (
                           <div className="px-5 pb-3 space-y-2">
                             {/* materiales_semana rows */}
@@ -481,44 +475,43 @@ export default function CourseDetailPage() {
                       </div>
                     )}
 
-                    {/* Sección: Pon en práctica lo aprendido */}
-                    {(weekActs.length > 0 || weekActividadFiles.length > 0) && (
-                      <div>
-                        <button onClick={() => toggleSection(`act-${week}`)}
-                          className="w-full flex items-center justify-between px-5 py-3 hover:bg-gray-50">
-                          <div className="flex items-center gap-2">
-                            <PenTool size={16} className="text-orange-500" />
-                            <span className="text-sm font-medium text-gray-700">Pon en práctica lo aprendido</span>
-                          </div>
-                          {openSections.has(`act-${week}`) ? <ChevronUp size={16} className="text-gray-400" /> : <ChevronDown size={16} className="text-gray-400" />}
-                        </button>
-                        {openSections.has(`act-${week}`) && (
-                          <div className="px-5 pb-3 space-y-2">
-                            {/* actividades_semana rows */}
-                            {weekActs.map(act => (
-                              <div key={act.id} className="flex items-center justify-between p-3 rounded-lg bg-gray-50">
-                                <div className="flex items-center gap-3">
-                                  {getIconForType(act.tipo)}
-                                  <div>
-                                    <p className="text-xs text-gray-500">Material - {act.tipo.toUpperCase()}</p>
-                                    <p className="text-sm font-medium text-gray-700">{act.titulo}</p>
-                                  </div>
-                                </div>
-                                <div className="flex items-center gap-4">
-                                  <EstadoBadge estado={act.estado} />
-                                  <span className="text-[10px] text-gray-400">{act.fecha_limite ? formatDate(act.fecha_limite) : "Sin fecha límite"}</span>
+                    {/* Sección: Pon en práctica lo aprendido - SIEMPRE visible */}
+                    <div>
+                      <button onClick={() => toggleSection(`act-${week}`)}
+                        className="w-full flex items-center justify-between px-5 py-3 hover:bg-gray-50">
+                        <div className="flex items-center gap-2">
+                          <PenTool size={16} className="text-orange-500" />
+                          <span className="text-sm font-medium text-gray-700">Pon en práctica lo aprendido</span>
+                        </div>
+                        {openSections.has(`act-${week}`) ? <ChevronUp size={16} className="text-gray-400" /> : <ChevronDown size={16} className="text-gray-400" />}
+                      </button>
+                      {openSections.has(`act-${week}`) && (
+                        <div className="px-5 pb-3 space-y-2">
+                          {/* actividades_semana rows */}
+                          {weekActs.map(act => (
+                            <div key={act.id} className="flex items-center justify-between p-3 rounded-lg bg-gray-50">
+                              <div className="flex items-center gap-3">
+                                {getIconForType(act.tipo)}
+                                <div>
+                                  <p className="text-xs text-gray-500">Material - {act.tipo.toUpperCase()}</p>
+                                  <p className="text-sm font-medium text-gray-700">{act.titulo}</p>
                                 </div>
                               </div>
-                            ))}
-                            {/* material_curso actividades (uploaded via MinIO) */}
-                            {weekActividadFiles.map(mat => (
-                              <div key={mat.id} className="flex items-center justify-between p-3 rounded-lg bg-gray-50">
-                                <div className="flex items-center gap-3">
-                                  {getIconForType(mat.tipo_archivo)}
-                                  <div>
-                                    <button onClick={() => openFile(mat.id)} className="text-sm font-medium text-gray-700 hover:text-[#C62828] text-left">
-                                      {mat.nombre_archivo}
-                                    </button>
+                              <div className="flex items-center gap-4">
+                                <EstadoBadge estado={act.estado} />
+                                <span className="text-[10px] text-gray-400">{act.fecha_limite ? formatDate(act.fecha_limite) : "Sin fecha límite"}</span>
+                              </div>
+                            </div>
+                          ))}
+                          {/* material_curso actividades (uploaded via MinIO) */}
+                          {weekActividadFiles.map(mat => (
+                            <div key={mat.id} className="flex items-center justify-between p-3 rounded-lg bg-gray-50">
+                              <div className="flex items-center gap-3">
+                                {getIconForType(mat.tipo_archivo)}
+                                <div>
+                                  <button onClick={() => openFile(mat.id)} className="text-sm font-medium text-gray-700 hover:text-[#C62828] text-left">
+                                    {mat.nombre_archivo}
+                                  </button>
                                     <p className="text-[10px] text-gray-400">{mat.tipo_archivo.toUpperCase()} &middot; {formatFileSize(mat.tamano)}</p>
                                   </div>
                                 </div>
@@ -527,10 +520,12 @@ export default function CourseDetailPage() {
                                 </button>
                               </div>
                             ))}
+                            {weekActs.length === 0 && weekActividadFiles.length === 0 && (
+                              <p className="text-xs text-gray-400 italic py-2">Sin actividades para esta semana.</p>
+                            )}
                           </div>
                         )}
                       </div>
-                    )}
                   </div>
                 )}
               </div>
