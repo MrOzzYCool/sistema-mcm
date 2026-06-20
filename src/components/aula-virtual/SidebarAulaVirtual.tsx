@@ -2,14 +2,12 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
-import { useAuth } from "@/lib/auth-context";
+import { usePathname } from "next/navigation";
 import {
   LayoutDashboard, MessageCircle, Calendar, HelpCircle, Settings,
-  LogOut, Moon, Sun, ArrowLeftRight, Menu, X, Mail, Library,
+  Menu, X, Mail, Library,
 } from "lucide-react";
 import clsx from "clsx";
-import { useTheme } from "@/lib/theme-context";
 
 const NAV_ITEMS = [
   { href: "/aula-virtual",            label: "Cursos",        icon: LayoutDashboard },
@@ -26,15 +24,7 @@ const BOTTOM_ITEMS = [
 
 export default function SidebarAulaVirtual() {
   const pathname = usePathname();
-  const router = useRouter();
-  const { logout } = useAuth();
-  const { theme, toggleTheme } = useTheme();
   const [expanded, setExpanded] = useState(false);
-
-  async function handleLogout() {
-    await logout();
-    router.push("/");
-  }
 
   // Collapsed state
   if (!expanded) {
@@ -75,9 +65,6 @@ export default function SidebarAulaVirtual() {
               <Icon size={18} />
             </Link>
           ))}
-          <Link href="/seleccionar" className="w-10 h-10 flex items-center justify-center rounded-xl text-white/60 hover:text-white hover:bg-white/10 transition-all">
-            <ArrowLeftRight size={18} />
-          </Link>
         </div>
       </aside>
     );
@@ -122,14 +109,6 @@ export default function SidebarAulaVirtual() {
             <Icon size={18} /> <span>{label}</span>
           </Link>
         ))}
-        <Link href="/seleccionar"
-          className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-white/70 hover:bg-white/10 hover:text-white transition-all">
-          <ArrowLeftRight size={18} /> <span>Cambiar módulo</span>
-        </Link>
-        <button onClick={handleLogout}
-          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-white/70 hover:bg-white/10 hover:text-white transition-all">
-          <LogOut size={18} /> <span>Cerrar sesión</span>
-        </button>
       </div>
     </aside>
   );
