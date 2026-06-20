@@ -236,7 +236,7 @@ function PdfViewer({ url }: { url: string }) {
       )}
 
       {/* Main area: sidebar + document */}
-      <div className="flex-1 flex overflow-hidden border border-t-0 border-gray-200 rounded-b-lg bg-gray-50" style={{ height: "calc(100vh - 260px)" }}>
+      <div className="flex-1 flex overflow-hidden border border-t-0 border-gray-200 rounded-b-lg bg-gray-50" style={{ height: "calc(100vh - 180px)" }}>
         {/* Sidebar: page thumbnails */}
         {showSidebar && (
           <div className="w-[100px] bg-white border-r border-gray-200 overflow-y-auto shrink-0 p-1.5 space-y-1.5">
