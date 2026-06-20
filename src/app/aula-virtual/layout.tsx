@@ -77,7 +77,7 @@ function UserHeaderMenu({ user }: { user: { name: string; gender?: string; role?
   }
 
   // Simple gender-based avatar
-  const isFemale = user.gender === "F" || user.gender === "femenino";
+  const isFemale = user.gender?.toUpperCase() === "F" || user.gender?.toLowerCase() === "femenino";
 
   return (
     <div className="flex items-center gap-4">
@@ -102,24 +102,29 @@ function UserHeaderMenu({ user }: { user: { name: string; gender?: string; role?
             <p className="text-xs text-gray-400">Estudiante</p>
           </div>
           {/* Avatar */}
-          <div className="w-10 h-10 rounded-full flex items-center justify-center shrink-0 overflow-hidden" style={{ background: isFemale ? "#E0F7FA" : "#B2EBF2" }}>
+          <div className="w-10 h-10 rounded-full flex items-center justify-center shrink-0 overflow-hidden" style={{ background: isFemale ? "#FCE4EC" : "#E3F2FD" }}>
             {isFemale ? (
-              <svg width="28" height="28" viewBox="0 0 36 36" fill="none">
-                <circle cx="18" cy="14" r="8" fill="#FFCC80"/>
-                <path d="M10 14c0-4.4 3.6-8 8-8s8 3.6 8 8" fill="#5D4037"/>
-                <circle cx="15" cy="14" r="1.2" fill="#3E2723"/>
-                <circle cx="21" cy="14" r="1.2" fill="#3E2723"/>
-                <path d="M16 17.5c0 0 1 1.5 2 1.5s2-1.5 2-1.5" stroke="#3E2723" strokeWidth="0.8" fill="none"/>
-                <path d="M8 30c0-5.5 4.5-10 10-10s10 4.5 10 10" fill="#EC407A"/>
+              <svg width="30" height="30" viewBox="0 0 36 36" fill="none">
+                <circle cx="18" cy="15" r="7" fill="#FFCC80"/>
+                <path d="M11 15c0 0-1-8 7-8s7 8 7 8" fill="#5D4037"/>
+                <path d="M10 15c0 0 0-3 1-4" stroke="#5D4037" strokeWidth="2" fill="none"/>
+                <path d="M26 15c0 0 0-3-1-4" stroke="#5D4037" strokeWidth="2" fill="none"/>
+                <path d="M11 16c-1 3-2 7-2 10" stroke="#5D4037" strokeWidth="2.5" fill="none"/>
+                <path d="M25 16c1 3 2 7 2 10" stroke="#5D4037" strokeWidth="2.5" fill="none"/>
+                <circle cx="15.5" cy="15" r="1" fill="#3E2723"/>
+                <circle cx="20.5" cy="15" r="1" fill="#3E2723"/>
+                <path d="M16.5 18.5c0 0 .8 1 1.5 1s1.5-1 1.5-1" stroke="#E57373" strokeWidth="0.8" fill="none"/>
+                <path d="M9 28c0-5 4-9 9-9s9 4 9 9" fill="#EC407A"/>
               </svg>
             ) : (
-              <svg width="28" height="28" viewBox="0 0 36 36" fill="none">
-                <circle cx="18" cy="14" r="8" fill="#FFCC80"/>
-                <path d="M11 12c1-4 4-6 7-6s6 2 7 6" fill="#4E342E"/>
-                <circle cx="15" cy="14" r="1.2" fill="#3E2723"/>
-                <circle cx="21" cy="14" r="1.2" fill="#3E2723"/>
-                <path d="M16 17.5c0 0 1 1.5 2 1.5s2-1.5 2-1.5" stroke="#3E2723" strokeWidth="0.8" fill="none"/>
-                <path d="M8 30c0-5.5 4.5-10 10-10s10 4.5 10 10" fill="#42A5F5"/>
+              <svg width="30" height="30" viewBox="0 0 36 36" fill="none">
+                <circle cx="18" cy="15" r="7" fill="#FFCC80"/>
+                <path d="M12 13c0-4 3-6 6-6s6 2 6 6" fill="#4E342E"/>
+                <rect x="12" y="10" width="12" height="3" rx="1" fill="#4E342E"/>
+                <circle cx="15.5" cy="15" r="1" fill="#3E2723"/>
+                <circle cx="20.5" cy="15" r="1" fill="#3E2723"/>
+                <path d="M16.5 18.5c0 0 .8 1 1.5 1s1.5-1 1.5-1" stroke="#3E2723" strokeWidth="0.8" fill="none"/>
+                <path d="M9 28c0-5 4-9 9-9s9 4 9 9" fill="#1976D2"/>
               </svg>
             )}
           </div>
