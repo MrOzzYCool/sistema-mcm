@@ -258,7 +258,7 @@ function PdfViewer({ url }: { url: string }) {
             loading={<div className="flex items-center justify-center py-12"><Loader2 size={24} className="animate-spin text-gray-400" /></div>}
             error={<p className="text-sm text-red-500 text-center py-8">Error cargando PDF.</p>}>
             {Array.from({ length: numPages }, (_, i) => i + 1).map(page => (
-              <div key={page} className="mb-3 flex justify-center">
+              <div key={page} className="mb-3" style={{ width: "fit-content", margin: "0 auto" }}>
                 <Page pageNumber={page} scale={scale} className="shadow-sm" />
               </div>
             ))}
