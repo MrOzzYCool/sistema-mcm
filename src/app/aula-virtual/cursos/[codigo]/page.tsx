@@ -267,28 +267,26 @@ export default function CourseDetailPage() {
   // If viewer is open, show it INLINE (within the layout, sidebar stays)
   if (viewerOpen && viewerMaterial) {
     return (
-      <div className="py-4 px-4 max-w-[1200px] mx-auto">
+      <div className="py-3 px-6 w-full">
         {/* Course header bar */}
-        <div className="bg-gray-50 border border-gray-200 rounded-lg px-4 py-2 mb-3 flex items-center gap-3">
+        <div className="flex items-center gap-3 mb-2">
           <button onClick={() => { setViewerOpen(false); setForoOpen(false); }} className="text-xs text-[#C62828] hover:underline flex items-center gap-1">
             <ArrowLeft size={14} /> Volver a contenido
           </button>
           <div className="w-px h-4 bg-gray-300" />
-          <span className="text-sm text-gray-700 font-medium">{displayName}</span>
+          <span className="text-sm text-gray-700 font-semibold">{displayName}</span>
           <span className="inline-flex items-center text-[10px] px-2 py-0.5 rounded-full bg-teal-600 text-white font-medium">Virtual en vivo</span>
         </div>
 
         {/* Tabs */}
-        <div className="bg-white rounded-xl shadow-sm mb-4 overflow-x-auto">
-          <div className="flex border-b border-gray-200 min-w-max">
-            {tabs.map(tab => (
-              <button key={tab.id} onClick={() => { setViewerOpen(false); setForoOpen(false); setActiveTab(tab.id); }}
-                className={`px-5 py-3 text-sm font-medium transition-colors whitespace-nowrap ${tab.id === "contenido" ? "text-[#C62828]" : "text-gray-500 hover:text-[#C62828]"}`}
-                style={tab.id === "contenido" ? { borderBottomWidth: "3px", borderBottomColor: "#C62828" } : {}}>
-                {tab.label}
-              </button>
-            ))}
-          </div>
+        <div className="flex border-b border-gray-200 mb-4">
+          {tabs.map(tab => (
+            <button key={tab.id} onClick={() => { setViewerOpen(false); setForoOpen(false); setActiveTab(tab.id); }}
+              className={`px-4 py-2.5 text-sm font-medium transition-colors whitespace-nowrap ${tab.id === "contenido" ? "text-[#C62828]" : "text-gray-500 hover:text-[#C62828]"}`}
+              style={tab.id === "contenido" ? { borderBottomWidth: "3px", borderBottomColor: "#C62828" } : {}}>
+              {tab.label}
+            </button>
+          ))}
         </div>
 
         <MaterialViewer
@@ -313,28 +311,26 @@ export default function CourseDetailPage() {
   // If foro is open, show it INLINE
   if (foroOpen && course) {
     return (
-      <div className="py-4 px-4 max-w-[1200px] mx-auto">
+      <div className="py-3 px-6 w-full">
         {/* Course header bar */}
-        <div className="bg-gray-50 border border-gray-200 rounded-lg px-4 py-2 mb-3 flex items-center gap-3">
+        <div className="flex items-center gap-3 mb-2">
           <button onClick={() => { setViewerOpen(false); setForoOpen(false); }} className="text-xs text-[#C62828] hover:underline flex items-center gap-1">
             <ArrowLeft size={14} /> Volver a contenido
           </button>
           <div className="w-px h-4 bg-gray-300" />
-          <span className="text-sm text-gray-700 font-medium">{displayName}</span>
+          <span className="text-sm text-gray-700 font-semibold">{displayName}</span>
           <span className="inline-flex items-center text-[10px] px-2 py-0.5 rounded-full bg-teal-600 text-white font-medium">Virtual en vivo</span>
         </div>
 
         {/* Tabs */}
-        <div className="bg-white rounded-xl shadow-sm mb-4 overflow-x-auto">
-          <div className="flex border-b border-gray-200 min-w-max">
-            {tabs.map(tab => (
-              <button key={tab.id} onClick={() => { setViewerOpen(false); setForoOpen(false); setActiveTab(tab.id); }}
-                className={`px-5 py-3 text-sm font-medium transition-colors whitespace-nowrap ${tab.id === "contenido" ? "text-[#C62828]" : "text-gray-500 hover:text-[#C62828]"}`}
-                style={tab.id === "contenido" ? { borderBottomWidth: "3px", borderBottomColor: "#C62828" } : {}}>
-                {tab.label}
-              </button>
-            ))}
-          </div>
+        <div className="flex border-b border-gray-200 mb-4">
+          {tabs.map(tab => (
+            <button key={tab.id} onClick={() => { setViewerOpen(false); setForoOpen(false); setActiveTab(tab.id); }}
+              className={`px-4 py-2.5 text-sm font-medium transition-colors whitespace-nowrap ${tab.id === "contenido" ? "text-[#C62828]" : "text-gray-500 hover:text-[#C62828]"}`}
+              style={tab.id === "contenido" ? { borderBottomWidth: "3px", borderBottomColor: "#C62828" } : {}}>
+              {tab.label}
+            </button>
+          ))}
         </div>
 
         <ForoViewer

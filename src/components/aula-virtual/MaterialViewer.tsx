@@ -74,9 +74,9 @@ export default function MaterialViewer({
   }, [navPrev, navNext, onClose]);
 
   return (
-    <div className="flex flex-col h-full max-w-5xl mx-auto">
+    <div className="flex flex-col w-full">
       {/* Title area */}
-      <div className="px-5 py-3">
+      <div className="px-1 py-3">
         <h1 className="text-lg font-bold text-gray-800">{material.nombre_archivo}</h1>
         <div className="flex items-center gap-2 mt-0.5">
           <span className="text-xs text-gray-500">{getSectionLabel(material.seccion)}</span>
@@ -144,7 +144,7 @@ export default function MaterialViewer({
 function PdfViewer({ url }: { url: string }) {
   const [numPages, setNumPages] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
-  const [scale, setScale] = useState(0.65);
+  const [scale, setScale] = useState(0.85);
   const [showSidebar, setShowSidebar] = useState(true);
   const [showSearch, setShowSearch] = useState(false);
   const [searchText, setSearchText] = useState("");
@@ -170,7 +170,7 @@ function PdfViewer({ url }: { url: string }) {
   };
 
   return (
-    <div className="flex flex-col h-full max-w-4xl mx-auto" ref={mainRef}>
+    <div className="flex flex-col h-full" ref={mainRef}>
       {/* Toolbar */}
       <div className="flex items-center gap-1 px-3 py-1.5 bg-white border border-gray-200 rounded-t-lg shrink-0 overflow-x-auto">
         {/* Toggle sidebar */}
@@ -236,7 +236,7 @@ function PdfViewer({ url }: { url: string }) {
       )}
 
       {/* Main area: sidebar + document */}
-      <div className="flex-1 flex overflow-hidden border border-t-0 border-gray-200 rounded-b-lg bg-gray-50" style={{ maxHeight: "50vh" }}>
+      <div className="flex-1 flex overflow-hidden border border-t-0 border-gray-200 rounded-b-lg bg-gray-50" style={{ maxHeight: "55vh" }}>
         {/* Sidebar: page thumbnails */}
         {showSidebar && (
           <div className="w-[100px] bg-white border-r border-gray-200 overflow-y-auto shrink-0 p-1.5 space-y-1.5">
