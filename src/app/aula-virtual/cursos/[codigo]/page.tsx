@@ -269,7 +269,7 @@ export default function CourseDetailPage() {
     return (
       <div className="px-6 w-full h-[calc(100vh-64px)] overflow-hidden flex flex-col">
         {/* Course header bar */}
-        <div className="flex items-center gap-3 mb-2">
+        <div className="flex items-center gap-3 py-1.5 shrink-0">
           <button onClick={() => { setViewerOpen(false); setForoOpen(false); }} className="text-xs text-[#C62828] hover:underline flex items-center gap-1">
             <ArrowLeft size={14} /> Volver a contenido
           </button>
@@ -279,10 +279,10 @@ export default function CourseDetailPage() {
         </div>
 
         {/* Tabs */}
-        <div className="flex border-b border-gray-200 mb-4">
+        <div className="flex border-b border-gray-200 shrink-0">
           {tabs.map(tab => (
             <button key={tab.id} onClick={() => { setViewerOpen(false); setForoOpen(false); setActiveTab(tab.id); }}
-              className={`px-4 py-2.5 text-sm font-medium transition-colors whitespace-nowrap ${tab.id === "contenido" ? "text-[#C62828]" : "text-gray-500 hover:text-[#C62828]"}`}
+              className={`px-4 py-2 text-sm font-medium transition-colors whitespace-nowrap ${tab.id === "contenido" ? "text-[#C62828]" : "text-gray-500 hover:text-[#C62828]"}`}
               style={tab.id === "contenido" ? { borderBottomWidth: "3px", borderBottomColor: "#C62828" } : {}}>
               {tab.label}
             </button>

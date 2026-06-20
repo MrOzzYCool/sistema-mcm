@@ -74,7 +74,7 @@ export default function MaterialViewer({
   }, [navPrev, navNext, onClose]);
 
   return (
-    <div className="flex flex-col w-full max-w-4xl mx-auto flex-1">
+    <div className="flex flex-col w-full max-w-4xl mx-auto flex-1 min-h-0">
       {/* Title area */}
       <div className="py-2 shrink-0">
         <h1 className="text-lg font-bold text-gray-800">{material.nombre_archivo}</h1>
@@ -86,7 +86,7 @@ export default function MaterialViewer({
       </div>
 
       {/* PDF Viewer / Content */}
-      <div className="flex-1 overflow-hidden bg-gray-100">
+      <div className="flex-1 min-h-0 overflow-hidden bg-gray-100">
         {loading ? (
           <div className="flex items-center justify-center h-full"><Loader2 size={28} className="animate-spin text-gray-400" /></div>
         ) : presignedUrl ? (
@@ -236,7 +236,7 @@ function PdfViewer({ url }: { url: string }) {
       )}
 
       {/* Main area: sidebar + document */}
-      <div className="flex-1 flex overflow-hidden border border-t-0 border-gray-200 rounded-b-lg bg-gray-50" style={{ height: "calc(100vh - 130px)" }}>
+      <div className="flex-1 min-h-0 flex overflow-hidden border border-t-0 border-gray-200 rounded-b-lg bg-gray-50">
         {/* Sidebar: page thumbnails */}
         {showSidebar && (
           <div className="w-[100px] bg-white border-r border-gray-200 overflow-y-auto shrink-0 p-1.5 space-y-1.5">
