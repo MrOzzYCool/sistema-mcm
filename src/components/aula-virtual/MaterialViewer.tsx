@@ -74,9 +74,9 @@ export default function MaterialViewer({
   }, [navPrev, navNext, onClose]);
 
   return (
-    <div className="flex flex-col w-full">
+    <div className="flex flex-col w-full max-w-3xl mx-auto">
       {/* Title area */}
-      <div className="px-1 py-3">
+      <div className="py-3">
         <h1 className="text-lg font-bold text-gray-800">{material.nombre_archivo}</h1>
         <div className="flex items-center gap-2 mt-0.5">
           <span className="text-xs text-gray-500">{getSectionLabel(material.seccion)}</span>
@@ -116,15 +116,15 @@ export default function MaterialViewer({
       </div>
 
       {/* Footer */}
-      <div className="border-t border-gray-200 bg-white shrink-0">
-        <div className="flex items-center justify-between px-5 py-2.5">
+      <div className="border-t border-gray-200 bg-white shrink-0 mt-3">
+        <div className="flex items-center justify-between py-2.5">
           <p className="text-xs text-gray-500">Recuerda que puedes descargar el archivo.</p>
           <button onClick={handleDownload} disabled={!presignedUrl}
             className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-[#C62828] text-[#C62828] rounded text-xs font-medium hover:bg-red-50 disabled:opacity-40">
             <Download size={14} /> Descargar archivo
           </button>
         </div>
-        <div className="flex items-center justify-between px-5 py-2.5 border-t border-gray-100">
+        <div className="flex items-center justify-between py-2.5 border-t border-gray-100">
           <button onClick={navPrev} disabled={prevDisabled}
             className="inline-flex items-center gap-1 text-sm text-[#C62828] hover:underline disabled:text-gray-300 disabled:cursor-not-allowed">
             <ChevronLeft size={16} /> Anterior
@@ -144,8 +144,8 @@ export default function MaterialViewer({
 function PdfViewer({ url }: { url: string }) {
   const [numPages, setNumPages] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
-  const [scale, setScale] = useState(0.85);
-  const [showSidebar, setShowSidebar] = useState(true);
+  const [scale, setScale] = useState(0.7);
+  const [showSidebar, setShowSidebar] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
   const [searchText, setSearchText] = useState("");
   const [showSettings, setShowSettings] = useState(false);
