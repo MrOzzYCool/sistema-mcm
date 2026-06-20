@@ -74,7 +74,7 @@ export default function MaterialViewer({
   }, [navPrev, navNext, onClose]);
 
   return (
-    <div className="flex flex-col w-full max-w-3xl mx-auto">
+    <div className="flex flex-col w-full max-w-4xl mx-auto">
       {/* Title area */}
       <div className="py-3">
         <h1 className="text-lg font-bold text-gray-800">{material.nombre_archivo}</h1>
@@ -144,7 +144,7 @@ export default function MaterialViewer({
 function PdfViewer({ url }: { url: string }) {
   const [numPages, setNumPages] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
-  const [scale, setScale] = useState(0.7);
+  const [scale, setScale] = useState(0.8);
   const [showSidebar, setShowSidebar] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
   const [searchText, setSearchText] = useState("");
@@ -236,7 +236,7 @@ function PdfViewer({ url }: { url: string }) {
       )}
 
       {/* Main area: sidebar + document */}
-      <div className="flex-1 flex overflow-hidden border border-t-0 border-gray-200 rounded-b-lg bg-gray-50" style={{ maxHeight: "55vh" }}>
+      <div className="flex-1 flex overflow-hidden border border-t-0 border-gray-200 rounded-b-lg bg-gray-50" style={{ height: "60vh" }}>
         {/* Sidebar: page thumbnails */}
         {showSidebar && (
           <div className="w-[100px] bg-white border-r border-gray-200 overflow-y-auto shrink-0 p-1.5 space-y-1.5">
