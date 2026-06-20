@@ -1,31 +1,45 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" fill="none">
-  <!-- Hair back -->
-  <path d="M40 80c0 0-5 40-5 70c0 30 5 50 5 50h120c0 0 5-20 5-50c0-30-5-70-5-70" fill="#1B2838"/>
-  <!-- Body/shirt -->
-  <ellipse cx="100" cy="185" rx="50" ry="30" fill="#7CB342"/>
+  <!-- Pink circle background -->
+  <circle cx="100" cy="100" r="85" fill="#F48FB1"/>
+  <!-- Body/blouse -->
+  <path d="M50 200c0-30 22-50 50-50s50 20 50 50" fill="#2D2D3A"/>
+  <!-- Shoulders -->
+  <path d="M55 175c5-20 20-30 45-30s40 10 45 30" fill="#2D2D3A"/>
   <!-- Neck -->
-  <rect x="88" y="140" width="24" height="20" rx="10" fill="#F5D6C3"/>
+  <rect x="88" y="138" width="24" height="18" rx="10" fill="#F0A882"/>
   <!-- Face -->
-  <ellipse cx="100" cy="110" rx="45" ry="50" fill="#F5D6C3"/>
+  <ellipse cx="100" cy="105" rx="38" ry="42" fill="#F0A882"/>
+  <!-- Hair bun on top -->
+  <ellipse cx="100" cy="52" rx="22" ry="20" fill="#3D2B3A"/>
+  <!-- Hair band -->
+  <path d="M85 55c5-3 10-4 15-4s10 1 15 4" stroke="#FFA726" stroke-width="4" fill="none" stroke-linecap="round"/>
   <!-- Hair front -->
-  <path d="M55 90c0-35 20-55 45-55s45 20 45 55c0 5-2 8-5 10c2-30-15-48-40-48s-42 18-40 48c-3-2-5-5-5-10z" fill="#1B2838"/>
-  <!-- Hair sides -->
-  <path d="M55 90c-3 20-8 50-8 75c0 10 3 15 3 15" stroke="#1B2838" stroke-width="18" fill="none" stroke-linecap="round"/>
-  <path d="M145 90c3 20 8 50 8 75c0 10-3 15-3 15" stroke="#1B2838" stroke-width="18" fill="none" stroke-linecap="round"/>
-  <!-- Bangs -->
-  <path d="M75 75c5-8 12-12 20-12" stroke="#1B2838" stroke-width="8" fill="none" stroke-linecap="round"/>
-  <!-- Eyes -->
-  <ellipse cx="82" cy="108" rx="6" ry="7" fill="#1a1a1a"/>
-  <ellipse cx="118" cy="108" rx="6" ry="7" fill="#1a1a1a"/>
-  <!-- Eye shine -->
-  <circle cx="84" cy="106" r="2" fill="white"/>
-  <circle cx="120" cy="106" r="2" fill="white"/>
-  <!-- Eyebrows -->
-  <path d="M74 96c3-3 8-4 12-2" stroke="#1B2838" stroke-width="2" fill="none" stroke-linecap="round"/>
-  <path d="M114 94c4-2 9-1 12 2" stroke="#1B2838" stroke-width="2" fill="none" stroke-linecap="round"/>
-  <!-- Mouth -->
-  <path d="M92 125c3 4 8 5 16 0" stroke="#E57373" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+  <path d="M62 95c0-30 17-45 38-45s38 15 38 45" fill="#3D2B3A"/>
+  <!-- Hair bangs/fringe -->
+  <path d="M70 85c3-18 14-28 30-28s27 10 30 28c-5-12-15-20-30-20s-25 8-30 20z" fill="#3D2B3A"/>
+  <!-- Side hair/ponytail -->
+  <path d="M65 105c-3 15-5 35-5 50" stroke="#3D2B3A" stroke-width="14" fill="none" stroke-linecap="round"/>
   <!-- Ears -->
-  <ellipse cx="56" cy="110" rx="5" ry="7" fill="#F5D6C3"/>
-  <ellipse cx="144" cy="110" rx="5" ry="7" fill="#F5D6C3"/>
+  <ellipse cx="63" cy="108" rx="5" ry="7" fill="#F0A882"/>
+  <ellipse cx="137" cy="108" rx="5" ry="7" fill="#F0A882"/>
+  <!-- Earrings -->
+  <ellipse cx="63" cy="118" rx="3" ry="5" fill="#FFD54F"/>
+  <ellipse cx="137" cy="118" rx="3" ry="5" fill="#FFD54F"/>
+  <!-- Eyes -->
+  <ellipse cx="85" cy="105" rx="5" ry="6" fill="#2D2D2D"/>
+  <ellipse cx="115" cy="105" rx="5" ry="6" fill="#2D2D2D"/>
+  <!-- Eye shine -->
+  <circle cx="87" cy="103" r="2" fill="white"/>
+  <circle cx="117" cy="103" r="2" fill="white"/>
+  <!-- Eyebrows -->
+  <path d="M77 95c3-3 8-4 12-2" stroke="#3D2B3A" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+  <path d="M111 93c4-2 9-1 12 2" stroke="#3D2B3A" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+  <!-- Nose -->
+  <path d="M98 112c1 2 2 3 4 2" stroke="#D4845A" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+  <!-- Mouth (smile) -->
+  <path d="M88 122c4 5 10 7 16 5 3-1 5-3 6-5" stroke="#2D2D2D" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+  <path d="M90 123c3 3 8 4 13 3 3-1 5-2 6-3" fill="white"/>
+  <!-- Blush -->
+  <circle cx="76" cy="115" r="5" fill="#E8967D" opacity="0.5"/>
+  <circle cx="124" cy="115" r="5" fill="#E8967D" opacity="0.5"/>
 </svg>
