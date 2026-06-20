@@ -15,7 +15,7 @@ const ADMIN_LEVEL_ROLES = ["super_admin", "staff_tramites", "gestor", "actualiza
 
 interface Profile {
   id: string; nombre_completo: string; email: string;
-  rol: string; estado: string; dni: string | null; es_profesor?: boolean; created_at: string;
+  rol: string; estado: string; dni: string | null; genero?: string | null; es_profesor?: boolean; created_at: string;
   ciclo_actual?: number | null;
 }
 
@@ -42,7 +42,7 @@ function UsuariosContent() {
 
   // Edit modal state
   const [editModal, setEditModal] = useState<{ show: boolean; target: Profile | null }>({ show: false, target: null });
-  const [editForm, setEditForm] = useState({ nombre_completo: "", email: "", rol: "", estado: "", dni: "", es_profesor: false, ciclo: "1" });
+  const [editForm, setEditForm] = useState({ nombre_completo: "", email: "", rol: "", estado: "", dni: "", genero: "", es_profesor: false, ciclo: "1" });
   const [editSaving, setEditSaving] = useState(false);
 
   // Roles que pueden ver el botón Editar
@@ -50,7 +50,7 @@ function UsuariosContent() {
 
   // Form state
   const [form, setForm] = useState({
-    tipo: "alumno", nombres: "", apellidos: "", email: "", dni: "",
+    tipo: "alumno", nombres: "", apellidos: "", email: "", dni: "", genero: "",
     password: "", auto_password: true, force_change: true, notify_email: true,
     carrera_id: "", ciclo_inicial: "1", fecha_inicio_ciclo: "",
   });
@@ -121,7 +121,7 @@ function UsuariosContent() {
         setError(`⚠️ Usuario creado en Auth pero NO en profiles: ${json.error}. Verifica permisos de la tabla profiles.`);
       }
       setShowModal(false);
-      setForm({ tipo: "alumno", nombres: "", apellidos: "", email: "", dni: "", password: "", auto_password: true, force_change: true, notify_email: true, carrera_id: "", ciclo_inicial: "1", fecha_inicio_ciclo: "" });
+      setForm({ tipo: "alumno", nombres: "", apellidos: "", email: "", dni: "", genero: "", password: "", auto_password: true, force_change: true, notify_email: true, carrera_id: "", ciclo_inicial: "1", fecha_inicio_ciclo: "" });
       cargar();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Error");
@@ -240,6 +240,7 @@ function UsuariosContent() {
       rol: p.rol,
       estado: p.estado,
       dni: p.dni ?? "",
+      genero: p.genero ?? "",
       es_profesor: p.es_profesor ?? false,
       ciclo: cicloActual,
     });
@@ -261,6 +262,7 @@ function UsuariosContent() {
           rol: editForm.rol,
           estado: editForm.estado,
           dni: editForm.dni,
+          genero: editForm.genero || null,
           es_profesor: editForm.es_profesor,
           ...(editForm.rol === "alumno" && { ciclo: parseInt(editForm.ciclo) }),
         }),
@@ -499,6 +501,15 @@ function UsuariosContent() {
                   placeholder="12345678" maxLength={8}
                   className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#C62828]" />
               </div>
+              <div>
+                <label className="block text-sm font-medium text-mcm-text mb-1">Género</label>
+                <select value={form.genero} onChange={e => setForm({...form, genero: e.target.value})}
+                  className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#C62828]">
+                  <option value="">Seleccionar...</option>
+                  <option value="M">Masculino</option>
+                  <option value="F">Femenino</option>
+                </select>
+              </div>
               {/* Campos de carrera y ciclo — solo para alumnos */}
               {form.tipo === "alumno" && (
                 <>
@@ -668,6 +679,15 @@ function UsuariosContent() {
                 <input value={editForm.dni} onChange={e => setEditForm({...editForm, dni: e.target.value.replace(/\D/g,"").slice(0,8)})}
                   placeholder="12345678" maxLength={8}
                   className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#C62828]" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-mcm-text mb-1">Género</label>
+                <select value={editForm.genero} onChange={e => setEditForm({...editForm, genero: e.target.value})}
+                  className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#C62828]">
+                  <option value="">Sin especificar</option>
+                  <option value="M">Masculino</option>
+                  <option value="F">Femenino</option>
+                </select>
               </div>
               {editForm.rol === "alumno" && (
                 <div>
