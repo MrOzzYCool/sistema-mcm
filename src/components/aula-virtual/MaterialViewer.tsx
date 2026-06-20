@@ -147,6 +147,8 @@ function PdfViewer({ url }: { url: string }) {
   const [numPages, setNumPages] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
   const [scale, setScale] = useState(0.8);
+  const [savedScale, setSavedScale] = useState(0.8);
+  const [isFullscreen, setIsFullscreen] = useState(false);
   const [showSidebar, setShowSidebar] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
   const [searchText, setSearchText] = useState("");
@@ -163,8 +165,26 @@ function PdfViewer({ url }: { url: string }) {
   const zoomPercent = Math.round(scale * 100);
 
   const goFullscreen = () => {
-    if (mainRef.current) mainRef.current.requestFullscreen?.();
+    if (mainRef.current) {
+      setSavedScale(scale);
+      setScale(1.5);
+      mainRef.current.requestFullscreen?.();
+    }
   };
+
+  // Listen for fullscreen exit to restore scale
+  useEffect(() => {
+    function onFullscreenChange() {
+      if (!document.fullscreenElement) {
+        setScale(savedScale);
+        setIsFullscreen(false);
+      } else {
+        setIsFullscreen(true);
+      }
+    }
+    document.addEventListener("fullscreenchange", onFullscreenChange);
+    return () => document.removeEventListener("fullscreenchange", onFullscreenChange);
+  }, [savedScale]);
 
   const handlePrint = () => {
     const w = window.open(url, "_blank");
@@ -172,7 +192,7 @@ function PdfViewer({ url }: { url: string }) {
   };
 
   return (
-    <div className="flex flex-col h-full" ref={mainRef}>
+    <div className="flex flex-col h-full" ref={mainRef} style={isFullscreen ? { background: "#f9fafb" } : undefined}>
       {/* Toolbar */}
       <div className="flex items-center gap-1 px-3 py-1.5 bg-white border border-gray-200 rounded-t-lg shrink-0 overflow-x-auto">
         {/* Toggle sidebar */}
@@ -211,11 +231,11 @@ function PdfViewer({ url }: { url: string }) {
             <Settings size={14} />
           </button>
           {showSettings && (
-            <div className="absolute right-0 top-8 bg-white border border-gray-200 rounded-lg shadow-lg py-1 z-20 min-w-[160px]">
-              <button onClick={() => { goFullscreen(); setShowSettings(false); }} className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2">
+            <div className="absolute right-0 bottom-full mb-2 bg-white border border-gray-200 rounded-lg shadow-lg py-2 z-50 min-w-[180px]">
+              <button onClick={() => { goFullscreen(); setShowSettings(false); }} className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2">
                 <Maximize size={14} /> Pantalla completa
               </button>
-              <button onClick={() => { handlePrint(); setShowSettings(false); }} className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2">
+              <button onClick={() => { handlePrint(); setShowSettings(false); }} className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2">
                 <Printer size={14} /> Imprimir
               </button>
             </div>
