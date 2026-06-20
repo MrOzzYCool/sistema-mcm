@@ -230,18 +230,23 @@ function PdfViewer({ url }: { url: string }) {
           <button onClick={() => setShowSettings(!showSettings)} className="p-1.5 text-gray-400 hover:bg-gray-100 rounded" title="Opciones">
             <Settings size={14} />
           </button>
-          {showSettings && (
-            <div className="absolute right-0 bottom-full mb-2 bg-white border border-gray-200 rounded-lg shadow-lg py-2 z-50 min-w-[180px]">
-              <button onClick={() => { goFullscreen(); setShowSettings(false); }} className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2">
-                <Maximize size={14} /> Pantalla completa
-              </button>
-              <button onClick={() => { handlePrint(); setShowSettings(false); }} className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2">
-                <Printer size={14} /> Imprimir
-              </button>
-            </div>
-          )}
         </div>
       </div>
+
+      {/* Settings dropdown - outside toolbar to avoid overflow clip */}
+      {showSettings && (
+        <div className="relative shrink-0">
+          <div className="absolute right-3 top-0 bg-white border border-gray-200 rounded-lg shadow-lg py-2 z-50 min-w-[180px]">
+            <button onClick={() => { goFullscreen(); setShowSettings(false); }} className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2">
+              <Maximize size={14} /> Pantalla completa
+            </button>
+            <button onClick={() => { handlePrint(); setShowSettings(false); }} className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2">
+              <Printer size={14} /> Imprimir
+            </button>
+          </div>
+          <button onClick={() => setShowSettings(false)} className="fixed inset-0 z-40" aria-label="Cerrar menú" />
+        </div>
+      )}
 
       {/* Search bar */}
       {showSearch && (
