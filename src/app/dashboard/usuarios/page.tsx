@@ -225,15 +225,9 @@ function UsuariosContent() {
   }
 
   async function openEditModal(p: Profile) {
-    // Load ciclo from inscripciones if alumno
-    let cicloActual = "1";
-    if (p.rol === "alumno") {
-      try {
-        const { supabase: sb } = await import("@/lib/supabase");
-        const { data: insc } = await sb.from("inscripciones").select("ciclo_actual").eq("alumno_id", p.id).order("created_at", { ascending: false }).limit(1);
-        if (insc && insc.length > 0) cicloActual = String(insc[0].ciclo_actual);
-      } catch { /* ignore */ }
-    }
+    // Use ciclo_actual already loaded from the API (enriched with inscripciones data)
+    const cicloActual = p.ciclo_actual ? String(p.ciclo_actual) : "1";
+
     setEditForm({
       nombre_completo: p.nombre_completo,
       email: p.email,
