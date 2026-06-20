@@ -267,7 +267,7 @@ export default function CourseDetailPage() {
   // If viewer is open, show it INLINE (within the layout, sidebar stays)
   if (viewerOpen && viewerMaterial) {
     return (
-      <div className="py-2 px-6 w-full h-[calc(100vh-64px)] overflow-hidden flex flex-col">
+      <div className="px-6 w-full h-[calc(100vh-64px)] overflow-hidden flex flex-col">
         {/* Course header bar */}
         <div className="flex items-center gap-3 mb-2">
           <button onClick={() => { setViewerOpen(false); setForoOpen(false); }} className="text-xs text-[#C62828] hover:underline flex items-center gap-1">

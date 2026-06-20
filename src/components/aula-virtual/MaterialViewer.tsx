@@ -74,9 +74,9 @@ export default function MaterialViewer({
   }, [navPrev, navNext, onClose]);
 
   return (
-    <div className="flex flex-col w-full max-w-4xl mx-auto">
+    <div className="flex flex-col w-full max-w-4xl mx-auto flex-1">
       {/* Title area */}
-      <div className="py-3">
+      <div className="py-2 shrink-0">
         <h1 className="text-lg font-bold text-gray-800">{material.nombre_archivo}</h1>
         <div className="flex items-center gap-2 mt-0.5">
           <span className="text-xs text-gray-500">{getSectionLabel(material.seccion)}</span>
@@ -116,8 +116,8 @@ export default function MaterialViewer({
       </div>
 
       {/* Footer */}
-      <div className="border-t border-gray-200 bg-white shrink-0 mt-3">
-        <div className="flex items-center justify-between py-2.5">
+      <div className="border-t border-gray-200 bg-white shrink-0 mt-2">
+        <div className="flex items-center justify-between py-2">
           <p className="text-xs text-gray-500">Recuerda que puedes descargar el archivo.</p>
           <button onClick={handleDownload} disabled={!presignedUrl}
             className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-[#C62828] text-[#C62828] rounded text-xs font-medium hover:bg-red-50 disabled:opacity-40">
@@ -236,7 +236,7 @@ function PdfViewer({ url }: { url: string }) {
       )}
 
       {/* Main area: sidebar + document */}
-      <div className="flex-1 flex overflow-hidden border border-t-0 border-gray-200 rounded-b-lg bg-gray-50" style={{ height: "calc(100vh - 180px)" }}>
+      <div className="flex-1 flex overflow-hidden border border-t-0 border-gray-200 rounded-b-lg bg-gray-50" style={{ height: "calc(100vh - 130px)" }}>
         {/* Sidebar: page thumbnails */}
         {showSidebar && (
           <div className="w-[100px] bg-white border-r border-gray-200 overflow-y-auto shrink-0 p-1.5 space-y-1.5">
