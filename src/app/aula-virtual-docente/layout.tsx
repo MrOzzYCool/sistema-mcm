@@ -94,31 +94,9 @@ function UserHeaderMenuDocente({ user }: { user: { name: string; gender?: string
             <p className="text-sm text-gray-600 leading-tight">Hola, <span className="font-semibold text-gray-800">{user.name?.split(" ")[0]}</span></p>
             <p className="text-xs text-gray-400">Docente</p>
           </div>
-          <div className="w-10 h-10 rounded-full flex items-center justify-center shrink-0 overflow-hidden" style={{ background: isFemale ? "#FCE4EC" : "#E3F2FD" }}>
-            {isFemale ? (
-              <svg width="30" height="30" viewBox="0 0 36 36" fill="none">
-                <circle cx="18" cy="15" r="7" fill="#FFCC80"/>
-                <path d="M11 15c0 0-1-8 7-8s7 8 7 8" fill="#5D4037"/>
-                <path d="M10 15c0 0 0-3 1-4" stroke="#5D4037" strokeWidth="2" fill="none"/>
-                <path d="M26 15c0 0 0-3-1-4" stroke="#5D4037" strokeWidth="2" fill="none"/>
-                <path d="M11 16c-1 3-2 7-2 10" stroke="#5D4037" strokeWidth="2.5" fill="none"/>
-                <path d="M25 16c1 3 2 7 2 10" stroke="#5D4037" strokeWidth="2.5" fill="none"/>
-                <circle cx="15.5" cy="15" r="1" fill="#3E2723"/>
-                <circle cx="20.5" cy="15" r="1" fill="#3E2723"/>
-                <path d="M16.5 18.5c0 0 .8 1 1.5 1s1.5-1 1.5-1" stroke="#E57373" strokeWidth="0.8" fill="none"/>
-                <path d="M9 28c0-5 4-9 9-9s9 4 9 9" fill="#EC407A"/>
-              </svg>
-            ) : (
-              <svg width="30" height="30" viewBox="0 0 36 36" fill="none">
-                <circle cx="18" cy="15" r="7" fill="#FFCC80"/>
-                <path d="M12 13c0-4 3-6 6-6s6 2 6 6" fill="#4E342E"/>
-                <rect x="12" y="10" width="12" height="3" rx="1" fill="#4E342E"/>
-                <circle cx="15.5" cy="15" r="1" fill="#3E2723"/>
-                <circle cx="20.5" cy="15" r="1" fill="#3E2723"/>
-                <path d="M16.5 18.5c0 0 .8 1 1.5 1s1.5-1 1.5-1" stroke="#3E2723" strokeWidth="0.8" fill="none"/>
-                <path d="M9 28c0-5 4-9 9-9s9 4 9 9" fill="#1976D2"/>
-              </svg>
-            )}
+          <div className="w-10 h-10 rounded-full overflow-hidden shrink-0 bg-gray-100">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={isFemale ? "/avatars/female.svg" : "/avatars/male.svg"} alt="Avatar" className="w-full h-full object-cover" />
           </div>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-gray-400">
             <path d="M6 9l6 6 6-6"/>

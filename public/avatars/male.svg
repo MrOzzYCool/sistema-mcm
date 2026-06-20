@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" fill="none">
+  <!-- Body/shirt -->
+  <ellipse cx="100" cy="185" rx="50" ry="30" fill="#1976D2"/>
+  <!-- Neck -->
+  <rect x="88" y="140" width="24" height="20" rx="10" fill="#F5D6C3"/>
+  <!-- Face -->
+  <ellipse cx="100" cy="110" rx="45" ry="50" fill="#F5D6C3"/>
+  <!-- Hair -->
+  <path d="M55 90c0-35 20-55 45-55s45 20 45 55c0 3-1 5-2 7c3-28-16-47-43-47s-46 19-43 47c-1-2-2-4-2-7z" fill="#4E342E"/>
+  <!-- Hair top flat -->
+  <path d="M60 80c2-25 18-40 40-40s38 15 40 40" fill="#4E342E"/>
+  <!-- Eyes -->
+  <ellipse cx="82" cy="108" rx="5" ry="6" fill="#1a1a1a"/>
+  <ellipse cx="118" cy="108" rx="5" ry="6" fill="#1a1a1a"/>
+  <!-- Eye shine -->
+  <circle cx="84" cy="106" r="2" fill="white"/>
+  <circle cx="120" cy="106" r="2" fill="white"/>
+  <!-- Eyebrows -->
+  <path d="M72 95c4-3 10-4 14-2" stroke="#4E342E" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+  <path d="M114 93c4-2 10-1 14 2" stroke="#4E342E" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+  <!-- Mouth -->
+  <path d="M92 125c3 3 8 4 16 0" stroke="#8D6E63" stroke-width="2" fill="none" stroke-linecap="round"/>
+  <!-- Ears -->
+  <ellipse cx="56" cy="110" rx="5" ry="7" fill="#F5D6C3"/>
+  <ellipse cx="144" cy="110" rx="5" ry="7" fill="#F5D6C3"/>
+</svg>
