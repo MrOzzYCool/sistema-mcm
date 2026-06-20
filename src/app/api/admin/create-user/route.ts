@@ -30,7 +30,7 @@ export async function POST(req: NextRequest) {
     console.log("create-user: admin verificado:", admin.email);
 
     const body = await req.json();
-    const { tipo, nombre_completo, email, dni, password: customPassword, auto_password, force_change, notify_email, carrera_id, ciclo_inicial, fecha_inicio_ciclo: fechaInicioProp } = body;
+    const { tipo, nombre_completo, email, dni, password: customPassword, auto_password, force_change, notify_email, carrera_id, ciclo_inicial, fecha_inicio_ciclo: fechaInicioProp, genero } = body;
 
     if (!tipo || !nombre_completo || !email) {
       return NextResponse.json({ error: "Faltan campos obligatorios" }, { status: 400 });
@@ -69,6 +69,7 @@ export async function POST(req: NextRequest) {
         rol: tipo,
         estado: "activo",
         dni: dni || null,
+        genero: genero || null,
         created_by: admin.id,
         force_password_reset: !!force_change,
       }, { onConflict: "id" })

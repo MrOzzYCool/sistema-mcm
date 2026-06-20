@@ -21,6 +21,7 @@ export interface AppUser {
   name: string;
   role: AppRole;
   avatar: string;
+  gender?: string;
   forcePasswordReset?: boolean;
 }
 
@@ -82,7 +83,7 @@ async function resolveUser(su: SupabaseUser): Promise<AppUser> {
             const name = apiProfile.nombre_completo ?? email.split("@")[0];
             const initials = name.split(" ").map((w: string) => w[0]).join("").toUpperCase().slice(0, 2);
             log(`👤 Profile via API: ${name} (${apiProfile.rol})`);
-            return { id: su.id, email, name, role: (apiProfile.rol as AppRole), avatar: initials, forcePasswordReset: !!apiProfile.force_password_reset };
+            return { id: su.id, email, name, role: (apiProfile.rol as AppRole), avatar: initials, gender: apiProfile.genero ?? undefined, forcePasswordReset: !!apiProfile.force_password_reset };
           }
         }
       } catch {
@@ -93,7 +94,7 @@ async function resolveUser(su: SupabaseUser): Promise<AppUser> {
     // Fallback: direct query
     const profilePromise = supabase
       .from("profiles")
-      .select("nombre_completo, rol, estado, force_password_reset")
+      .select("nombre_completo, rol, estado, force_password_reset, genero")
       .eq("id", su.id)
       .single();
 
@@ -107,7 +108,7 @@ async function resolveUser(su: SupabaseUser): Promise<AppUser> {
       const name = profile.nombre_completo ?? email.split("@")[0];
       const initials = name.split(" ").map((w: string) => w[0]).join("").toUpperCase().slice(0, 2);
       log(`👤 Profile direct: ${name} (${profile.rol})`);
-      return { id: su.id, email, name, role: (profile.rol as AppRole), avatar: initials, forcePasswordReset: !!profile.force_password_reset };
+      return { id: su.id, email, name, role: (profile.rol as AppRole), avatar: initials, gender: profile.genero ?? undefined, forcePasswordReset: !!profile.force_password_reset };
     }
   } catch (err) {
     log(`⚠️ Profile resolution failed: ${err}`);

@@ -14,7 +14,7 @@ export async function GET(req: NextRequest) {
 
   const { data: profile } = await supabaseAdmin
     .from("profiles")
-    .select("nombre_completo, rol, estado, force_password_reset, es_profesor")
+    .select("nombre_completo, rol, estado, force_password_reset, es_profesor, genero")
     .eq("id", user.id)
     .single();
 
@@ -28,6 +28,7 @@ export async function GET(req: NextRequest) {
     nombre_completo: profile.nombre_completo,
     rol: profile.rol,
     es_profesor: profile.es_profesor,
+    genero: profile.genero,
     force_password_reset: profile.force_password_reset,
   });
 }
