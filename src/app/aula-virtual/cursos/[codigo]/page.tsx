@@ -473,7 +473,6 @@ export default function CourseDetailPage() {
                           </div>
                         )}
                       </div>
-                    )}
 
                     {/* Sección: Pon en práctica lo aprendido - SIEMPRE visible */}
                     <div>

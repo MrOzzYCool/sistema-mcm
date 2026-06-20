@@ -54,7 +54,9 @@ export default function MaterialViewer({
 }: MaterialViewerProps) {
   // Use week-level nav if provided, otherwise fallback to material-only nav
   const usesWeekNav = onPrev !== undefined && onNext !== undefined;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   const navPrev = usesWeekNav ? onPrev! : () => { if (currentIndex > 0) onNavigate(allMaterials[currentIndex - 1].id); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   const navNext = usesWeekNav ? onNext! : () => { if (currentIndex < allMaterials.length - 1) onNavigate(allMaterials[currentIndex + 1].id); };
   const prevDisabled = usesWeekNav ? !canGoPrev : currentIndex <= 0;
   const nextDisabled = usesWeekNav ? !canGoNext : currentIndex >= allMaterials.length - 1;
