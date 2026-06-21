@@ -382,12 +382,7 @@ export default function CourseDetailPage() {
 
       {/* Tab: Sílabo */}
       {activeTab === "silabo" && (
-        <div className="bg-white rounded-xl shadow-sm p-6">
-          <h2 className="font-semibold text-gray-800 mb-4">Sílabo del Curso</h2>
-          <p className="text-sm text-gray-400 text-center py-8">
-            El sílabo estará disponible cuando el docente lo suba al sistema.
-          </p>
-        </div>
+        <AlumnoSilaboTab materialCurso={materialCurso} onOpenFile={openFile} />
       )}
 
       {/* Tab: Contenido — Acordeón semanal con 3 secciones */}
@@ -542,6 +537,72 @@ export default function CourseDetailPage() {
             <span className="block text-lg font-medium text-gray-500 mb-1">{tabs.find(t => t.id === activeTab)?.label}</span>
             Disponible próximamente.
           </p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Alumno Sílabo Tab ──────────────────────────────────────────────────────
+
+function AlumnoSilaboTab({ materialCurso, onOpenFile }: { materialCurso: MaterialCurso[]; onOpenFile: (id: string) => void }) {
+  const silaboFiles = materialCurso.filter(m => m.seccion === "silabo");
+  const sesionesFiles = materialCurso.filter(m => m.seccion === "sesiones");
+
+  const hasContent = silaboFiles.length > 0 || sesionesFiles.length > 0;
+
+  if (!hasContent) {
+    return (
+      <div className="bg-white rounded-xl shadow-sm p-6">
+        <h2 className="font-semibold text-gray-800 mb-4">Sílabo del Curso</h2>
+        <p className="text-sm text-gray-400 text-center py-8">
+          El sílabo estará disponible cuando el docente lo suba al sistema.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      {silaboFiles.length > 0 && (
+        <div className="bg-white rounded-xl shadow-sm p-6">
+          <h3 className="font-semibold text-gray-800 mb-4">Sílabo del curso</h3>
+          <div className="space-y-3">
+            {silaboFiles.map(mat => (
+              <button key={mat.id} onClick={() => onOpenFile(mat.id)}
+                className="w-full flex items-center gap-4 p-4 border border-gray-200 rounded-lg hover:border-[#C62828] hover:bg-red-50/30 transition-colors text-left">
+                <div className="w-16 h-20 bg-gray-100 rounded-lg flex items-center justify-center shrink-0 border border-gray-200">
+                  <FileText size={24} className="text-red-500" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-gray-800 truncate">{mat.nombre_archivo}</p>
+                  <p className="text-xs text-gray-400 mt-0.5">{mat.tipo_archivo.toUpperCase()}</p>
+                  <p className="text-xs text-[#C62828] mt-1">Click para ver →</p>
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {sesionesFiles.length > 0 && (
+        <div className="bg-white rounded-xl shadow-sm p-6">
+          <h3 className="font-semibold text-gray-800 mb-4">Sesiones de clase</h3>
+          <div className="space-y-3">
+            {sesionesFiles.map(mat => (
+              <button key={mat.id} onClick={() => onOpenFile(mat.id)}
+                className="w-full flex items-center gap-4 p-4 border border-gray-200 rounded-lg hover:border-[#C62828] hover:bg-red-50/30 transition-colors text-left">
+                <div className="w-16 h-20 bg-gray-100 rounded-lg flex items-center justify-center shrink-0 border border-gray-200">
+                  <FileText size={24} className="text-red-500" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-gray-800 truncate">{mat.nombre_archivo}</p>
+                  <p className="text-xs text-gray-400 mt-0.5">{mat.tipo_archivo.toUpperCase()}</p>
+                  <p className="text-xs text-[#C62828] mt-1">Click para ver →</p>
+                </div>
+              </button>
+            ))}
+          </div>
         </div>
       )}
     </div>

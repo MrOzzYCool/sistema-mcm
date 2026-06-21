@@ -308,8 +308,13 @@ export default function DocenteCursoPage() {
         </div>
       )}
 
+      {/* Tab: Sílabo */}
+      {activeTab === "silabo" && (
+        <SilaboTab cursoId={cursoId} onOpenFile={openFile} triggerUpload={triggerUpload} materiales={materiales} />
+      )}
+
       {/* Other tabs */}
-      {activeTab !== "contenido" && (
+      {activeTab !== "contenido" && activeTab !== "silabo" && (
         <div className="bg-white rounded-xl shadow-sm p-6">
           <p className="text-sm text-gray-400 text-center py-8">{tabs.find(t => t.id === activeTab)?.label} &mdash; disponible pr&oacute;ximamente.</p>
         </div>
@@ -360,5 +365,90 @@ function MaterialRow({ mat, onOpen, onDelete, onToggle }: {
         </button>
       </div>
     </div>
+  );
+}
+
+// ─── Sílabo Tab ──────────────────────────────────────────────────────────────
+
+function SilaboTab({ cursoId, onOpenFile, triggerUpload, materiales }: {
+  cursoId: string; onOpenFile: (id: string) => void;
+  triggerUpload: (semana: number | null, seccion: string) => void;
+  materiales: Material[];
+}) {
+  const silaboFiles = materiales.filter(m => m.seccion === "silabo");
+  const sesionesFiles = materiales.filter(m => m.seccion === "sesiones");
+
+  return (
+    <div className="space-y-6">
+      {/* Sílabo del curso */}
+      <div className="bg-white rounded-xl shadow-sm p-6">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h3 className="font-semibold text-gray-800">Sílabo del curso</h3>
+            <p className="text-xs text-gray-400 mt-0.5">Documento oficial del sílabo</p>
+          </div>
+          <button onClick={() => triggerUpload(null, "silabo")}
+            className="text-xs text-[#C62828] hover:underline flex items-center gap-1 border border-[#C62828] rounded-lg px-3 py-1.5">
+            <Plus size={12} /> Subir sílabo
+          </button>
+        </div>
+        {silaboFiles.length > 0 ? (
+          <div className="space-y-3">
+            {silaboFiles.map(mat => (
+              <SilaboCard key={mat.id} mat={mat} onOpen={onOpenFile} />
+            ))}
+          </div>
+        ) : (
+          <div className="text-center py-8 border-2 border-dashed border-gray-200 rounded-lg">
+            <FileText size={32} className="text-gray-300 mx-auto mb-2" />
+            <p className="text-sm text-gray-400">No se ha subido el sílabo aún</p>
+            <p className="text-xs text-gray-300 mt-1">Sube un archivo PDF con el sílabo del curso</p>
+          </div>
+        )}
+      </div>
+
+      {/* Sesiones de clase */}
+      <div className="bg-white rounded-xl shadow-sm p-6">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h3 className="font-semibold text-gray-800">Sesiones de clase</h3>
+            <p className="text-xs text-gray-400 mt-0.5">Cronograma o programa de sesiones</p>
+          </div>
+          <button onClick={() => triggerUpload(null, "sesiones")}
+            className="text-xs text-[#C62828] hover:underline flex items-center gap-1 border border-[#C62828] rounded-lg px-3 py-1.5">
+            <Plus size={12} /> Subir sesiones
+          </button>
+        </div>
+        {sesionesFiles.length > 0 ? (
+          <div className="space-y-3">
+            {sesionesFiles.map(mat => (
+              <SilaboCard key={mat.id} mat={mat} onOpen={onOpenFile} />
+            ))}
+          </div>
+        ) : (
+          <div className="text-center py-8 border-2 border-dashed border-gray-200 rounded-lg">
+            <FileText size={32} className="text-gray-300 mx-auto mb-2" />
+            <p className="text-sm text-gray-400">No se han subido las sesiones de clase</p>
+            <p className="text-xs text-gray-300 mt-1">Sube un archivo PDF con el programa de sesiones</p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function SilaboCard({ mat, onOpen }: { mat: Material; onOpen: (id: string) => void }) {
+  return (
+    <button onClick={() => onOpen(mat.id)}
+      className="w-full flex items-center gap-4 p-4 border border-gray-200 rounded-lg hover:border-[#C62828] hover:bg-red-50/30 transition-colors text-left">
+      <div className="w-16 h-20 bg-gray-100 rounded-lg flex items-center justify-center shrink-0 border border-gray-200">
+        <FileText size={24} className="text-red-500" />
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-medium text-gray-800 truncate">{mat.nombre_archivo}</p>
+        <p className="text-xs text-gray-400 mt-0.5">{formatSize(mat.tamano)} · {mat.tipo_archivo.toUpperCase()}</p>
+        <p className="text-xs text-[#C62828] mt-1">Click para previsualizar →</p>
+      </div>
+    </button>
   );
 }
