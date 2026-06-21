@@ -319,7 +319,11 @@ function UsuariosContent() {
       if (filtroEstado === "todos") return p.estado === "activo" || p.estado === "inactivo";
       return p.estado === filtroEstado;
     })
-    .filter(p => filtroRol === "todos" || p.rol === filtroRol)
+    .filter(p => {
+      if (filtroRol === "todos") return true;
+      if (filtroRol === "profesor") return p.rol === "profesor" || p.es_profesor;
+      return p.rol === filtroRol;
+    })
     .filter(p => {
       if (filtroCiclo === "todos" || filtroRol !== "alumno") return true;
       const insc = inscripciones.find(i => i.alumno_id === p.id);
