@@ -334,7 +334,7 @@ export default function DocenteCursoPage() {
 
       {/* Tab: Sílabo */}
       {activeTab === "silabo" && (
-        <SilaboTab cursoId={cursoId} onOpenFile={openFile} triggerUpload={triggerUpload} materiales={materiales} />
+        <SilaboTab cursoId={cursoId} onOpenFile={openFile} triggerUpload={triggerUpload} materiales={materiales} onDelete={handleDelete} />
       )}
 
       {/* Other tabs */}
@@ -394,10 +394,11 @@ function MaterialRow({ mat, onOpen, onDelete, onToggle }: {
 
 // ─── Sílabo Tab ──────────────────────────────────────────────────────────────
 
-function SilaboTab({ cursoId, onOpenFile, triggerUpload, materiales }: {
+function SilaboTab({ cursoId, onOpenFile, triggerUpload, materiales, onDelete }: {
   cursoId: string; onOpenFile: (id: string) => void;
   triggerUpload: (semana: number | null, seccion: string) => void;
   materiales: Material[];
+  onDelete: (id: string, name: string) => void;
 }) {
   const silaboFiles = materiales.filter(m => m.seccion === "silabo");
   const sesionesFiles = materiales.filter(m => m.seccion === "sesiones");
@@ -419,7 +420,7 @@ function SilaboTab({ cursoId, onOpenFile, triggerUpload, materiales }: {
         {silaboFiles.length > 0 ? (
           <div className="space-y-3">
             {silaboFiles.map(mat => (
-              <SilaboCard key={mat.id} mat={mat} onOpen={onOpenFile} />
+              <SilaboCard key={mat.id} mat={mat} onOpen={onOpenFile} onDelete={onDelete} onReplace={() => triggerUpload(null, "silabo")} />
             ))}
           </div>
         ) : (
@@ -442,7 +443,7 @@ function SilaboTab({ cursoId, onOpenFile, triggerUpload, materiales }: {
         {sesionesFiles.length > 0 ? (
           <div className="space-y-3">
             {sesionesFiles.map(mat => (
-              <SilaboCard key={mat.id} mat={mat} onOpen={onOpenFile} />
+              <SilaboCard key={mat.id} mat={mat} onOpen={onOpenFile} onDelete={onDelete} onReplace={() => triggerUpload(null, "sesiones")} />
             ))}
           </div>
         ) : (
@@ -496,18 +497,27 @@ function DropZone({ seccion, label, onTrigger }: { seccion: string; label: strin
   );
 }
 
-function SilaboCard({ mat, onOpen }: { mat: Material; onOpen: (id: string) => void }) {
+function SilaboCard({ mat, onOpen, onDelete, onReplace }: { mat: Material; onOpen: (id: string) => void; onDelete: (id: string, name: string) => void; onReplace: () => void }) {
   return (
-    <button onClick={() => onOpen(mat.id)}
-      className="w-full flex items-center gap-4 p-4 border border-gray-200 rounded-lg hover:border-[#C62828] hover:bg-red-50/30 transition-colors text-left">
-      <div className="w-16 h-20 bg-gray-100 rounded-lg flex items-center justify-center shrink-0 border border-gray-200">
+    <div className="flex items-center gap-4 p-4 border border-gray-200 rounded-lg hover:border-gray-300 transition-colors">
+      <button onClick={() => onOpen(mat.id)} className="w-16 h-20 bg-gray-100 rounded-lg flex items-center justify-center shrink-0 border border-gray-200 hover:border-[#C62828] transition-colors">
         <FileText size={24} className="text-red-500" />
-      </div>
+      </button>
       <div className="flex-1 min-w-0">
-        <p className="text-sm font-medium text-gray-800 truncate">{mat.nombre_archivo}</p>
+        <button onClick={() => onOpen(mat.id)} className="text-sm font-medium text-gray-800 truncate block text-left hover:text-[#C62828]">{mat.nombre_archivo}</button>
         <p className="text-xs text-gray-400 mt-0.5">{formatSize(mat.tamano)} · {mat.tipo_archivo.toUpperCase()}</p>
-        <p className="text-xs text-[#C62828] mt-1">Click para previsualizar →</p>
+        <p className="text-xs text-[#C62828] mt-1 hover:underline cursor-pointer" onClick={() => onOpen(mat.id)}>Click para previsualizar →</p>
       </div>
-    </button>
+      <div className="flex items-center gap-1 shrink-0">
+        <button onClick={onReplace} title="Reemplazar archivo"
+          className="p-2 text-gray-400 hover:text-blue-500 hover:bg-blue-50 rounded-lg transition-colors">
+          <Upload size={14} />
+        </button>
+        <button onClick={() => onDelete(mat.id, mat.nombre_archivo)} title="Eliminar"
+          className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors">
+          <Trash2 size={14} />
+        </button>
+      </div>
+    </div>
   );
 }
