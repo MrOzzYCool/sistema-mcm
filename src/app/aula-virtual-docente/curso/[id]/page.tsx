@@ -107,6 +107,30 @@ export default function DocenteCursoPage() {
     fileInputRef.current?.click();
   }
 
+  // Handle drag-drop from DropZone components
+  useEffect(() => {
+    async function handleDrop(e: Event) {
+      const { file, seccion } = (e as CustomEvent).detail;
+      if (!file) return;
+      setUploading(true);
+      try {
+        const token = await getAccessToken();
+        if (!token) throw new Error("Sesion no disponible");
+        const formData = new FormData();
+        formData.append("file", file);
+        formData.append("curso_id", cursoId);
+        formData.append("seccion", seccion);
+        const res = await fetch("/api/portal/materiales", { method: "POST", headers: { Authorization: `Bearer ${token}` }, body: formData });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error ?? "Error subiendo archivo");
+        await fetchMateriales();
+      } catch (err) { alert(err instanceof Error ? err.message : "Error"); }
+      finally { setUploading(false); }
+    }
+    window.addEventListener("silabo-drop", handleDrop);
+    return () => window.removeEventListener("silabo-drop", handleDrop);
+  }, [cursoId, fetchMateriales]);
+
   async function handleFileSelected(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -399,11 +423,7 @@ function SilaboTab({ cursoId, onOpenFile, triggerUpload, materiales }: {
             ))}
           </div>
         ) : (
-          <div className="text-center py-8 border-2 border-dashed border-gray-200 rounded-lg">
-            <FileText size={32} className="text-gray-300 mx-auto mb-2" />
-            <p className="text-sm text-gray-400">No se ha subido el sílabo aún</p>
-            <p className="text-xs text-gray-300 mt-1">Sube un archivo PDF con el sílabo del curso</p>
-          </div>
+          <DropZone seccion="silabo" label="Arrastra el sílabo aquí o haz clic para seleccionar" onTrigger={() => triggerUpload(null, "silabo")} />
         )}
       </div>
 
@@ -426,13 +446,52 @@ function SilaboTab({ cursoId, onOpenFile, triggerUpload, materiales }: {
             ))}
           </div>
         ) : (
-          <div className="text-center py-8 border-2 border-dashed border-gray-200 rounded-lg">
-            <FileText size={32} className="text-gray-300 mx-auto mb-2" />
-            <p className="text-sm text-gray-400">No se han subido las sesiones de clase</p>
-            <p className="text-xs text-gray-300 mt-1">Sube un archivo PDF con el programa de sesiones</p>
-          </div>
+          <DropZone seccion="sesiones" label="Arrastra las sesiones aquí o haz clic para seleccionar" onTrigger={() => triggerUpload(null, "sesiones")} />
         )}
       </div>
+    </div>
+  );
+}
+
+function DropZone({ seccion, label, onTrigger }: { seccion: string; label: string; onTrigger: () => void }) {
+  const [dragOver, setDragOver] = useState(false);
+
+  function handleDragOver(e: React.DragEvent) {
+    e.preventDefault();
+    setDragOver(true);
+  }
+
+  function handleDragLeave() {
+    setDragOver(false);
+  }
+
+  function handleDrop(e: React.DragEvent) {
+    e.preventDefault();
+    setDragOver(false);
+    // The file from drop will be handled by the parent's file input mechanism
+    // We trigger the upload click which opens the file picker
+    // For actual drag-drop, we'd need to handle the file directly
+    const files = e.dataTransfer.files;
+    if (files.length > 0) {
+      // Dispatch a custom event with the file and seccion
+      const event = new CustomEvent("silabo-drop", { detail: { file: files[0], seccion } });
+      window.dispatchEvent(event);
+    }
+  }
+
+  return (
+    <div
+      onClick={onTrigger}
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+      className={`text-center py-10 border-2 border-dashed rounded-lg cursor-pointer transition-colors ${
+        dragOver ? "border-[#C62828] bg-red-50" : "border-gray-200 hover:border-gray-300 hover:bg-gray-50"
+      }`}
+    >
+      <Upload size={32} className={`mx-auto mb-2 ${dragOver ? "text-[#C62828]" : "text-gray-300"}`} />
+      <p className={`text-sm ${dragOver ? "text-[#C62828] font-medium" : "text-gray-400"}`}>{label}</p>
+      <p className="text-xs text-gray-300 mt-1">PDF, DOCX, PPTX (máx. 100MB)</p>
     </div>
   );
 }
