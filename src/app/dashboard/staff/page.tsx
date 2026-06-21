@@ -378,7 +378,14 @@ function StaffContent() {
                   onChange={e => setEditForm({...editForm, es_profesor: e.target.checked})} className="accent-[#C62828] w-4 h-4" />
                 <span className="font-medium text-mcm-text">También es profesor</span>
               </label>
-              <p className="text-xs text-mcm-muted -mt-2 ml-6">Permite asignar horarios de clase a este trabajador</p>
+              {editForm.es_profesor && (
+                <div className="ml-6 p-2 bg-blue-50 rounded-lg">
+                  <p className="text-xs text-blue-700">✓ Aparecerá en la lista de profesores. Para asignarle cursos, ve a <strong>Horarios → Asignar profesor</strong>.</p>
+                </div>
+              )}
+              {!editForm.es_profesor && (
+                <p className="text-xs text-mcm-muted -mt-2 ml-6">Permite asignar horarios de clase a este trabajador</p>
+              )}
             </div>
             <div className="flex gap-3 mt-5">
               <button onClick={() => setEditTarget(null)} className="btn-secondary flex-1 text-sm">Cancelar</button>

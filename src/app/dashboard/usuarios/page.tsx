@@ -70,8 +70,8 @@ function UsuariosContent() {
       const data = await res.json();
       console.log("Usuarios cargados:", data);
       if (!res.ok) throw new Error(data.error);
-      // Solo mostrar alumnos y profesores en este módulo
-      setProfiles(data.filter((p: Profile) => p.rol === "alumno" || p.rol === "profesor"));
+      // Mostrar alumnos, profesores, y staff que también son profesores
+      setProfiles(data.filter((p: Profile) => p.rol === "alumno" || p.rol === "profesor" || p.es_profesor));
     } catch (e) {
       setError(e instanceof Error ? e.message : "Error");
     } finally {
