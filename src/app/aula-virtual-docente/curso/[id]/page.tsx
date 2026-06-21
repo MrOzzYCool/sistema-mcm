@@ -14,14 +14,18 @@ import {
   Video as VideoIcon,
 } from "lucide-react";
 
-type TabId = "contenido" | "tareas" | "notas" | "alumnos" | "asistencia" | "foros";
+type TabId = "silabo" | "contenido" | "evaluaciones" | "tareas" | "foros" | "notas" | "alumnos" | "asistencia" | "anuncios" | "teams";
 const tabs: { id: TabId; label: string; icon: typeof FileText }[] = [
+  { id: "silabo", label: "Sílabo", icon: FileText },
   { id: "contenido", label: "Contenido", icon: FileText },
+  { id: "evaluaciones", label: "Evaluaciones", icon: ClipboardList },
   { id: "tareas", label: "Tareas", icon: ClipboardList },
+  { id: "foros", label: "Foros", icon: ExternalLink },
   { id: "notas", label: "Notas", icon: CheckCircle2 },
   { id: "alumnos", label: "Alumnos", icon: Users },
   { id: "asistencia", label: "Asistencia", icon: Clock },
-  { id: "foros", label: "Foros", icon: ExternalLink },
+  { id: "anuncios", label: "Anuncios", icon: ExternalLink },
+  { id: "teams", label: "Teams", icon: ExternalLink },
 ];
 
 interface Material {

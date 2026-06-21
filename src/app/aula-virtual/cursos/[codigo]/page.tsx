@@ -15,14 +15,16 @@ import {
   FileSpreadsheet, Image,
 } from "lucide-react";
 
-type TabId = "silabo" | "contenido" | "tareas" | "foros" | "notas" | "zoom";
+type TabId = "silabo" | "contenido" | "evaluaciones" | "tareas" | "foros" | "notas" | "anuncios" | "teams";
 const tabs: { id: TabId; label: string }[] = [
   { id: "silabo", label: "Sílabo" },
   { id: "contenido", label: "Contenido" },
+  { id: "evaluaciones", label: "Evaluaciones" },
   { id: "tareas", label: "Tareas" },
   { id: "foros", label: "Foros" },
   { id: "notas", label: "Notas" },
-  { id: "zoom", label: "Zoom" },
+  { id: "anuncios", label: "Anuncios" },
+  { id: "teams", label: "Teams" },
 ];
 
 interface ForoSemana { id: string; semana: number; titulo: string; estado: string; fecha_inicio: string | null; fecha_fin: string | null; }
