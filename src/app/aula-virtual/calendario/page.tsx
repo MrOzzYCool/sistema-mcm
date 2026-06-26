@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { getAccessToken } from "@/lib/get-token";
-import { ChevronLeft, ChevronRight, Calendar, Clock, ClipboardList } from "lucide-react";
+import { ChevronLeft, ChevronRight, Calendar, ClipboardList } from "lucide-react";
 
 interface ClassEvent {
   id: string;
@@ -25,17 +25,13 @@ interface TareaEvent {
 }
 
 const DIAS = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
-const HORAS = Array.from({ length: 14 }, (_, i) => `${(i + 7).toString().padStart(2, "0")}:00`);
-
-function getDayIndex(dia: string, dia_numero?: number): number {
-  if (dia_numero !== undefined) return dia_numero - 1; // 1=Lunes -> 0
-  const map: Record<string, number> = { lunes: 0, martes: 1, miercoles: 2, "miércoles": 2, jueves: 3, viernes: 4, sabado: 5, "sábado": 5 };
-  return map[dia.toLowerCase()] ?? -1;
-}
+const HORAS_START = 7; // 7 AM
+const HORAS_END = 22; // 10 PM
+const HOUR_HEIGHT = 60; // px per hour
 
 function getWeekDates(offset: number) {
   const today = new Date();
-  const dayOfWeek = today.getDay(); // 0=Sun
+  const dayOfWeek = today.getDay();
   const monday = new Date(today);
   monday.setDate(today.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1) + offset * 7);
   return DIAS.map((_, i) => {
@@ -45,15 +41,33 @@ function getWeekDates(offset: number) {
   });
 }
 
+function parseTime(t: string): number {
+  const [h, m] = t.split(":").map(Number);
+  return h + (m || 0) / 60;
+}
+
+function formatHour(h: number): string {
+  const period = h >= 12 ? "p. m." : "a. m.";
+  const hour12 = h > 12 ? h - 12 : h === 0 ? 12 : h;
+  return `${hour12.toString().padStart(2, "0")} ${period}`;
+}
+
 export default function CalendarioAVPage() {
   const [horarios, setHorarios] = useState<ClassEvent[]>([]);
   const [tareas, setTareas] = useState<TareaEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [weekOffset, setWeekOffset] = useState(0);
+  const [currentTime, setCurrentTime] = useState(new Date());
 
   const weekDates = getWeekDates(weekOffset);
   const weekStart = weekDates[0];
   const weekEnd = weekDates[5];
+
+  // Update current time every minute
+  useEffect(() => {
+    const interval = setInterval(() => setCurrentTime(new Date()), 60000);
+    return () => clearInterval(interval);
+  }, []);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -61,7 +75,6 @@ export default function CalendarioAVPage() {
       const token = await getAccessToken();
       if (!token) { setLoading(false); return; }
 
-      // Fetch horarios
       try {
         const horRes = await fetch("/api/portal/mi-horario", { headers: { Authorization: `Bearer ${token}` } });
         if (horRes.ok) {
@@ -70,13 +83,11 @@ export default function CalendarioAVPage() {
         }
       } catch { /* ignore */ }
 
-      // Fetch actividades/tareas
       try {
         const actRes = await fetch("/api/portal/mis-cursos-aula", { headers: { Authorization: `Bearer ${token}` } });
         if (actRes.ok) {
           const cursosData = await actRes.json();
           const cursos = cursosData.cursos ?? cursosData ?? [];
-          
           const allTareas: TareaEvent[] = [];
           for (const curso of cursos) {
             const cursoId = curso.id ?? curso.curso_id;
@@ -91,7 +102,7 @@ export default function CalendarioAVPage() {
                   }
                 });
               }
-            } catch { /* ignore individual course errors */ }
+            } catch { /* ignore */ }
           }
           setTareas(allTareas);
         }
@@ -102,33 +113,36 @@ export default function CalendarioAVPage() {
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
-  // Get tareas for the current week
-  const tareasThisWeek = tareas.filter(t => {
-    const fecha = new Date(t.fecha_limite);
-    return fecha >= weekStart && fecha <= new Date(weekEnd.getTime() + 86400000);
-  });
+  // Current time position
+  const now = currentTime;
+  const nowHour = now.getHours() + now.getMinutes() / 60;
+  const nowDayIdx = now.getDay() === 0 ? 6 : now.getDay() - 1; // 0=Mon
+  const isThisWeek = weekOffset === 0;
+  const nowTop = (nowHour - HORAS_START) * HOUR_HEIGHT;
 
-  // Group tareas by day
+  // Get tareas for a specific day
   function getTareasForDay(date: Date) {
-    return tareasThisWeek.filter(t => {
+    return tareas.filter(t => {
       const f = new Date(t.fecha_limite);
       return f.toDateString() === date.toDateString();
     });
   }
 
   const monthLabel = weekStart.toLocaleDateString("es-PE", { month: "long", year: "numeric" });
+  const weekLabel = `Del ${weekStart.getDate()} al ${weekEnd.getDate()} de ${weekStart.toLocaleDateString("es-PE", { month: "long" })}`;
 
   return (
     <div className="py-4 max-w-[1200px] mx-auto">
-      <div className="flex items-center justify-between mb-6">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-4">
         <div>
-          <h1 className="text-xl font-bold text-gray-800 flex items-center gap-2"><Calendar size={22} className="text-[#C62828]" /> Mi Calendario</h1>
-          <p className="text-sm text-gray-500 mt-0.5 capitalize">{monthLabel}</p>
+          <p className="text-xs text-gray-500">2026 - Aula Virtual</p>
+          <h1 className="text-lg font-bold text-gray-800">Semana actual — {weekLabel}</h1>
         </div>
         <div className="flex items-center gap-2">
-          <button onClick={() => setWeekOffset(w => w - 1)} className="p-2 hover:bg-gray-100 rounded-lg"><ChevronLeft size={18} /></button>
-          <button onClick={() => setWeekOffset(0)} className="px-3 py-1.5 text-xs bg-[#C62828] text-white rounded-lg">Hoy</button>
-          <button onClick={() => setWeekOffset(w => w + 1)} className="p-2 hover:bg-gray-100 rounded-lg"><ChevronRight size={18} /></button>
+          <button onClick={() => setWeekOffset(0)} className="px-3 py-1.5 text-xs border border-gray-200 rounded-lg hover:bg-gray-50">Hoy</button>
+          <button onClick={() => setWeekOffset(w => w - 1)} className="p-1.5 hover:bg-gray-100 rounded-lg text-[#C62828]"><ChevronLeft size={18} /></button>
+          <button onClick={() => setWeekOffset(w => w + 1)} className="p-1.5 hover:bg-gray-100 rounded-lg text-[#C62828]"><ChevronRight size={18} /></button>
         </div>
       </div>
 
@@ -136,88 +150,105 @@ export default function CalendarioAVPage() {
         <div className="text-center py-12 text-gray-400">Cargando calendario...</div>
       ) : (
         <div className="bg-white rounded-xl shadow-sm overflow-hidden">
-          {/* Week header */}
-          <div className="grid grid-cols-6 border-b border-gray-200">
+          {/* Day headers */}
+          <div className="grid border-b border-gray-200" style={{ gridTemplateColumns: "60px repeat(6, 1fr)" }}>
+            <div className="border-r border-gray-100" />
             {DIAS.map((dia, i) => {
               const date = weekDates[i];
-              const isToday = date.toDateString() === new Date().toDateString();
+              const isToday = isThisWeek && date.toDateString() === now.toDateString();
               return (
-                <div key={dia} className={`px-2 py-3 text-center border-r border-gray-100 last:border-r-0 ${isToday ? "bg-red-50" : ""}`}>
-                  <p className="text-xs text-gray-500">{dia}</p>
-                  <p className={`text-lg font-bold ${isToday ? "text-[#C62828]" : "text-gray-700"}`}>{date.getDate()}</p>
+                <div key={dia} className={`px-2 py-3 text-center border-r border-gray-100 last:border-r-0 ${isToday ? "bg-blue-50" : ""}`}>
+                  <p className="text-xs text-gray-500">{dia.slice(0, 3)}</p>
+                  <p className={`text-lg font-bold ${isToday ? "w-8 h-8 rounded-full bg-[#C62828] text-white flex items-center justify-center mx-auto" : "text-gray-700"}`}>
+                    {date.getDate()}
+                  </p>
                 </div>
               );
             })}
           </div>
 
-          {/* Schedule grid */}
-          <div className="grid grid-cols-6 min-h-[400px]">
-            {DIAS.map((dia, colIdx) => {
-              const dayClasses = horarios.filter(h => getDayIndex(h.dia, h.dia_numero) === colIdx);
-              const dayTareas = getTareasForDay(weekDates[colIdx]);
-              const isToday = weekDates[colIdx].toDateString() === new Date().toDateString();
+          {/* Time grid */}
+          <div className="relative overflow-auto" style={{ maxHeight: "600px" }}>
+            <div className="grid" style={{ gridTemplateColumns: "60px repeat(6, 1fr)", height: `${(HORAS_END - HORAS_START) * HOUR_HEIGHT}px` }}>
+              {/* Hour labels */}
+              <div className="relative border-r border-gray-100">
+                {Array.from({ length: HORAS_END - HORAS_START }, (_, i) => (
+                  <div key={i} className="absolute w-full text-right pr-2" style={{ top: `${i * HOUR_HEIGHT}px` }}>
+                    <span className="text-[10px] text-gray-400 -translate-y-1/2 block">{formatHour(HORAS_START + i)}</span>
+                  </div>
+                ))}
+              </div>
 
-              return (
-                <div key={dia} className={`border-r border-gray-100 last:border-r-0 p-2 space-y-2 ${isToday ? "bg-red-50/30" : ""}`}>
-                  {/* Classes */}
-                  {dayClasses.map(cls => (
-                    <div key={cls.id} className="bg-[#C62828] text-white rounded-lg p-2 text-xs">
-                      <p className="font-medium truncate">{cls.curso}</p>
-                      <p className="opacity-80 flex items-center gap-1 mt-0.5"><Clock size={10} /> {cls.hora_inicio} - {cls.hora_fin}</p>
-                      {cls.aula && <p className="opacity-70 truncate mt-0.5">{cls.aula}</p>}
-                    </div>
-                  ))}
-                  {/* Tareas */}
-                  {dayTareas.map(tarea => (
-                    <div key={tarea.id} className="bg-amber-100 border border-amber-200 rounded-lg p-2 text-xs">
-                      <p className="font-medium text-amber-800 truncate flex items-center gap-1">
-                        <ClipboardList size={10} /> {tarea.titulo}
-                      </p>
-                      <p className="text-amber-600 truncate mt-0.5">{tarea.curso_nombre}</p>
-                      <p className="text-amber-500 text-[10px] mt-0.5">
-                        Límite: {new Date(tarea.fecha_limite).toLocaleTimeString("es-PE", { hour: "2-digit", minute: "2-digit" })}
-                      </p>
-                    </div>
-                  ))}
-                  {dayClasses.length === 0 && dayTareas.length === 0 && (
-                    <p className="text-[10px] text-gray-300 text-center pt-4">—</p>
-                  )}
-                </div>
-              );
-            })}
+              {/* Day columns */}
+              {DIAS.map((dia, colIdx) => {
+                const dayClasses = horarios.filter(h => (h.dia_numero - 1) === colIdx);
+                const dayTareas = getTareasForDay(weekDates[colIdx]);
+                const isToday = isThisWeek && weekDates[colIdx].toDateString() === now.toDateString();
+
+                return (
+                  <div key={dia} className={`relative border-r border-gray-100 last:border-r-0 ${isToday ? "bg-blue-50/20" : ""}`}>
+                    {/* Hour grid lines */}
+                    {Array.from({ length: HORAS_END - HORAS_START }, (_, i) => (
+                      <div key={i} className="absolute w-full border-t border-gray-100" style={{ top: `${i * HOUR_HEIGHT}px` }} />
+                    ))}
+
+                    {/* Class events */}
+                    {dayClasses.map(cls => {
+                      const start = parseTime(cls.hora_inicio);
+                      const end = parseTime(cls.hora_fin);
+                      const top = (start - HORAS_START) * HOUR_HEIGHT;
+                      const height = (end - start) * HOUR_HEIGHT;
+                      return (
+                        <div key={cls.id} className="absolute left-1 right-1 bg-teal-500 text-white rounded-lg p-1.5 overflow-hidden shadow-sm z-10"
+                          style={{ top: `${top}px`, height: `${Math.max(height, 30)}px` }}>
+                          <p className="text-[11px] font-semibold truncate">{cls.curso}</p>
+                          <p className="text-[9px] opacity-80">{cls.hora_inicio} - {cls.hora_fin}</p>
+                          <span className="inline-block mt-0.5 text-[8px] bg-teal-600 px-1 rounded">Virtual en vivo</span>
+                        </div>
+                      );
+                    })}
+
+                    {/* Tarea events (at fecha_limite hour) */}
+                    {dayTareas.map(tarea => {
+                      const fecha = new Date(tarea.fecha_limite);
+                      const hour = fecha.getHours() + fecha.getMinutes() / 60;
+                      const top = (hour - HORAS_START) * HOUR_HEIGHT;
+                      return (
+                        <div key={tarea.id} className="absolute left-1 right-1 bg-amber-100 border border-amber-300 text-amber-800 rounded-lg p-1.5 overflow-hidden z-10"
+                          style={{ top: `${Math.max(top, 0)}px`, height: "40px" }}>
+                          <p className="text-[10px] font-medium truncate flex items-center gap-0.5"><ClipboardList size={9} /> {tarea.titulo}</p>
+                          <p className="text-[8px] text-amber-600 truncate">{tarea.curso_nombre}</p>
+                        </div>
+                      );
+                    })}
+
+                    {/* Current time line */}
+                    {isToday && nowHour >= HORAS_START && nowHour <= HORAS_END && (
+                      <div className="absolute left-0 right-0 z-20 flex items-center" style={{ top: `${nowTop}px` }}>
+                        <div className="w-2 h-2 rounded-full bg-red-500 -ml-1" />
+                        <div className="flex-1 border-t-2 border-red-500 border-dashed" />
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
           </div>
 
           {/* Legend */}
           <div className="px-4 py-3 border-t border-gray-200 flex items-center gap-4">
             <div className="flex items-center gap-1.5">
-              <div className="w-3 h-3 rounded bg-[#C62828]" />
-              <span className="text-xs text-gray-500">Clase programada</span>
+              <div className="w-3 h-3 rounded bg-teal-500" />
+              <span className="text-xs text-gray-500">Clase virtual en vivo</span>
             </div>
             <div className="flex items-center gap-1.5">
               <div className="w-3 h-3 rounded bg-amber-200 border border-amber-300" />
-              <span className="text-xs text-gray-500">Tarea/Actividad pendiente</span>
+              <span className="text-xs text-gray-500">Entrega de tarea</span>
             </div>
-          </div>
-        </div>
-      )}
-
-      {/* Upcoming tasks list */}
-      {tareasThisWeek.length > 0 && (
-        <div className="mt-6 bg-white rounded-xl shadow-sm p-5">
-          <h2 className="font-semibold text-gray-800 mb-3 flex items-center gap-2"><ClipboardList size={16} className="text-amber-500" /> Entregas esta semana</h2>
-          <div className="space-y-2">
-            {tareasThisWeek.sort((a, b) => new Date(a.fecha_limite).getTime() - new Date(b.fecha_limite).getTime()).map(t => (
-              <div key={t.id} className="flex items-center justify-between py-2 px-3 rounded-lg bg-amber-50 border border-amber-100">
-                <div>
-                  <p className="text-sm font-medium text-gray-700">{t.titulo}</p>
-                  <p className="text-xs text-gray-500">{t.curso_nombre}</p>
-                </div>
-                <div className="text-right">
-                  <p className="text-xs text-amber-700 font-medium">{new Date(t.fecha_limite).toLocaleDateString("es-PE", { weekday: "short", day: "numeric", month: "short" })}</p>
-                  <p className="text-[10px] text-amber-500">{new Date(t.fecha_limite).toLocaleTimeString("es-PE", { hour: "2-digit", minute: "2-digit" })}</p>
-                </div>
-              </div>
-            ))}
+            <div className="flex items-center gap-1.5">
+              <div className="w-4 border-t-2 border-red-500 border-dashed" />
+              <span className="text-xs text-gray-500">Hora actual</span>
+            </div>
           </div>
         </div>
       )}
