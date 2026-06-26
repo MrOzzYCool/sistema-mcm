@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { getAccessToken } from "@/lib/get-token";
 import {
   ArrowLeft, ChevronLeft, ChevronRight, Calendar, RefreshCw,
@@ -66,7 +66,9 @@ export default function ActividadViewer({
   const [loading, setLoading] = useState(true);
   const [showEntrega, setShowEntrega] = useState(false);
   const [comentario, setComentario] = useState("");
+  const [archivosSeleccionados, setArchivosSeleccionados] = useState<File[]>([]);
   const [sending, setSending] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const daysLeft = getDaysRemaining(actividad.fecha_limite);
   const isPastDue = daysLeft < 0;
@@ -94,22 +96,65 @@ export default function ActividadViewer({
   useEffect(() => { fetchEntregas(); }, [fetchEntregas]);
 
   async function handleEntregar() {
-    if (!comentario.trim()) return;
+    if (!comentario.trim() && archivosSeleccionados.length === 0) return;
     setSending(true);
     try {
       const token = await getAccessToken();
       if (!token) throw new Error("Sin sesión");
+
+      // Upload files first if any
+      const archivosSubidos: { nombre: string; url: string; tipo: string; tamano: number }[] = [];
+      for (const file of archivosSeleccionados) {
+        const formData = new FormData();
+        formData.append("file", file);
+        formData.append("curso_id", cursoId);
+        formData.append("seccion", "entrega");
+        const uploadRes = await fetch("/api/portal/materiales", {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}` },
+          body: formData,
+        });
+        if (uploadRes.ok) {
+          const uploadData = await uploadRes.json();
+          archivosSubidos.push({
+            nombre: file.name,
+            url: uploadData.material?.url ?? "",
+            tipo: file.name.split(".").pop() ?? "",
+            tamano: file.size,
+          });
+        }
+      }
+
       const res = await fetch("/api/portal/entregas", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ actividad_id: actividad.id, comentario: comentario.trim(), archivos: [] }),
+        body: JSON.stringify({
+          actividad_id: actividad.id,
+          comentario: comentario.trim() || null,
+          archivos: archivosSubidos,
+        }),
       });
       if (!res.ok) { const d = await res.json(); throw new Error(d.error); }
       setComentario("");
+      setArchivosSeleccionados([]);
       setShowEntrega(false);
       await fetchEntregas();
     } catch (err) { alert(err instanceof Error ? err.message : "Error"); }
     finally { setSending(false); }
+  }
+
+  function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(e.target.files ?? []);
+    if (files.length + archivosSeleccionados.length > 8) {
+      alert("Máximo 8 archivos");
+      return;
+    }
+    setArchivosSeleccionados(prev => [...prev, ...files]);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  }
+
+  function removeFile(index: number) {
+    setArchivosSeleccionados(prev => prev.filter((_, i) => i !== index));
   }
 
   // Estado badge
@@ -231,13 +276,30 @@ export default function ActividadViewer({
               {/* File upload area */}
               <div className="mb-4">
                 <label className="block text-sm font-medium text-gray-700 mb-1">Adjunta un archivo</label>
-                <div className="border-2 border-dashed border-gray-200 rounded-lg p-6 text-center hover:border-gray-300 transition-colors">
+                <input ref={fileInputRef} type="file" className="hidden" multiple
+                  accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.jpg,.jpeg,.png,.mp3,.mp4,.zip,.rar"
+                  onChange={handleFileSelect} />
+                <div
+                  onClick={() => fileInputRef.current?.click()}
+                  className="border-2 border-dashed border-gray-200 rounded-lg p-6 text-center hover:border-blue-300 hover:bg-blue-50/30 transition-colors cursor-pointer"
+                >
                   <p className="text-sm text-gray-500 mb-1">Máximo 8 archivos</p>
-                  <p className="text-xs text-blue-600 cursor-pointer hover:underline">+ Subir archivo</p>
+                  <p className="text-xs text-blue-600 font-medium">+ Subir archivo</p>
                   <p className="text-[10px] text-gray-400 mt-2">Sube o arrastra tus archivos en formatos:</p>
                   <p className="text-[10px] text-gray-400">PDF, PPT, Word, Excel, JPG, JPEG, PNG, mp3, mp4, zip o rar</p>
                   <p className="text-[10px] text-gray-400">(Tamaño máximo por archivo: 100 MB)</p>
                 </div>
+                {/* Lista de archivos seleccionados */}
+                {archivosSeleccionados.length > 0 && (
+                  <div className="mt-2 space-y-1">
+                    {archivosSeleccionados.map((file, i) => (
+                      <div key={i} className="flex items-center justify-between px-3 py-1.5 bg-gray-50 rounded text-sm">
+                        <span className="text-gray-700 truncate">{file.name}</span>
+                        <button onClick={() => removeFile(i)} className="text-red-400 hover:text-red-600 text-xs ml-2">✕</button>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
 
               <p className="text-[10px] text-red-500 mb-3">* Información necesaria para confirmar.</p>
@@ -246,7 +308,7 @@ export default function ActividadViewer({
                 <button onClick={() => setShowEntrega(false)} className="px-4 py-2 border border-gray-200 rounded-lg text-sm text-gray-600 hover:bg-gray-50">
                   Cancelar entrega
                 </button>
-                <button onClick={handleEntregar} disabled={sending || !comentario.trim()}
+                <button onClick={handleEntregar} disabled={sending || (!comentario.trim() && archivosSeleccionados.length === 0)}
                   className="ml-auto px-5 py-2 bg-gray-800 text-white rounded-lg text-sm font-medium disabled:opacity-50 disabled:bg-gray-400 flex items-center gap-2 hover:bg-gray-900">
                   {sending && <Loader2 size={14} className="animate-spin" />}
                   Entregar tarea
