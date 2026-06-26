@@ -340,15 +340,25 @@ export default function DocenteCursoPage() {
                       <div className="px-5 pb-3 space-y-2">
                         {/* Actividades creadas (tabla actividades) */}
                         {actividades.filter(a => a.semana === week).map(act => (
-                          <div key={act.id} className="flex items-center gap-3 p-2.5 rounded-lg hover:bg-gray-50 group border border-gray-100">
+                          <div key={act.id} className={`flex items-center gap-3 p-2.5 rounded-lg hover:bg-gray-50 group border border-gray-100 ${!act.visible ? "opacity-50" : ""}`}>
                             <ClipboardList size={16} className="text-orange-500 shrink-0" />
                             <div className="flex-1 min-w-0">
                               <p className="text-sm text-gray-700 font-medium truncate">{act.titulo}</p>
-                              <p className="text-[10px] text-gray-400">{act.tipo.charAt(0).toUpperCase() + act.tipo.slice(1)} &middot; Límite: {new Date(act.fecha_limite).toLocaleDateString("es-PE")}</p>
+                              <p className="text-[10px] text-gray-400">
+                                {act.tipo.charAt(0).toUpperCase() + act.tipo.slice(1)} &middot; Límite: {new Date(act.fecha_limite).toLocaleDateString("es-PE")}
+                                {!act.visible && <span className="text-red-500 font-medium ml-1">(Oculto)</span>}
+                              </p>
                             </div>
                             <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                              <button onClick={() => setShowCrearActividad({ show: true, semana: week })} title="Editar"
+                                className="p-1 text-gray-400 hover:text-blue-500"><FileText size={14} /></button>
+                              <button onClick={async () => { const token = await getAccessToken(); if (!token) return; await fetch("/api/portal/actividades", { method: "PUT", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({ id: act.id, visible: !act.visible }) }); fetchActividades(); }}
+                                title={act.visible ? "Ocultar" : "Hacer visible"}
+                                className={`p-1 rounded ${act.visible ? "text-gray-400 hover:text-orange-500" : "text-orange-500 hover:text-green-500"}`}>
+                                {act.visible ? <EyeOff size={14} /> : <Eye size={14} />}
+                              </button>
                               <button onClick={async () => { if (!confirm(`Eliminar "${act.titulo}"?`)) return; const token = await getAccessToken(); if (!token) return; await fetch("/api/portal/actividades", { method: "DELETE", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({ id: act.id }) }); fetchActividades(); }}
-                                className="p-1 text-gray-300 hover:text-red-500"><Trash2 size={14} /></button>
+                                title="Eliminar" className="p-1 text-gray-300 hover:text-red-500"><Trash2 size={14} /></button>
                             </div>
                           </div>
                         ))}
