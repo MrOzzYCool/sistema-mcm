@@ -2,7 +2,29 @@
 
 import { useState } from "react";
 import { getAccessToken } from "@/lib/get-token";
-import { X, Loader2 } from "lucide-react";
+import { X, Loader2, Eye, EyeOff } from "lucide-react";
+
+const INDICACIONES_PREDETERMINADAS = `Lee los anuncios, en ellos tu docente comparte información importante sobre el desarrollo de la tarea.
+
+1. Logro de aprendizaje
+A través de esta actividad, el estudiante demuestra los conocimientos adquiridos durante la semana, aplicando la teoría en ejercicios prácticos.
+
+2. Descripción
+- Paso 1: Revisa el material de estudio de la semana y tus apuntes de sesión.
+- Paso 2: Desarrolla la actividad siguiendo las indicaciones del docente.
+- Paso 3: Sube tu trabajo en el formato solicitado antes de la fecha límite.
+
+3. Materiales a utilizar
+- Material de estudio de la semana
+- Apuntes personales de clase
+- Material adicional proporcionado por el docente
+
+4. Formato de entrega
+- Archivo en formato PDF, Word, Excel o PowerPoint
+- Incluir nombres completos y apellidos en la portada
+- Nombrar el archivo: Tarea_Semana[N]_[Apellidos]
+
+⚠️ Todo acto de copiar, intentar copiar o dejar copiar, durante una prueba, examen, práctica, trabajo o cualquier asignación académica - usando tanto el medio físico como el electrónico - se encuentra normado en el Reglamento de Estudios y el Reglamento de Disciplina del Estudiante vigentes en el Portal de Transparencia y/o en el Portal del Estudiante.`;
 
 interface CrearActividadModalProps {
   cursoId: string;
@@ -15,11 +37,14 @@ export default function CrearActividadModal({ cursoId, semana, onClose, onCreate
   const [form, setForm] = useState({
     titulo: "",
     tipo: "tarea",
-    indicaciones: "",
+    indicaciones: INDICACIONES_PREDETERMINADAS,
+    fecha_inicio: "",
+    hora_inicio: "00:00",
     fecha_limite: "",
     hora_limite: "23:59",
     intentos_permitidos: 1,
     nota_maxima: 20,
+    visible: true,
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -38,6 +63,7 @@ export default function CrearActividadModal({ cursoId, semana, onClose, onCreate
       if (!token) throw new Error("Sin sesión");
 
       const fechaLimite = `${form.fecha_limite}T${form.hora_limite}:00`;
+      const fechaInicio = form.fecha_inicio ? `${form.fecha_inicio}T${form.hora_inicio}:00` : null;
 
       const res = await fetch("/api/portal/actividades", {
         method: "POST",
@@ -48,9 +74,11 @@ export default function CrearActividadModal({ cursoId, semana, onClose, onCreate
           titulo: form.titulo.trim(),
           tipo: form.tipo,
           indicaciones: form.indicaciones.trim() || null,
+          fecha_inicio: fechaInicio,
           fecha_limite: fechaLimite,
           intentos_permitidos: form.intentos_permitidos,
           nota_maxima: form.nota_maxima,
+          visible: form.visible,
         }),
       });
 
@@ -68,7 +96,7 @@ export default function CrearActividadModal({ cursoId, semana, onClose, onCreate
 
   return (
     <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-lg max-h-[85vh] overflow-y-auto">
+      <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between mb-4">
           <h3 className="font-bold text-gray-800 text-lg">Crear Actividad — Semana {semana}</h3>
           <button onClick={onClose}><X size={20} className="text-gray-400" /></button>
@@ -103,17 +131,27 @@ export default function CrearActividadModal({ cursoId, semana, onClose, onCreate
             </select>
           </div>
 
-          {/* Indicaciones */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Indicaciones de la tarea</label>
-            <textarea
-              value={form.indicaciones}
-              onChange={e => setForm({ ...form, indicaciones: e.target.value })}
-              placeholder="Escribe las instrucciones para los alumnos..."
-              rows={6}
-              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#C62828] resize-y"
-            />
-            <p className="text-xs text-gray-400 mt-1">Puedes usar formato: **negrita**, *cursiva*, - listas</p>
+          {/* Fecha de inicio (habilitación) */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Fecha de inicio (habilitación)</label>
+              <input
+                type="date"
+                value={form.fecha_inicio}
+                onChange={e => setForm({ ...form, fecha_inicio: e.target.value })}
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#C62828]"
+              />
+              <p className="text-[10px] text-gray-400 mt-0.5">Opcional. Si no se indica, se habilita inmediatamente.</p>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Hora de inicio</label>
+              <input
+                type="time"
+                value={form.hora_inicio}
+                onChange={e => setForm({ ...form, hora_inicio: e.target.value })}
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#C62828]"
+              />
+            </div>
           </div>
 
           {/* Fecha y hora límite */}
@@ -163,6 +201,30 @@ export default function CrearActividadModal({ cursoId, semana, onClose, onCreate
                 className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#C62828]"
               />
             </div>
+          </div>
+
+          {/* Visibilidad */}
+          <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+            <div>
+              <p className="text-sm font-medium text-gray-700">Visibilidad para alumnos</p>
+              <p className="text-xs text-gray-400">{form.visible ? "Los alumnos pueden ver esta actividad" : "Oculta — solo tú puedes verla"}</p>
+            </div>
+            <button onClick={() => setForm({ ...form, visible: !form.visible })}
+              className={`p-2 rounded-lg transition-colors ${form.visible ? "text-green-600 bg-green-100" : "text-orange-500 bg-orange-100"}`}>
+              {form.visible ? <Eye size={18} /> : <EyeOff size={18} />}
+            </button>
+          </div>
+
+          {/* Indicaciones */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Indicaciones de la tarea</label>
+            <textarea
+              value={form.indicaciones}
+              onChange={e => setForm({ ...form, indicaciones: e.target.value })}
+              rows={10}
+              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#C62828] resize-y font-mono"
+            />
+            <p className="text-xs text-gray-400 mt-1">Las indicaciones vienen predeterminadas. Edítalas según tu necesidad.</p>
           </div>
         </div>
 

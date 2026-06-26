@@ -177,7 +177,13 @@ export default function CourseDetailPage() {
           });
           if (actRes.ok) {
             const actData = await actRes.json();
-            const visibleActs = (actData.actividades ?? []).filter((a: ActividadDB) => a.visible !== false);
+            const now = new Date();
+            // Only show visible activities that have started (fecha_inicio passed or null)
+            const visibleActs = (actData.actividades ?? []).filter((a: ActividadDB) => {
+              if (a.visible === false) return false;
+              if (a.fecha_inicio && new Date(a.fecha_inicio) > now) return false;
+              return true;
+            });
             setActividadesDB(visibleActs);
           }
         }
