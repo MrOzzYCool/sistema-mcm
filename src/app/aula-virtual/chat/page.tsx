@@ -3,7 +3,6 @@
 import { useEffect, useState, useRef, useCallback } from "react";
 import { getAccessToken } from "@/lib/get-token";
 import { useAuth } from "@/lib/auth-context";
-import { supabase } from "@/lib/supabase";
 import { Plus, Send, Loader2, MessageCircle, Search, ChevronDown, User as UserIcon } from "lucide-react";
 
 interface Conversacion {
@@ -52,18 +51,18 @@ export default function ChatPage() {
 
   useEffect(() => { fetchConversaciones(); }, [fetchConversaciones]);
 
-  // Load cursos del alumno
+  // Load cursos del alumno via API
   useEffect(() => {
     async function loadCursos() {
       if (!user) return;
-      const { data } = await supabase.from("inscripciones").select("carrera_id").eq("alumno_id", user.id);
-      if (data && data.length > 0) {
-        const carreraIds = [...new Set(data.map(d => d.carrera_id))];
-        const { data: malla } = await supabase.from("malla_curricular").select("curso_id, cursos:curso_id(id, nombre_curso)").in("carrera_id", carreraIds);
-        if (malla) {
-          const cursos = malla.map((m: any) => m.cursos).filter(Boolean);
-          setMisCursos(cursos);
-        }
+      const token = await getAccessToken();
+      if (!token) return;
+      // Get mis cursos from the aula API
+      const res = await fetch("/api/portal/mis-cursos-aula", { headers: { Authorization: `Bearer ${token}` } });
+      if (res.ok) {
+        const data = await res.json();
+        const cursos = (data.cursos ?? data ?? []).map((c: any) => ({ id: c.id ?? c.curso_id, nombre_curso: c.nombre_curso ?? c.nombre ?? c.nombre_curso }));
+        setMisCursos(cursos);
       }
     }
     loadCursos();

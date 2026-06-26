@@ -66,48 +66,35 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ mensajes: msgs ?? [] });
   }
 
-  // Get classmates for a course (to start a new chat)
+  // Get classmates for a course (same carrera + same ciclo)
   if (action === "companeros") {
     const cursoId = req.nextUrl.searchParams.get("curso_id");
     if (!cursoId) return NextResponse.json({ error: "curso_id requerido" }, { status: 400 });
 
-    // Get all students inscribed in courses taught in this class_schedule
-    const { data: schedules } = await supabaseAdmin
-      .from("class_schedules").select("id").eq("curso_id", cursoId);
+    // Get the alumno's carrera and ciclo
+    const { data: myInsc } = await supabaseAdmin
+      .from("inscripciones").select("carrera_id, ciclo_actual").eq("alumno_id", user.id).limit(1);
 
-    if (!schedules || schedules.length === 0) {
-      // Fallback: get all inscripciones for this curso's carrera
-      const { data: malla } = await supabaseAdmin
-        .from("malla_curricular").select("carrera_id").eq("curso_id", cursoId).limit(1);
-      
-      if (malla && malla.length > 0) {
-        const { data: inscs } = await supabaseAdmin
-          .from("inscripciones").select("alumno_id").eq("carrera_id", malla[0].carrera_id);
-        const alumnoIds = (inscs ?? []).map(i => i.alumno_id).filter(id => id !== user.id);
-        
-        if (alumnoIds.length > 0) {
-          const { data: profiles } = await supabaseAdmin
-            .from("profiles").select("id, nombre_completo, genero").in("id", alumnoIds).eq("estado", "activo");
-          return NextResponse.json({ companeros: profiles ?? [] });
-        }
-      }
-      return NextResponse.json({ companeros: [] });
-    }
+    if (!myInsc || myInsc.length === 0) return NextResponse.json({ companeros: [] });
 
-    // Get students from inscripciones that match the course's carrera
-    const { data: malla } = await supabaseAdmin
-      .from("malla_curricular").select("carrera_id").eq("curso_id", cursoId).limit(1);
+    const myCarreraId = myInsc[0].carrera_id;
+    const myCiclo = myInsc[0].ciclo_actual;
 
-    if (!malla || malla.length === 0) return NextResponse.json({ companeros: [] });
-
+    // Get all students in the same carrera and same ciclo
     const { data: inscs } = await supabaseAdmin
-      .from("inscripciones").select("alumno_id").eq("carrera_id", malla[0].carrera_id);
+      .from("inscripciones")
+      .select("alumno_id")
+      .eq("carrera_id", myCarreraId)
+      .eq("ciclo_actual", myCiclo);
+
     const alumnoIds = (inscs ?? []).map(i => i.alumno_id).filter(id => id !== user.id);
 
     if (alumnoIds.length === 0) return NextResponse.json({ companeros: [] });
 
     const { data: profiles } = await supabaseAdmin
-      .from("profiles").select("id, nombre_completo, genero").in("id", alumnoIds).eq("estado", "activo");
+      .from("profiles").select("id, nombre_completo, genero")
+      .in("id", alumnoIds).eq("estado", "activo")
+      .order("nombre_completo");
 
     return NextResponse.json({ companeros: profiles ?? [] });
   }
