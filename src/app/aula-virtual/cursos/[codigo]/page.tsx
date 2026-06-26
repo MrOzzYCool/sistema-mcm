@@ -8,10 +8,11 @@ import { getAccessToken } from "@/lib/get-token";
 import { Course } from "@/types/course";
 import MaterialViewer from "@/components/aula-virtual/MaterialViewer";
 import ForoViewer from "@/components/aula-virtual/ForoViewer";
+import ActividadViewer from "@/components/aula-virtual/ActividadViewer";
 import {
   ArrowLeft, Video as VideoIcon, FileText, ExternalLink, LinkIcon,
   ChevronDown, ChevronUp, User,
-  MessageSquare, BookOpen, PenTool,
+  MessageSquare, BookOpen, PenTool, ClipboardList, Clock,
   FileSpreadsheet, Image,
 } from "lucide-react";
 
@@ -123,8 +124,14 @@ export default function CourseDetailPage() {
   const [foroOpen, setForoOpen] = useState(false);
   const [foroSemana, setForoSemana] = useState(1);
 
+  // Actividad Viewer state
+  interface ActividadDB { id: string; semana: number; titulo: string; tipo: string; indicaciones: string | null; fecha_inicio: string | null; fecha_limite: string; intentos_permitidos: number; nota_maxima: number; rubrica: string | null; tipos_entrega: string[]; visible: boolean; }
+  const [actividadesDB, setActividadesDB] = useState<ActividadDB[]>([]);
+  const [actividadOpen, setActividadOpen] = useState(false);
+  const [actividadSeleccionada, setActividadSeleccionada] = useState<ActividadDB | null>(null);
+
   // Unified navigation: all items for a week in order [foro, ...materiales, ...actividades]
-  type WeekItem = { type: "foro"; week: number } | { type: "material"; id: string; mat: MaterialCurso };
+  type WeekItem = { type: "foro"; week: number } | { type: "material"; id: string; mat: MaterialCurso } | { type: "actividad"; act: ActividadDB };
   const [weekItems, setWeekItems] = useState<WeekItem[]>([]);
   const [weekItemIndex, setWeekItemIndex] = useState(0);
 
@@ -163,6 +170,16 @@ export default function CourseDetailPage() {
             const visibleMats = (data.materiales ?? []).filter((m: MaterialCurso) => m.visible !== false);
             setMaterialCurso(visibleMats);
           }
+
+          // Fetch actividades from DB (created by professor)
+          const actRes = await fetch(`/api/portal/actividades?curso_id=${courseData.id}`, {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          if (actRes.ok) {
+            const actData = await actRes.json();
+            const visibleActs = (actData.actividades ?? []).filter((a: ActividadDB) => a.visible !== false);
+            setActividadesDB(visibleActs);
+          }
         }
       } catch (err: unknown) { setError(err instanceof Error ? err.message : String(err)); }
       finally { setLoading(false); }
@@ -185,9 +202,12 @@ export default function CourseDetailPage() {
     // 2. Materiales
     const mats = materialCurso.filter(m => m.semana === week && m.seccion === "material");
     mats.forEach(mat => items.push({ type: "material", id: mat.id, mat }));
-    // 3. Actividades
-    const acts = materialCurso.filter(m => m.semana === week && m.seccion === "actividad");
-    acts.forEach(mat => items.push({ type: "material", id: mat.id, mat }));
+    // 3. Material files tagged as actividad
+    const actFiles = materialCurso.filter(m => m.semana === week && m.seccion === "actividad");
+    actFiles.forEach(mat => items.push({ type: "material", id: mat.id, mat }));
+    // 4. Actividades from DB (tareas creadas por profesor)
+    const actsDB = actividadesDB.filter(a => a.semana === week);
+    actsDB.forEach(act => items.push({ type: "actividad", act }));
     return items;
   }
 
@@ -199,10 +219,17 @@ export default function CourseDetailPage() {
 
     if (item.type === "foro") {
       setViewerOpen(false);
+      setActividadOpen(false);
       setForoSemana(item.week);
       setForoOpen(true);
+    } else if (item.type === "actividad") {
+      setViewerOpen(false);
+      setForoOpen(false);
+      setActividadSeleccionada(item.act);
+      setActividadOpen(true);
     } else {
       setForoOpen(false);
+      setActividadOpen(false);
       setViewerMaterial(item.mat);
       setViewerWeek(item.mat.semana ?? 1);
       setViewerOpen(true);
@@ -350,6 +377,46 @@ export default function CourseDetailPage() {
     );
   }
 
+  // If actividad is open, show it INLINE
+  if (actividadOpen && actividadSeleccionada && course) {
+    return (
+      <div className="py-3 px-6 w-full">
+        {/* Course header bar */}
+        <div className="flex items-center gap-3 mb-2">
+          <button onClick={() => { setActividadOpen(false); }} className="text-xs text-[#C62828] hover:underline flex items-center gap-1">
+            <ArrowLeft size={14} /> Volver a contenido
+          </button>
+          <div className="w-px h-4 bg-gray-300" />
+          <span className="text-sm text-gray-700 font-semibold">{displayName}</span>
+          <span className="inline-flex items-center text-[10px] px-2 py-0.5 rounded-full bg-teal-600 text-white font-medium">Virtual en vivo</span>
+        </div>
+
+        {/* Tabs */}
+        <div className="flex border-b border-gray-200 mb-4">
+          {tabs.map(tab => (
+            <button key={tab.id} onClick={() => { setActividadOpen(false); setActiveTab(tab.id); }}
+              className={`px-4 py-2.5 text-sm font-medium transition-colors whitespace-nowrap ${tab.id === "contenido" ? "text-[#C62828]" : "text-gray-500 hover:text-[#C62828]"}`}
+              style={tab.id === "contenido" ? { borderBottomWidth: "3px", borderBottomColor: "#C62828" } : {}}>
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
+        <ActividadViewer
+          actividad={actividadSeleccionada}
+          cursoId={course.id}
+          onClose={() => setActividadOpen(false)}
+          totalItems={weekItems.length}
+          currentIndex={weekItemIndex}
+          onPrev={handleNavPrev}
+          onNext={handleNavNext}
+          canGoPrev={weekItemIndex > 0}
+          canGoNext={weekItemIndex < weekItems.length - 1}
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="py-4 w-full max-w-[1200px] mx-auto">
       <Link href="/aula-virtual" className="inline-flex items-center gap-1 text-sm text-[#C62828] hover:underline mb-4">
@@ -483,7 +550,24 @@ export default function CourseDetailPage() {
                       </button>
                       {openSections.has(`act-${week}`) && (
                         <div className="px-5 pb-3 space-y-2">
-                          {/* actividades_semana rows */}
+                          {/* Actividades creadas por el profesor (tabla actividades) */}
+                          {actividadesDB.filter(a => a.semana === week).map(act => (
+                            <button key={act.id} onClick={() => { const items = buildWeekItems(week); const idx = items.findIndex(i => i.type === "actividad" && i.act.id === act.id); navigateToItem(items, idx >= 0 ? idx : 0); }}
+                              className="w-full flex items-center justify-between p-3 rounded-lg bg-orange-50 border border-orange-100 hover:border-orange-200 transition-colors text-left">
+                              <div className="flex items-center gap-3">
+                                <ClipboardList size={16} className="text-orange-500" />
+                                <div>
+                                  <p className="text-sm font-medium text-gray-700">{act.titulo}</p>
+                                  <p className="text-[10px] text-gray-500">{act.tipo === "tarea" ? "Tarea calificada" : act.tipo} &middot; Límite: {formatDate(act.fecha_limite)}</p>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <Clock size={12} className="text-orange-400" />
+                                <span className="text-xs text-orange-600">Ver actividad →</span>
+                              </div>
+                            </button>
+                          ))}
+                          {/* actividades_semana rows (legacy) */}
                           {weekActs.map(act => (
                             <div key={act.id} className="flex items-center justify-between p-3 rounded-lg bg-gray-50">
                               <div className="flex items-center gap-3">
@@ -516,7 +600,7 @@ export default function CourseDetailPage() {
                                 </button>
                               </div>
                             ))}
-                            {weekActs.length === 0 && weekActividadFiles.length === 0 && (
+                            {actividadesDB.filter(a => a.semana === week).length === 0 && weekActs.length === 0 && weekActividadFiles.length === 0 && (
                               <p className="text-xs text-gray-400 italic py-2">Sin actividades para esta semana.</p>
                             )}
                           </div>

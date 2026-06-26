@@ -7,6 +7,7 @@ import { supabase } from "@/lib/supabase";
 import { getAccessToken } from "@/lib/get-token";
 import { Course } from "@/types/course";
 import MaterialViewer from "@/components/aula-virtual/MaterialViewer";
+import CrearActividadModal from "@/components/aula-virtual/CrearActividadModal";
 import {
   ArrowLeft, FileText, ChevronDown, ChevronUp, Upload, Plus, Loader2,
   Users, ClipboardList, CheckCircle2, Clock, ExternalLink, Trash2,
@@ -74,6 +75,11 @@ export default function DocenteCursoPage() {
   const [viewerList, setViewerList] = useState<Material[]>([]);
   const [viewerIndex, setViewerIndex] = useState(0);
 
+  // Actividades state
+  interface Actividad { id: string; semana: number; titulo: string; tipo: string; fecha_limite: string; visible: boolean; }
+  const [actividades, setActividades] = useState<Actividad[]>([]);
+  const [showCrearActividad, setShowCrearActividad] = useState<{ show: boolean; semana: number }>({ show: false, semana: 1 });
+
   const fetchMateriales = useCallback(async () => {
     const token = await getAccessToken();
     if (!token) return;
@@ -86,6 +92,18 @@ export default function DocenteCursoPage() {
     }
   }, [cursoId]);
 
+  const fetchActividades = useCallback(async () => {
+    const token = await getAccessToken();
+    if (!token) return;
+    const res = await fetch(`/api/portal/actividades?curso_id=${cursoId}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (res.ok) {
+      const data = await res.json();
+      setActividades(data.actividades ?? []);
+    }
+  }, [cursoId]);
+
   useEffect(() => {
     async function fetchData() {
       try {
@@ -93,6 +111,7 @@ export default function DocenteCursoPage() {
         if (!courseData) { setError("Curso no encontrado"); setLoading(false); return; }
         setCourse(courseData);
         await fetchMateriales();
+        await fetchActividades();
       } catch (err: unknown) { setError(err instanceof Error ? err.message : String(err)); }
       finally { setLoading(false); }
     }
@@ -316,12 +335,33 @@ export default function DocenteCursoPage() {
                     {/* Secci&oacute;n 3: Pon en pr&aacute;ctica lo aprendido */}
                     <SectionHeader title="Pon en pr&aacute;ctica lo aprendido" icon={<PenTool size={16} className="text-orange-500" />}
                       sectionKey={`act-${week}`} isOpen={openSections.has(`act-${week}`)} toggle={toggleSection}
-                      onAdd={() => triggerUpload(week, "actividad")} addLabel="Subir actividad" />
+                      onAdd={() => setShowCrearActividad({ show: true, semana: week })} addLabel="Crear actividad" />
                     {openSections.has(`act-${week}`) && (
                       <div className="px-5 pb-3 space-y-2">
-                        {matsActividad.length > 0 ? matsActividad.map(mat => (
+                        {/* Actividades creadas (tabla actividades) */}
+                        {actividades.filter(a => a.semana === week).map(act => (
+                          <div key={act.id} className="flex items-center gap-3 p-2.5 rounded-lg hover:bg-gray-50 group border border-gray-100">
+                            <ClipboardList size={16} className="text-orange-500 shrink-0" />
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm text-gray-700 font-medium truncate">{act.titulo}</p>
+                              <p className="text-[10px] text-gray-400">{act.tipo.charAt(0).toUpperCase() + act.tipo.slice(1)} &middot; Límite: {new Date(act.fecha_limite).toLocaleDateString("es-PE")}</p>
+                            </div>
+                            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                              <button onClick={async () => { if (!confirm(`Eliminar "${act.titulo}"?`)) return; const token = await getAccessToken(); if (!token) return; await fetch("/api/portal/actividades", { method: "DELETE", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({ id: act.id }) }); fetchActividades(); }}
+                                className="p-1 text-gray-300 hover:text-red-500"><Trash2 size={14} /></button>
+                            </div>
+                          </div>
+                        ))}
+                        {/* Archivos subidos (material_curso con seccion=actividad) */}
+                        {matsActividad.length > 0 && matsActividad.map(mat => (
                           <MaterialRow key={mat.id} mat={mat} onOpen={openFile} onDelete={handleDelete} onToggle={toggleVisibility} />
-                        )) : <p className="text-xs text-gray-400 italic">Sin actividades. Usa el bot&oacute;n + para agregar.</p>}
+                        ))}
+                        {actividades.filter(a => a.semana === week).length === 0 && matsActividad.length === 0 && (
+                          <p className="text-xs text-gray-400 italic">Sin actividades. Usa el bot&oacute;n + para crear.</p>
+                        )}
+                        <button onClick={() => triggerUpload(week, "actividad")} className="text-xs text-gray-400 hover:text-[#C62828] flex items-center gap-1 pt-1">
+                          <Upload size={12} /> Adjuntar archivo a esta semana
+                        </button>
                       </div>
                     )}
                   </div>
@@ -342,6 +382,16 @@ export default function DocenteCursoPage() {
         <div className="bg-white rounded-xl shadow-sm p-6">
           <p className="text-sm text-gray-400 text-center py-8">{tabs.find(t => t.id === activeTab)?.label} &mdash; disponible pr&oacute;ximamente.</p>
         </div>
+      )}
+
+      {/* Modal crear actividad */}
+      {showCrearActividad.show && (
+        <CrearActividadModal
+          cursoId={cursoId}
+          semana={showCrearActividad.semana}
+          onClose={() => setShowCrearActividad({ show: false, semana: 1 })}
+          onCreated={fetchActividades}
+        />
       )}
     </div>
   );
