@@ -7,6 +7,7 @@ import { ChevronLeft, ChevronRight, Calendar, ClipboardList } from "lucide-react
 interface ClassEvent {
   id: string;
   curso: string;
+  course_id?: string;
   dia: string;
   dia_numero: number;
   hora_inicio: string;
@@ -255,46 +256,37 @@ export default function CalendarioAVPage() {
         </div>
       )}
 
-      {/* Event detail popup */}
+      {/* Event detail popup - positioned as side panel */}
       {selectedEvent && (
         <>
-          <button onClick={() => setSelectedEvent(null)} className="fixed inset-0 z-40 bg-black/20" aria-label="Cerrar" />
-          <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 bg-white rounded-xl shadow-2xl p-6 w-full max-w-sm">
+          <button onClick={() => setSelectedEvent(null)} className="fixed inset-0 z-40" aria-label="Cerrar" />
+          <div className="fixed top-20 right-8 z-50 bg-white rounded-xl shadow-2xl border border-gray-200 p-5 w-80">
             <button onClick={() => setSelectedEvent(null)} className="absolute top-3 right-3 text-gray-400 hover:text-gray-600 text-xl">&times;</button>
 
             <span className="inline-flex items-center text-xs px-2.5 py-1 rounded-full border border-teal-200 text-teal-700 font-medium mb-3">
               Virtual en vivo
             </span>
 
-            <h3 className="font-bold text-gray-800 text-lg mb-1">{selectedEvent.curso}</h3>
+            <h3 className="font-bold text-gray-800 text-base mb-1">{selectedEvent.curso}</h3>
             <p className="text-sm text-gray-500 mb-4">{selectedEvent.dia}</p>
 
             <div className="space-y-3">
               <div className="flex items-start gap-3">
                 <Calendar size={16} className="text-gray-400 mt-0.5 shrink-0" />
-                <div>
-                  <p className="text-sm text-gray-700">{selectedEvent.dia}, de {selectedEvent.hora_inicio} a {selectedEvent.hora_fin}</p>
-                </div>
+                <p className="text-sm text-gray-700">{selectedEvent.dia}, de {selectedEvent.hora_inicio} a {selectedEvent.hora_fin}</p>
               </div>
-
-              {selectedEvent.aula && (
-                <div className="flex items-start gap-3">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-gray-400 mt-0.5 shrink-0"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>
-                  <p className="text-sm text-gray-700">{selectedEvent.aula}</p>
-                </div>
-              )}
 
               {selectedEvent.url_clase ? (
                 <a href={selectedEvent.url_clase} target="_blank" rel="noopener noreferrer"
-                  className="flex items-center gap-2 text-sm text-blue-600 hover:underline mt-2">
+                  className="flex items-center gap-2 text-sm text-blue-600 hover:underline">
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="shrink-0"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
                   Ingresar a clase (Teams)
                 </a>
               ) : (
-                <p className="text-xs text-gray-400 italic mt-2">Link de Teams no disponible aún</p>
+                <p className="text-xs text-gray-400 italic">Link de Teams no disponible aún</p>
               )}
 
-              <a href="/aula-virtual" className="flex items-center gap-2 text-sm text-[#C62828] hover:underline">
+              <a href={`/aula-virtual/cursos/${selectedEvent.course_id ?? ""}`} className="flex items-center gap-2 text-sm text-[#C62828] hover:underline">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="shrink-0"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
                 Ir al contenido del curso
               </a>

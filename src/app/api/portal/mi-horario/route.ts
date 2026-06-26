@@ -95,6 +95,7 @@ export async function GET(req: NextRequest) {
     // 6. Transformar datos para el frontend
     const horario = schedules.map((s) => ({
       id: s.id,
+      course_id: s.course_id,
       dia: DAY_NAMES[s.day_of_week] ?? `Día ${s.day_of_week}`,
       dia_numero: s.day_of_week,
       curso: cursoMap.get(s.course_id) ?? "—",
