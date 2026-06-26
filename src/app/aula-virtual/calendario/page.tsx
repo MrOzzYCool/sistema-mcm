@@ -58,6 +58,7 @@ export default function CalendarioAVPage() {
   const [loading, setLoading] = useState(true);
   const [weekOffset, setWeekOffset] = useState(0);
   const [currentTime, setCurrentTime] = useState(new Date());
+  const [selectedEvent, setSelectedEvent] = useState<ClassEvent | null>(null);
 
   const weekDates = getWeekDates(weekOffset);
   const weekStart = weekDates[0];
@@ -199,12 +200,13 @@ export default function CalendarioAVPage() {
                       const top = (start - HORAS_START) * HOUR_HEIGHT;
                       const height = (end - start) * HOUR_HEIGHT;
                       return (
-                        <div key={cls.id} className="absolute left-1 right-1 bg-teal-500 text-white rounded-lg p-1.5 overflow-hidden shadow-sm z-10"
+                        <button key={cls.id} onClick={() => setSelectedEvent(cls)}
+                          className="absolute left-1 right-1 bg-teal-500 text-white rounded-lg p-1.5 overflow-hidden shadow-sm z-10 text-left hover:bg-teal-600 transition-colors cursor-pointer"
                           style={{ top: `${top}px`, height: `${Math.max(height, 30)}px` }}>
                           <p className="text-[11px] font-semibold truncate">{cls.curso}</p>
                           <p className="text-[9px] opacity-80">{cls.hora_inicio} - {cls.hora_fin}</p>
                           <span className="inline-block mt-0.5 text-[8px] bg-teal-600 px-1 rounded">Virtual en vivo</span>
-                        </div>
+                        </button>
                       );
                     })}
 
@@ -251,6 +253,54 @@ export default function CalendarioAVPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Event detail popup */}
+      {selectedEvent && (
+        <>
+          <button onClick={() => setSelectedEvent(null)} className="fixed inset-0 z-40 bg-black/20" aria-label="Cerrar" />
+          <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 bg-white rounded-xl shadow-2xl p-6 w-full max-w-sm">
+            <button onClick={() => setSelectedEvent(null)} className="absolute top-3 right-3 text-gray-400 hover:text-gray-600 text-xl">&times;</button>
+
+            <span className="inline-flex items-center text-xs px-2.5 py-1 rounded-full border border-teal-200 text-teal-700 font-medium mb-3">
+              Virtual en vivo
+            </span>
+
+            <h3 className="font-bold text-gray-800 text-lg mb-1">{selectedEvent.curso}</h3>
+            <p className="text-sm text-gray-500 mb-4">{selectedEvent.dia}</p>
+
+            <div className="space-y-3">
+              <div className="flex items-start gap-3">
+                <Calendar size={16} className="text-gray-400 mt-0.5 shrink-0" />
+                <div>
+                  <p className="text-sm text-gray-700">{selectedEvent.dia}, de {selectedEvent.hora_inicio} a {selectedEvent.hora_fin}</p>
+                </div>
+              </div>
+
+              {selectedEvent.aula && (
+                <div className="flex items-start gap-3">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-gray-400 mt-0.5 shrink-0"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                  <p className="text-sm text-gray-700">{selectedEvent.aula}</p>
+                </div>
+              )}
+
+              {selectedEvent.url_clase ? (
+                <a href={selectedEvent.url_clase} target="_blank" rel="noopener noreferrer"
+                  className="flex items-center gap-2 text-sm text-blue-600 hover:underline mt-2">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="shrink-0"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                  Ingresar a clase (Teams)
+                </a>
+              ) : (
+                <p className="text-xs text-gray-400 italic mt-2">Link de Teams no disponible aún</p>
+              )}
+
+              <a href="/aula-virtual" className="flex items-center gap-2 text-sm text-[#C62828] hover:underline">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="shrink-0"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                Ir al contenido del curso
+              </a>
+            </div>
+          </div>
+        </>
       )}
     </div>
   );
