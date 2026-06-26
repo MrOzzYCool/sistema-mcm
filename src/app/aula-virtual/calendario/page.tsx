@@ -60,6 +60,7 @@ export default function CalendarioAVPage() {
   const [weekOffset, setWeekOffset] = useState(0);
   const [currentTime, setCurrentTime] = useState(new Date());
   const [selectedEvent, setSelectedEvent] = useState<ClassEvent | null>(null);
+  const [popupPos, setPopupPos] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
 
   const weekDates = getWeekDates(weekOffset);
   const weekStart = weekDates[0];
@@ -201,7 +202,7 @@ export default function CalendarioAVPage() {
                       const top = (start - HORAS_START) * HOUR_HEIGHT;
                       const height = (end - start) * HOUR_HEIGHT;
                       return (
-                        <button key={cls.id} onClick={() => setSelectedEvent(cls)}
+                        <button key={cls.id} onClick={(e) => { const rect = (e.currentTarget as HTMLElement).getBoundingClientRect(); setPopupPos({ x: rect.right + 8, y: rect.top }); setSelectedEvent(cls); }}
                           className="absolute left-1 right-1 bg-teal-500 text-white rounded-lg p-1.5 overflow-hidden shadow-sm z-10 text-left hover:bg-teal-600 transition-colors cursor-pointer"
                           style={{ top: `${top}px`, height: `${Math.max(height, 30)}px` }}>
                           <p className="text-[11px] font-semibold truncate">{cls.curso}</p>
@@ -256,11 +257,12 @@ export default function CalendarioAVPage() {
         </div>
       )}
 
-      {/* Event detail popup - positioned as side panel */}
+      {/* Event detail popup - positioned next to clicked event */}
       {selectedEvent && (
         <>
           <button onClick={() => setSelectedEvent(null)} className="fixed inset-0 z-40" aria-label="Cerrar" />
-          <div className="fixed top-20 right-8 z-50 bg-white rounded-xl shadow-2xl border border-gray-200 p-5 w-80">
+          <div className="fixed z-50 bg-white rounded-xl shadow-2xl border border-gray-200 p-5 w-72"
+            style={{ top: `${Math.min(popupPos.y, window.innerHeight - 280)}px`, left: `${Math.min(popupPos.x, window.innerWidth - 300)}px` }}>
             <button onClick={() => setSelectedEvent(null)} className="absolute top-3 right-3 text-gray-400 hover:text-gray-600 text-xl">&times;</button>
 
             <span className="inline-flex items-center text-xs px-2.5 py-1 rounded-full border border-teal-200 text-teal-700 font-medium mb-3">
