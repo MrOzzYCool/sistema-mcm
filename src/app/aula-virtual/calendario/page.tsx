@@ -6,12 +6,13 @@ import { ChevronLeft, ChevronRight, Calendar, Clock, ClipboardList } from "lucid
 
 interface ClassEvent {
   id: string;
-  curso_nombre: string;
-  dia_semana: string;
+  curso: string;
+  dia: string;
+  dia_numero: number;
   hora_inicio: string;
   hora_fin: string;
   aula: string | null;
-  profesor: string | null;
+  url_clase: string | null;
 }
 
 interface TareaEvent {
@@ -26,8 +27,9 @@ interface TareaEvent {
 const DIAS = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
 const HORAS = Array.from({ length: 14 }, (_, i) => `${(i + 7).toString().padStart(2, "0")}:00`);
 
-function getDayIndex(dia: string): number {
-  const map: Record<string, number> = { lunes: 0, martes: 1, miercoles: 2, miércoles: 2, jueves: 3, viernes: 4, sabado: 5, sábado: 5 };
+function getDayIndex(dia: string, dia_numero?: number): number {
+  if (dia_numero !== undefined) return dia_numero - 1; // 1=Lunes -> 0
+  const map: Record<string, number> = { lunes: 0, martes: 1, miercoles: 2, "miércoles": 2, jueves: 3, viernes: 4, sabado: 5, "sábado": 5 };
   return map[dia.toLowerCase()] ?? -1;
 }
 
@@ -64,7 +66,7 @@ export default function CalendarioAVPage() {
         const horRes = await fetch("/api/portal/mi-horario", { headers: { Authorization: `Bearer ${token}` } });
         if (horRes.ok) {
           const data = await horRes.json();
-          setHorarios(data.horarios ?? data ?? []);
+          setHorarios(data.horario ?? []);
         }
       } catch { /* ignore */ }
 
@@ -151,7 +153,7 @@ export default function CalendarioAVPage() {
           {/* Schedule grid */}
           <div className="grid grid-cols-6 min-h-[400px]">
             {DIAS.map((dia, colIdx) => {
-              const dayClasses = horarios.filter(h => getDayIndex(h.dia_semana) === colIdx);
+              const dayClasses = horarios.filter(h => getDayIndex(h.dia, h.dia_numero) === colIdx);
               const dayTareas = getTareasForDay(weekDates[colIdx]);
               const isToday = weekDates[colIdx].toDateString() === new Date().toDateString();
 
@@ -160,9 +162,9 @@ export default function CalendarioAVPage() {
                   {/* Classes */}
                   {dayClasses.map(cls => (
                     <div key={cls.id} className="bg-[#C62828] text-white rounded-lg p-2 text-xs">
-                      <p className="font-medium truncate">{cls.curso_nombre}</p>
+                      <p className="font-medium truncate">{cls.curso}</p>
                       <p className="opacity-80 flex items-center gap-1 mt-0.5"><Clock size={10} /> {cls.hora_inicio} - {cls.hora_fin}</p>
-                      {cls.profesor && <p className="opacity-70 truncate mt-0.5">{cls.profesor}</p>}
+                      {cls.aula && <p className="opacity-70 truncate mt-0.5">{cls.aula}</p>}
                     </div>
                   ))}
                   {/* Tareas */}
