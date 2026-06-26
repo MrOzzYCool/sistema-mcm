@@ -2,8 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { getAccessToken } from "@/lib/get-token";
-import { useAuth } from "@/lib/auth-context";
-import { ChevronLeft, ChevronRight, Calendar, Clock, ClipboardList, BookOpen } from "lucide-react";
+import { ChevronLeft, ChevronRight, Calendar, Clock, ClipboardList } from "lucide-react";
 
 interface ClassEvent {
   id: string;
@@ -45,7 +44,6 @@ function getWeekDates(offset: number) {
 }
 
 export default function CalendarioAVPage() {
-  const { user } = useAuth();
   const [horarios, setHorarios] = useState<ClassEvent[]>([]);
   const [tareas, setTareas] = useState<TareaEvent[]>([]);
   const [loading, setLoading] = useState(true);
@@ -57,40 +55,47 @@ export default function CalendarioAVPage() {
 
   const fetchData = useCallback(async () => {
     setLoading(true);
-    const token = await getAccessToken();
-    if (!token) { setLoading(false); return; }
+    try {
+      const token = await getAccessToken();
+      if (!token) { setLoading(false); return; }
 
-    // Fetch horarios
-    const horRes = await fetch("/api/portal/mi-horario", { headers: { Authorization: `Bearer ${token}` } });
-    if (horRes.ok) {
-      const data = await horRes.json();
-      setHorarios(data.horarios ?? data ?? []);
-    }
-
-    // Fetch actividades/tareas
-    const actRes = await fetch("/api/portal/mis-cursos-aula", { headers: { Authorization: `Bearer ${token}` } });
-    if (actRes.ok) {
-      const cursosData = await actRes.json();
-      const cursos = cursosData.cursos ?? cursosData ?? [];
-      
-      // Fetch actividades for each curso
-      const allTareas: TareaEvent[] = [];
-      for (const curso of cursos) {
-        const cursoId = curso.id ?? curso.curso_id;
-        const res = await fetch(`/api/portal/actividades?curso_id=${cursoId}`, { headers: { Authorization: `Bearer ${token}` } });
-        if (res.ok) {
-          const actData = await res.json();
-          (actData.actividades ?? []).forEach((a: any) => {
-            if (a.visible !== false) {
-              allTareas.push({ id: a.id, titulo: a.titulo, tipo: a.tipo, curso_nombre: curso.nombre_curso ?? curso.nombre, fecha_limite: a.fecha_limite, semana: a.semana });
-            }
-          });
+      // Fetch horarios
+      try {
+        const horRes = await fetch("/api/portal/mi-horario", { headers: { Authorization: `Bearer ${token}` } });
+        if (horRes.ok) {
+          const data = await horRes.json();
+          setHorarios(data.horarios ?? data ?? []);
         }
-      }
-      setTareas(allTareas);
-    }
+      } catch { /* ignore */ }
 
-    setLoading(false);
+      // Fetch actividades/tareas
+      try {
+        const actRes = await fetch("/api/portal/mis-cursos-aula", { headers: { Authorization: `Bearer ${token}` } });
+        if (actRes.ok) {
+          const cursosData = await actRes.json();
+          const cursos = cursosData.cursos ?? cursosData ?? [];
+          
+          const allTareas: TareaEvent[] = [];
+          for (const curso of cursos) {
+            const cursoId = curso.id ?? curso.curso_id;
+            if (!cursoId) continue;
+            try {
+              const res = await fetch(`/api/portal/actividades?curso_id=${cursoId}`, { headers: { Authorization: `Bearer ${token}` } });
+              if (res.ok) {
+                const actData = await res.json();
+                (actData.actividades ?? []).forEach((a: any) => {
+                  if (a.visible !== false && a.fecha_limite) {
+                    allTareas.push({ id: a.id, titulo: a.titulo, tipo: a.tipo, curso_nombre: curso.nombre_curso ?? curso.nombre, fecha_limite: a.fecha_limite, semana: a.semana });
+                  }
+                });
+              }
+            } catch { /* ignore individual course errors */ }
+          }
+          setTareas(allTareas);
+        }
+      } catch { /* ignore */ }
+    } catch { /* ignore */ }
+    finally { setLoading(false); }
   }, []);
 
   useEffect(() => { fetchData(); }, [fetchData]);
