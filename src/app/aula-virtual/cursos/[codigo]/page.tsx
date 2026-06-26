@@ -261,6 +261,22 @@ export default function CourseDetailPage() {
   function openFile(materialId: string) {
     const mat = materialCurso.find(m => m.id === materialId);
     if (!mat) return;
+
+    // For silabo/sesiones (no semana), open directly without week navigation
+    if (mat.seccion === "silabo" || mat.seccion === "sesiones" || mat.semana === null) {
+      setForoOpen(false);
+      setActividadOpen(false);
+      setViewerMaterial(mat);
+      setViewerWeek(0);
+      setWeekItems([{ type: "material", id: mat.id, mat }]);
+      setWeekItemIndex(0);
+      setViewerOpen(true);
+      setViewerLoading(true);
+      setViewerUrl(null);
+      loadPresignedUrl(mat.id);
+      return;
+    }
+
     const week = mat.semana ?? 1;
     const items = buildWeekItems(week);
     const idx = items.findIndex(i => i.type === "material" && i.id === materialId);
