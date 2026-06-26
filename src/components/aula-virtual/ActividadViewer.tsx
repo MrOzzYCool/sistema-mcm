@@ -22,6 +22,7 @@ interface Actividad {
 
 interface Entrega {
   id: string;
+  actividad_id: string;
   intento: number;
   comentario: string | null;
   archivos: { nombre: string; url: string; tipo: string; tamano: number }[];
@@ -76,13 +77,16 @@ export default function ActividadViewer({
 
   const fetchEntregas = useCallback(async () => {
     const token = await getAccessToken();
-    if (!token) return;
-    const res = await fetch(`/api/portal/entregas?actividad_id=${actividad.id}`, {
+    if (!token) { setLoading(false); return; }
+    // Fetch only MY entregas for this actividad
+    const res = await fetch(`/api/portal/entregas`, {
       headers: { Authorization: `Bearer ${token}` },
     });
     if (res.ok) {
       const data = await res.json();
-      setEntregas(data.entregas ?? []);
+      // Filter only entregas for this specific actividad
+      const misEntregas = (data.entregas ?? []).filter((e: Entrega) => e.actividad_id === actividad.id);
+      setEntregas(misEntregas);
     }
     setLoading(false);
   }, [actividad.id]);
@@ -143,10 +147,13 @@ export default function ActividadViewer({
             <span className={`inline-flex items-center text-xs px-2 py-0.5 rounded-full font-medium ${estadoColor}`}>
               {estadoLabel}
             </span>
-            {puedeEntregar && (
-              <button onClick={() => setShowEntrega(true)}
-                className="ml-auto px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700">
-                Entregar tarea
+            {!loading && !showEntrega && (
+              <button
+                onClick={() => setShowEntrega(true)}
+                disabled={!puedeEntregar}
+                className="ml-auto px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed"
+              >
+                {hasEntregado ? "Entregar de nuevo" : "Entregar tarea"}
               </button>
             )}
           </div>
@@ -206,11 +213,12 @@ export default function ActividadViewer({
           {/* Zona de entrega */}
           {showEntrega && (
             <div className="border-t border-gray-200 pt-6">
-              <h3 className="text-base font-semibold text-gray-800 mb-3">Entrega tu tarea</h3>
-              <p className="text-xs text-gray-500 mb-3">Puedes entregar tu tarea mediante un texto, URL o adjuntando un archivo.</p>
+              <h3 className="text-base font-semibold text-gray-800 mb-1">Entrega tu tarea</h3>
+              <p className="text-xs text-gray-500 mb-4">Puedes entregar tu tarea mediante un texto, URL o adjuntando un archivo.</p>
 
+              {/* Comentario/URL */}
               <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-1">Escribe un comentario o pega el URL de tu tarea</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Escribe un comentario o pega el URL de tu tarea *</label>
                 <textarea
                   value={comentario}
                   onChange={e => setComentario(e.target.value)}
@@ -220,12 +228,26 @@ export default function ActividadViewer({
                 />
               </div>
 
+              {/* File upload area */}
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Adjunta un archivo</label>
+                <div className="border-2 border-dashed border-gray-200 rounded-lg p-6 text-center hover:border-gray-300 transition-colors">
+                  <p className="text-sm text-gray-500 mb-1">Máximo 8 archivos</p>
+                  <p className="text-xs text-blue-600 cursor-pointer hover:underline">+ Subir archivo</p>
+                  <p className="text-[10px] text-gray-400 mt-2">Sube o arrastra tus archivos en formatos:</p>
+                  <p className="text-[10px] text-gray-400">PDF, PPT, Word, Excel, JPG, JPEG, PNG, mp3, mp4, zip o rar</p>
+                  <p className="text-[10px] text-gray-400">(Tamaño máximo por archivo: 100 MB)</p>
+                </div>
+              </div>
+
+              <p className="text-[10px] text-red-500 mb-3">* Información necesaria para confirmar.</p>
+
               <div className="flex gap-3">
-                <button onClick={() => setShowEntrega(false)} className="px-4 py-2 border border-gray-200 rounded-lg text-sm text-gray-600">
+                <button onClick={() => setShowEntrega(false)} className="px-4 py-2 border border-gray-200 rounded-lg text-sm text-gray-600 hover:bg-gray-50">
                   Cancelar entrega
                 </button>
                 <button onClick={handleEntregar} disabled={sending || !comentario.trim()}
-                  className="px-4 py-2 bg-gray-800 text-white rounded-lg text-sm font-medium disabled:opacity-50 flex items-center gap-2">
+                  className="ml-auto px-5 py-2 bg-gray-800 text-white rounded-lg text-sm font-medium disabled:opacity-50 disabled:bg-gray-400 flex items-center gap-2 hover:bg-gray-900">
                   {sending && <Loader2 size={14} className="animate-spin" />}
                   Entregar tarea
                 </button>
