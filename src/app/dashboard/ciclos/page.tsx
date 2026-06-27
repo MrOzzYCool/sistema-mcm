@@ -123,7 +123,7 @@ function CiclosContent() {
   const [openingForm, setOpeningForm] = useState({ cycle_number: "1", start_date: "", fecha_fin: "", carrera_id: "" });
   const [scheduleForm, setScheduleForm] = useState({
     profesor_id: "", carrera_id: "", curso_id: "", ciclo: "1", apertura_id: "",
-    dia_semana: "lunes", hora_inicio: "18:00", hora_fin: "20:00", aula: "",
+    dias_semana: [] as string[], hora_inicio: "18:00", hora_fin: "20:00", aula: "",
   });
   const [filterCiclo, setFilterCiclo] = useState("todos");
 
@@ -222,37 +222,61 @@ function CiclosContent() {
       setError("Debes seleccionar un profesor.");
       return;
     }
+    if (scheduleForm.dias_semana.length === 0) {
+      setError("Debes seleccionar al menos un día.");
+      return;
+    }
 
-    // ── Validación de solapamiento en frontend ──
-    const conflicto = checkOverlapLocal(
-      scheduleForm.profesor_id,
-      scheduleForm.dia_semana,
-      scheduleForm.hora_inicio,
-      scheduleForm.hora_fin,
-      scheduleForm.aula,
-      parseInt(scheduleForm.ciclo),
-    );
-    if (conflicto) { setError(conflicto); return; }
+    // ── Validación de solapamiento en frontend para cada día ──
+    for (const dia of scheduleForm.dias_semana) {
+      const conflicto = checkOverlapLocal(
+        scheduleForm.profesor_id,
+        dia,
+        scheduleForm.hora_inicio,
+        scheduleForm.hora_fin,
+        scheduleForm.aula,
+        parseInt(scheduleForm.ciclo),
+      );
+      if (conflicto) { setError(`${dia.charAt(0).toUpperCase() + dia.slice(1)}: ${conflicto}`); return; }
+    }
 
     setSaving(true); setError(""); setSuccess("");
     try {
-      const res = await fetch("/api/admin/schedules", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${await getToken()}` },
-        body: JSON.stringify({
-          profesor_id: scheduleForm.profesor_id,
-          curso_id: scheduleForm.curso_id,
-          ciclo: scheduleForm.ciclo,
-          apertura_id: scheduleForm.apertura_id || null,
-          dia_semana: scheduleForm.dia_semana,
-          hora_inicio: scheduleForm.hora_inicio,
-          hora_fin: scheduleForm.hora_fin,
-          aula: scheduleForm.aula || null,
-        }),
-      });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error);
-      setSuccess("Horario creado.");
+      const token = await getToken();
+      const errores: string[] = [];
+      let creados = 0;
+
+      for (const dia of scheduleForm.dias_semana) {
+        const res = await fetch("/api/admin/schedules", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+          body: JSON.stringify({
+            profesor_id: scheduleForm.profesor_id,
+            curso_id: scheduleForm.curso_id,
+            ciclo: scheduleForm.ciclo,
+            apertura_id: scheduleForm.apertura_id || null,
+            dia_semana: dia,
+            hora_inicio: scheduleForm.hora_inicio,
+            hora_fin: scheduleForm.hora_fin,
+            aula: scheduleForm.aula || null,
+          }),
+        });
+        const json = await res.json();
+        if (!res.ok) {
+          errores.push(`${dia}: ${json.error}`);
+        } else {
+          creados++;
+        }
+      }
+
+      if (errores.length > 0 && creados === 0) {
+        throw new Error(errores.join("\n"));
+      }
+
+      const msg = creados === 1
+        ? "Horario creado."
+        : `${creados} horarios creados.`;
+      setSuccess(errores.length > 0 ? `${msg} (Errores: ${errores.join("; ")})` : msg);
       setShowScheduleModal(false);
       cargar();
     } catch (err) { setError(err instanceof Error ? err.message : "Error"); }
@@ -806,11 +830,29 @@ function CiclosContent() {
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-sm font-medium text-mcm-text mb-1">Día</label>
-                  <select value={scheduleForm.dia_semana} onChange={e => setScheduleForm({...scheduleForm, dia_semana: e.target.value})}
-                    className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#C62828]">
-                    {DAYS.map(d => <option key={d} value={d}>{d.charAt(0).toUpperCase() + d.slice(1)}</option>)}
-                  </select>
+                  <label className="block text-sm font-medium text-mcm-text mb-1">Días</label>
+                  <div className="flex flex-wrap gap-2">
+                    {DAYS.map(d => {
+                      const selected = scheduleForm.dias_semana.includes(d);
+                      return (
+                        <button key={d} type="button"
+                          onClick={() => setScheduleForm({
+                            ...scheduleForm,
+                            dias_semana: selected
+                              ? scheduleForm.dias_semana.filter(x => x !== d)
+                              : [...scheduleForm.dias_semana, d]
+                          })}
+                          className={clsx(
+                            "px-2.5 py-1.5 rounded-lg text-xs font-semibold border transition-colors",
+                            selected
+                              ? "bg-[#C62828] text-white border-[#C62828]"
+                              : "bg-white text-mcm-muted border-mcm-border hover:border-[#C62828] hover:text-[#C62828]"
+                          )}>
+                          {DAY_LABELS[d]}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-mcm-text mb-1">Hora inicio</label>
@@ -835,10 +877,10 @@ function CiclosContent() {
             <div className="flex gap-3 mt-5">
               <button onClick={() => setShowScheduleModal(false)} className="btn-secondary flex-1 text-sm">Cancelar</button>
               <button onClick={handleCreateSchedule}
-                disabled={saving || !scheduleForm.profesor_id || !scheduleForm.curso_id}
+                disabled={saving || !scheduleForm.profesor_id || !scheduleForm.curso_id || scheduleForm.dias_semana.length === 0}
                 className="btn-primary flex-1 text-sm disabled:opacity-50 flex items-center justify-center gap-2">
                 {saving && <Loader2 size={14} className="animate-spin" />}
-                {saving ? "Creando..." : "Crear Horario"}
+                {saving ? "Creando..." : scheduleForm.dias_semana.length > 1 ? `Crear ${scheduleForm.dias_semana.length} Horarios` : "Crear Horario"}
               </button>
             </div>
           </div>
