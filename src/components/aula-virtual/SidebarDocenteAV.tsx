@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import {
-  LayoutDashboard, Upload, ClipboardList, BookOpen,
+  LayoutDashboard, Upload, ClipboardList, BookOpen, Calendar,
   LogOut, Moon, Sun, ArrowLeftRight, Menu, X, Settings,
 } from "lucide-react";
 import clsx from "clsx";
@@ -13,6 +13,7 @@ import { useTheme } from "@/lib/theme-context";
 
 const NAV_ITEMS = [
   { href: "/aula-virtual-docente",            label: "Mis Cursos",   icon: LayoutDashboard },
+  { href: "/aula-virtual-docente/calendario", label: "Calendario",   icon: Calendar        },
   { href: "/aula-virtual-docente/contenido",  label: "Contenido",    icon: Upload          },
   { href: "/aula-virtual-docente/tareas",     label: "Tareas",       icon: ClipboardList   },
   { href: "/aula-virtual-docente/notas",      label: "Notas",        icon: BookOpen        },
