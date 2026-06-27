@@ -12,7 +12,7 @@ import clsx from "clsx";
 import ClockTimePicker from "@/components/ClockTimePicker";
 
 interface CycleOpening {
-  id: string; cycle_number: number; start_date: string; fecha_fin: string | null; status: string; created_at: string;
+  id: string; cycle_number: number; start_date: string; fecha_fin: string | null; status: string; seccion: number | null; created_at: string;
 }
 interface Schedule {
   id: string; professor_id: string; course_id: string; cycle_number: number;
@@ -433,7 +433,7 @@ function CiclosContent() {
               <tbody>
                 {openings.map(o => (
                   <tr key={o.id} className="border-t border-mcm-border hover:bg-slate-50">
-                    <td className="py-3 px-4 font-bold text-mcm-text">Ciclo {o.cycle_number}</td>
+                    <td className="py-3 px-4 font-bold text-mcm-text">Ciclo {o.cycle_number} <span className="text-xs font-normal text-gray-500 ml-1">— Sección {o.seccion ?? "—"}</span></td>
                     <td className="py-3 px-4">{new Date(o.start_date + "T00:00:00").toLocaleDateString("es-PE", { day: "2-digit", month: "long", year: "numeric" })}</td>
                     <td className="py-3 px-4">{o.fecha_fin ? new Date(o.fecha_fin + "T00:00:00").toLocaleDateString("es-PE", { day: "2-digit", month: "long", year: "numeric" }) : "—"}</td>
                     <td className="py-3 px-4"><span className={o.status === "activo" ? "badge-green" : "badge-gray"}>{o.status}</span></td>

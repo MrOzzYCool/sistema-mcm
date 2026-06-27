@@ -57,9 +57,20 @@ export async function POST(req: NextRequest) {
   // No restriction — multiple active openings of the same cycle can coexist
   // (different groups of students, different date ranges)
 
+  // Auto-generate section number (correlative from 410)
+  const { data: maxSeccion } = await supabaseAdmin
+    .from("cycle_openings")
+    .select("seccion")
+    .order("seccion", { ascending: false })
+    .limit(1);
+
+  const nextSeccion = (maxSeccion && maxSeccion.length > 0 && maxSeccion[0].seccion)
+    ? maxSeccion[0].seccion + 1
+    : 410;
+
   const { data, error } = await supabaseAdmin
     .from("cycle_openings")
-    .insert({ cycle_number, start_date, fecha_fin: fecha_fin || null, status: "activo", created_by: admin.id })
+    .insert({ cycle_number, start_date, fecha_fin: fecha_fin || null, status: "activo", seccion: nextSeccion, created_by: admin.id })
     .select()
     .single();
 
