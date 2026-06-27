@@ -107,7 +107,7 @@ export async function POST(req: NextRequest) {
   if (!admin) return NextResponse.json({ error: "No autorizado" }, { status: 403 });
 
   const body = await req.json();
-  const { profesor_id, curso_id, ciclo, apertura_id, dia_semana, hora_inicio, hora_fin, aula } = body;
+  const { profesor_id, curso_id, ciclo, apertura_id, dia_semana, hora_inicio, hora_fin, aula, fecha_especifica } = body;
 
   // ── Validaciones ──────────────────────────────────────────────────────────
 
@@ -207,7 +207,14 @@ export async function POST(req: NextRequest) {
 
   let cycleOpening: { start_date: string; fecha_fin: string | null } | null = null;
 
-  if (apertura_id) {
+  // Si es una fecha específica (actualización), usar esa fecha directamente
+  if (fecha_especifica) {
+    // Validar formato de fecha
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(fecha_especifica)) {
+      return NextResponse.json({ error: "Formato de fecha_especifica inválido. Usa YYYY-MM-DD" }, { status: 400 });
+    }
+    cycleOpening = { start_date: fecha_especifica, fecha_fin: fecha_especifica };
+  } else if (apertura_id) {
     // Si se proporciona apertura_id, usar esa apertura directamente
     const { data } = await supabaseAdmin
       .from("cycle_openings")
@@ -254,12 +261,15 @@ export async function POST(req: NextRequest) {
   }
 
   // Validar que la fecha actual no sea posterior a la fecha fin del ciclo
-  const hoy = new Date().toISOString().split("T")[0];
-  if (hoy > cycleOpening.fecha_fin) {
-    return NextResponse.json(
-      { error: `El Ciclo ${ciclo} ya finalizó (${cycleOpening.fecha_fin}). No se pueden crear horarios fuera del rango del ciclo.` },
-      { status: 400 },
-    );
+  // (excepto para fechas específicas donde la fecha ya fue validada por el frontend)
+  if (!fecha_especifica) {
+    const hoy = new Date().toISOString().split("T")[0];
+    if (hoy > cycleOpening.fecha_fin) {
+      return NextResponse.json(
+        { error: `El Ciclo ${ciclo} ya finalizó (${cycleOpening.fecha_fin}). No se pueden crear horarios fuera del rango del ciclo.` },
+        { status: 400 },
+      );
+    }
   }
 
   // ── INSERT con nombres EXACTOS de columnas ────────────────────────────────
