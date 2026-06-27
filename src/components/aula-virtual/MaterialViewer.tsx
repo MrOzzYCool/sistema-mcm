@@ -8,7 +8,7 @@ import {
   ChevronLeft, ChevronRight, Download, FileText,
   FileSpreadsheet, Image as ImageIcon, Video as VideoIcon, Loader2,
   ArrowLeft, ZoomIn, ZoomOut, Hand, Search, Settings, Maximize,
-  Printer, PanelLeft, X,
+  Printer, PanelLeft, X, ExternalLink,
 } from "lucide-react";
 
 // Set PDF.js worker
@@ -105,7 +105,10 @@ export default function MaterialViewer({
                 <video src={presignedUrl} controls className="max-w-full max-h-full rounded shadow-sm">Tu navegador no soporta video.</video>
               </div>
             )}
-            {!["pdf", "jpg", "jpeg", "png", "mp4"].includes(material.tipo_archivo) && (
+            {material.tipo_archivo === "url" && (
+              <UrlEmbed presignedUrl={presignedUrl} nombre={material.nombre_archivo} />
+            )}
+            {!["pdf", "jpg", "jpeg", "png", "mp4", "url"].includes(material.tipo_archivo) && (
               <div className="flex flex-col items-center justify-center h-full gap-3">
                 <FileText size={48} className="text-gray-300" />
                 <p className="text-sm text-gray-500">Vista previa no disponible. Descarga el archivo.</p>
@@ -294,4 +297,78 @@ function PdfViewer({ url }: { url: string }) {
       </div>
     </div>
   );
+}
+
+// ─── URL/YouTube Embed Viewer ────────────────────────────────────────────────
+
+function UrlEmbed({ presignedUrl, nombre }: { presignedUrl: string; nombre: string }) {
+  const [url, setUrl] = useState<string>("");
+
+  useEffect(() => {
+    // Read the .url file content to get the actual URL
+    async function loadUrl() {
+      try {
+        const res = await fetch(presignedUrl);
+        if (res.ok) {
+          const text = await res.text();
+          // The file content is the URL itself
+          const cleaned = text.trim();
+          if (cleaned.startsWith("http")) setUrl(cleaned);
+        }
+      } catch { /* ignore */ }
+    }
+    loadUrl();
+  }, [presignedUrl]);
+
+  if (!url) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <Loader2 size={24} className="animate-spin text-gray-400" />
+      </div>
+    );
+  }
+
+  // Check if YouTube
+  const youtubeId = extractYoutubeId(url);
+
+  if (youtubeId) {
+    return (
+      <div className="flex items-center justify-center h-full p-4">
+        <iframe
+          src={`https://www.youtube.com/embed/${youtubeId}`}
+          className="w-full max-w-3xl aspect-video rounded-lg shadow-sm"
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+          allowFullScreen
+          title={nombre}
+        />
+      </div>
+    );
+  }
+
+  // Other URLs - show in iframe or as link
+  return (
+    <div className="flex flex-col items-center justify-center h-full gap-4 p-4">
+      <div className="bg-white rounded-lg shadow-sm p-6 text-center max-w-md">
+        <ExternalLink size={32} className="text-blue-500 mx-auto mb-3" />
+        <h3 className="font-semibold text-gray-800 mb-2">{nombre.replace(".url", "")}</h3>
+        <p className="text-sm text-gray-500 mb-4 break-all">{url}</p>
+        <a href={url} target="_blank" rel="noopener noreferrer"
+          className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700">
+          <ExternalLink size={14} /> Abrir enlace
+        </a>
+      </div>
+    </div>
+  );
+}
+
+function extractYoutubeId(url: string): string | null {
+  const patterns = [
+    /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([^&\s?]+)/,
+    /youtube\.com\/shorts\/([^&\s?]+)/,
+  ];
+  for (const pattern of patterns) {
+    const match = url.match(pattern);
+    if (match) return match[1];
+  }
+  return null;
 }
