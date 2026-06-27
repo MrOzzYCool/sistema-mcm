@@ -105,14 +105,17 @@ export async function POST(req: NextRequest) {
         fechaInicio = proximoLunes();
       }
 
-      const { error: inscError } = await supabaseAdmin.from("inscripciones").insert({
+      const inscData: Record<string, unknown> = {
         alumno_id: userId,
         carrera_id,
         ciclo_actual: ciclo,
         fecha_inicio_ciclo: fechaInicio + "T00:00:00.000Z",
         fecha_matricula: ahora,
         estado: "activo",
-      });
+      };
+      if (body.apertura_id) inscData.apertura_id = body.apertura_id;
+
+      const { error: inscError } = await supabaseAdmin.from("inscripciones").insert(inscData);
       if (inscError) {
         console.error("create-user: Error inscripción:", inscError.message);
       } else {

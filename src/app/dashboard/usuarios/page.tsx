@@ -52,9 +52,10 @@ function UsuariosContent() {
   const [form, setForm] = useState({
     tipo: "alumno", nombres: "", apellidos: "", email: "", dni: "", genero: "",
     password: "", auto_password: true, force_change: true, notify_email: true,
-    carrera_id: "", ciclo_inicial: "1", fecha_inicio_ciclo: "",
+    carrera_id: "", ciclo_inicial: "1", fecha_inicio_ciclo: "", apertura_id: "",
   });
   const [carrerasDisp, setCarrerasDisp] = useState<{ id: string; nombre_carrera: string; duracion_ciclos: number }[]>([]);
+  const [openingsDisp, setOpeningsDisp] = useState<{ id: string; cycle_number: number; seccion: number | null; start_date: string; status: string }[]>([]);
 
   async function getToken() {
     const { data } = await supabase.auth.getSession();
@@ -92,6 +93,12 @@ function UsuariosContent() {
           id: c.id, nombre_carrera: c.nombre_carrera, duracion_ciclos: c.duracion_ciclos,
         })));
       }
+      // Load openings
+      const resO = await fetch("/api/admin/cycle-openings", { headers: { Authorization: `Bearer ${token}` } });
+      if (resO.ok) {
+        const dataO = await resO.json();
+        setOpeningsDisp((dataO.openings ?? []).filter((o: any) => o.status === "activo"));
+      }
     }
     loadCarreras();
   }, []);
@@ -121,7 +128,7 @@ function UsuariosContent() {
         setError(`⚠️ Usuario creado en Auth pero NO en profiles: ${json.error}. Verifica permisos de la tabla profiles.`);
       }
       setShowModal(false);
-      setForm({ tipo: "alumno", nombres: "", apellidos: "", email: "", dni: "", genero: "", password: "", auto_password: true, force_change: true, notify_email: true, carrera_id: "", ciclo_inicial: "1", fecha_inicio_ciclo: "" });
+      setForm({ tipo: "alumno", nombres: "", apellidos: "", email: "", dni: "", genero: "", password: "", auto_password: true, force_change: true, notify_email: true, carrera_id: "", ciclo_inicial: "1", fecha_inicio_ciclo: "", apertura_id: "" });
       cargar();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Error");
@@ -528,6 +535,17 @@ function UsuariosContent() {
                         {[1,2,3,4,5,6].map(n => <option key={n} value={String(n)}>Ciclo {n}</option>)}
                       </select>
                     </div>
+                  </div>
+                  {/* Sección (apertura) */}
+                  <div>
+                    <label className="block text-sm font-medium text-mcm-text mb-1">Sección</label>
+                    <select value={form.apertura_id} onChange={e => { const o = openingsDisp.find(op => op.id === e.target.value); setForm({...form, apertura_id: e.target.value, fecha_inicio_ciclo: o?.start_date ?? "" }); }}
+                      className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#C62828]">
+                      <option value="">Sin asignar</option>
+                      {openingsDisp.filter(o => String(o.cycle_number) === form.ciclo_inicial).map(o => (
+                        <option key={o.id} value={o.id}>Sección {o.seccion} ({new Date(o.start_date + "T00:00:00").toLocaleDateString("es-PE", { month: "short", year: "numeric" })})</option>
+                      ))}
+                    </select>
                   </div>
                   {/* Fecha de inicio — solo para ciclo 1 */}
                   {form.ciclo_inicial === "1" && (
