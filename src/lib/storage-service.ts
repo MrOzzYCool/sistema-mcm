@@ -87,8 +87,8 @@ export function toSlug(text: string): string {
 /**
  * Genera la ruta de almacenamiento con la nueva estructura legible.
  *
- * Formato: {carrera_slug}/ciclo-{n}/{curso_slug}/semana-{n}/{timestamp}-{archivo}
- * Ejemplo: idiomas/ciclo-4/basic-spelling-skills/semana-1/1718900000-separata.pdf
+ * Formato: {carrera_slug}/ciclo-{n}/seccion-{nnn}/{curso_slug}/semana-{n}/{timestamp}-{archivo}
+ * Ejemplo: asistencia-administrativa/ciclo-1/seccion-410/basic-spelling-skills/semana-1/1718900000-separata.pdf
  */
 export function buildStoragePath(opts: {
   carrera: string;
@@ -96,15 +96,17 @@ export function buildStoragePath(opts: {
   cursoNombre: string;
   semana: number | null;
   fileName: string;
+  seccion?: number | null;
 }): string {
-  const { carrera, ciclo, cursoNombre, semana, fileName } = opts;
+  const { carrera, ciclo, cursoNombre, semana, fileName, seccion } = opts;
   const timestamp = Date.now();
   const safeName = fileName.replace(/[^a-zA-Z0-9._-]/g, "_").toLowerCase();
   const carreraSlug = toSlug(carrera);
   const cursoSlug = toSlug(cursoNombre);
   const semanaPath = semana ? `semana-${semana}` : "general";
+  const seccionPath = seccion ? `seccion-${seccion}` : "sin-seccion";
 
-  return `${carreraSlug}/ciclo-${ciclo}/${cursoSlug}/${semanaPath}/${timestamp}-${safeName}`;
+  return `${carreraSlug}/ciclo-${ciclo}/${seccionPath}/${cursoSlug}/${semanaPath}/${timestamp}-${safeName}`;
 }
 
 /**

@@ -90,13 +90,32 @@ export async function POST(req: NextRequest) {
       if (carreraObj?.nombre_carrera) carreraNombre = carreraObj.nombre_carrera;
     }
 
-    // Build path with new structure: {carrera}/{ciclo}/{curso}/semana-{n}/{archivo}
+    // Try to get section number from professor's schedule for this course
+    let seccionNum: number | null = null;
+    const { data: schedule } = await supabaseAdmin
+      .from("class_schedules")
+      .select("apertura_id")
+      .eq("course_id", cursoId)
+      .eq("professor_id", user.id)
+      .limit(1);
+
+    if (schedule && schedule.length > 0 && schedule[0].apertura_id) {
+      const { data: opening } = await supabaseAdmin
+        .from("cycle_openings")
+        .select("seccion")
+        .eq("id", schedule[0].apertura_id)
+        .single();
+      if (opening?.seccion) seccionNum = opening.seccion;
+    }
+
+    // Build path with structure: {carrera}/ciclo-{n}/seccion-{nnn}/{curso}/semana-{n}/{archivo}
     const path = buildStoragePath({
       carrera: carreraNombre,
       ciclo: curso.ciclo_perteneciente,
       cursoNombre: curso.nombre_curso,
       semana: semana ? Number(semana) : null,
       fileName: file.name,
+      seccion: seccionNum,
     });
 
     // Upload
