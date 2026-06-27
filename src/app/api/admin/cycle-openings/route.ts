@@ -59,27 +59,31 @@ export async function POST(req: NextRequest) {
 
   // No restriction — multiple active openings of the same cycle can coexist
 
-  // Determine section number automatically based on program type
+  // Determine section number automatically based on specific carrera
   let nextSeccion: number;
+  let baseSeccion = 410; // default
 
-  // Get carrera info to determine range
-  let baseSeccion = 410; // default for carreras técnicas
   if (carrera_id) {
     const { data: carrera } = await supabaseAdmin
       .from("carreras").select("codigo, tipo_programa").eq("id", carrera_id).single();
+
+    // Each carrera/program has its own range
     if (carrera?.codigo === "ACT-SEC") baseSeccion = 210;
     else if (carrera?.codigo === "ACT-IA") baseSeccion = 80;
+    else if (carrera?.codigo === "AA" || carrera?.nombre_carrera?.toLowerCase().includes("asistencia")) baseSeccion = 410;
+    else if (carrera?.codigo === "RRHH" || carrera?.nombre_carrera?.toLowerCase().includes("recursos humanos")) baseSeccion = 10;
     else if (carrera?.tipo_programa === "actualizacion") baseSeccion = 200;
+    else baseSeccion = 1; // future carreras start from 001
   }
 
-  // Get max seccion in this range
-  const { data: maxInRange } = await supabaseAdmin
-    .from("cycle_openings")
-    .select("seccion")
-    .gte("seccion", baseSeccion)
-    .lt("seccion", baseSeccion + 100) // each range has 100 slots
-    .order("seccion", { ascending: false })
-    .limit(1);
+  // Get max seccion for THIS specific carrera (by carrera_id)
+  let query = supabaseAdmin.from("cycle_openings").select("seccion").order("seccion", { ascending: false }).limit(1);
+  if (carrera_id) {
+    query = query.eq("carrera_id", carrera_id);
+  } else {
+    query = query.is("carrera_id", null);
+  }
+  const { data: maxInRange } = await query;
 
   nextSeccion = (maxInRange && maxInRange.length > 0 && maxInRange[0].seccion)
     ? maxInRange[0].seccion + 1
