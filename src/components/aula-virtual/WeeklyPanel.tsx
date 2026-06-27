@@ -133,7 +133,8 @@ export default function WeeklyPanel() {
             {activities.map(act => {
               const Icon = tipoIcons[act.tipo] ?? ClipboardList;
               return (
-                <div key={act.id} className="p-3 hover:bg-gray-50 transition-colors">
+                <Link key={act.id} href={`/aula-virtual/cursos/${act.curso_id}?actividad=${act.id}`}
+                  className="block p-3 hover:bg-gray-50 transition-colors cursor-pointer">
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex-1 min-w-0">
                       <p className="text-xs text-gray-500 flex items-center gap-1 mb-0.5">
@@ -147,10 +148,10 @@ export default function WeeklyPanel() {
                       {statusLabels[act.status]}
                     </span>
                   </div>
-                  <Link href={`/aula-virtual/cursos/${act.curso_id}`} className="mt-1.5 flex items-center gap-1 text-xs text-[#C62828] hover:underline">
+                  <span className="mt-1.5 flex items-center gap-1 text-xs text-[#C62828]">
                     Ir a <ArrowRight size={11} />
-                  </Link>
-                </div>
+                  </span>
+                </Link>
               );
             })}
           </div>
