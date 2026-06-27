@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { getAccessToken } from "@/lib/get-token";
@@ -101,7 +101,9 @@ function formatFileSize(bytes: number): string {
 
 export default function CourseDetailPage() {
   const params = useParams();
+  const searchParams = useSearchParams();
   const codigo = params.codigo as string;
+  const actividadParam = searchParams.get("actividad");
   const [course, setCourse] = useState<Course | null>(null);
   const [foros, setForos] = useState<ForoSemana[]>([]);
   const [materiales, setMateriales] = useState<MaterialSemana[]>([]);
@@ -192,6 +194,16 @@ export default function CourseDetailPage() {
     }
     fetchData();
   }, [codigo]);
+
+  // Auto-open activity from URL param ?actividad=xxx
+  useEffect(() => {
+    if (!actividadParam || actividadesDB.length === 0) return;
+    const act = actividadesDB.find(a => a.id === actividadParam);
+    if (act) {
+      setActividadSeleccionada(act);
+      setActividadOpen(true);
+    }
+  }, [actividadParam, actividadesDB]);
 
   const toggleWeek = (week: number) => {
     setOpenWeeks(prev => { const n = new Set(prev); if (n.has(week)) n.delete(week); else n.add(week); return n; });
