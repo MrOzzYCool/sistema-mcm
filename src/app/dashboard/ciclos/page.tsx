@@ -26,7 +26,7 @@ interface Schedule {
 }
 interface Profesor { id: string; nombre_completo: string; }
 interface Curso { id: string; nombre_curso: string; ciclo_perteneciente: number; malla_curricular?: { carrera_id: string }[]; }
-interface Carrera { id: string; nombre_carrera: string; }
+interface Carrera { id: string; nombre_carrera: string; duracion_ciclos: number; tipo_programa?: string; }
 
 // ─── Combobox de Profesor (buscador predictivo) ─────────────────────────────
 
@@ -699,7 +699,7 @@ function CiclosContent() {
                 <label className="block text-sm font-medium text-mcm-text mb-1">Ciclo</label>
                 <select value={scheduleForm.ciclo} onChange={e => setScheduleForm({...scheduleForm, ciclo: e.target.value, curso_id: ""})}
                   className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#C62828]">
-                  {[1,2,3,4,5,6].map(n => <option key={n} value={String(n)}>Ciclo {n}</option>)}
+                  {Array.from({ length: carreras.find(c => c.id === scheduleForm.carrera_id)?.duracion_ciclos ?? 6 }, (_, i) => i + 1).map(n => <option key={n} value={String(n)}>Ciclo {n}</option>)}
                 </select>
               </div>
               <div>
@@ -822,7 +822,7 @@ function CiclosContent() {
                 <label className="block text-sm font-medium text-mcm-text mb-1">Ciclo</label>
                 <select value={editScheduleForm.ciclo} onChange={e => setEditScheduleForm({...editScheduleForm, ciclo: e.target.value, curso_id: ""})}
                   className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#C62828]">
-                  {[1,2,3,4,5,6].map(n => <option key={n} value={String(n)}>Ciclo {n}</option>)}
+                  {Array.from({ length: carreras.find(c => c.id === editScheduleForm.carrera_id)?.duracion_ciclos ?? 6 }, (_, i) => i + 1).map(n => <option key={n} value={String(n)}>Ciclo {n}</option>)}
                 </select>
               </div>
               <div>
