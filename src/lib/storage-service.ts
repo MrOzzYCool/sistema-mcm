@@ -52,7 +52,7 @@ function getS3Client(): S3Client {
 
 // ─── Tipos de archivo permitidos ─────────────────────────────────────────────
 
-export const ALLOWED_EXTENSIONS = ["pdf", "docx", "xlsx", "pptx", "jpg", "jpeg", "png", "mp4"];
+export const ALLOWED_EXTENSIONS = ["pdf", "docx", "xlsx", "pptx", "jpg", "jpeg", "png", "mp4", "url", "mp3", "zip", "rar", "doc", "ppt", "xls"];
 export const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100MB
 
 /**

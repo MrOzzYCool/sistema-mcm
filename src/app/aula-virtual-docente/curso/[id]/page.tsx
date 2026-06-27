@@ -80,6 +80,11 @@ export default function DocenteCursoPage() {
   const [actividades, setActividades] = useState<Actividad[]>([]);
   const [showCrearActividad, setShowCrearActividad] = useState<{ show: boolean; semana: number }>({ show: false, semana: 1 });
 
+  // URL Link modal state
+  const [showUrlModal, setShowUrlModal] = useState<{ show: boolean; semana: number }>({ show: false, semana: 1 });
+  const [urlForm, setUrlForm] = useState({ url: "", titulo: "" });
+  const [urlSaving, setUrlSaving] = useState(false);
+
   const fetchMateriales = useCallback(async () => {
     const token = await getAccessToken();
     if (!token) return;
@@ -329,21 +334,8 @@ export default function DocenteCursoPage() {
                         {matsMaterial.length > 0 ? matsMaterial.map(mat => (
                           <MaterialRow key={mat.id} mat={mat} onOpen={openFile} onDelete={handleDelete} onToggle={toggleVisibility} />
                         )) : <p className="text-xs text-gray-400 italic">Sin material. Usa el bot&oacute;n + para agregar.</p>}
-                        <button onClick={async () => {
-                          const url = prompt("Pega la URL del enlace (YouTube, web, etc.):");
-                          if (!url?.trim()) return;
-                          const titulo = prompt("Título del enlace:") || url;
-                          const token = await getAccessToken(); if (!token) return;
-                          const formData = new FormData();
-                          const blob = new Blob([url], { type: "text/plain" });
-                          const file = new File([blob], `${titulo.replace(/[^a-zA-Z0-9]/g, "_")}.url`, { type: "text/plain" });
-                          formData.append("file", file);
-                          formData.append("curso_id", cursoId);
-                          formData.append("semana", String(week));
-                          formData.append("seccion", "material");
-                          await fetch("/api/portal/materiales", { method: "POST", headers: { Authorization: `Bearer ${token}` }, body: formData });
-                          await fetchMateriales();
-                        }} className="text-xs text-blue-500 hover:underline flex items-center gap-1">
+                        <button onClick={() => { setUrlForm({ url: "", titulo: "" }); setShowUrlModal({ show: true, semana: week }); }}
+                          className="text-xs text-blue-500 hover:underline flex items-center gap-1">
                           <ExternalLink size={11} /> Agregar enlace (URL / YouTube)
                         </button>
                       </div>
@@ -419,6 +411,57 @@ export default function DocenteCursoPage() {
           onClose={() => setShowCrearActividad({ show: false, semana: 1 })}
           onCreated={fetchActividades}
         />
+      )}
+
+      {/* Modal agregar enlace URL */}
+      {showUrlModal.show && (
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-md">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-bold text-gray-800 text-lg">Agregar enlace</h3>
+              <button onClick={() => setShowUrlModal({ show: false, semana: 1 })} className="text-gray-400 hover:text-gray-600">&times;</button>
+            </div>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">URL del enlace *</label>
+                <input value={urlForm.url} onChange={e => setUrlForm({ ...urlForm, url: e.target.value })}
+                  placeholder="https://www.youtube.com/watch?v=..." 
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#C62828]" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Título del enlace</label>
+                <input value={urlForm.titulo} onChange={e => setUrlForm({ ...urlForm, titulo: e.target.value })}
+                  placeholder="Ej: Video clase - Semana 3"
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#C62828]" />
+              </div>
+            </div>
+            <div className="flex gap-3 mt-5">
+              <button onClick={() => setShowUrlModal({ show: false, semana: 1 })} className="flex-1 px-4 py-2 border border-gray-200 rounded-lg text-sm hover:bg-gray-50">Cancelar</button>
+              <button disabled={urlSaving || !urlForm.url.trim()} onClick={async () => {
+                setUrlSaving(true);
+                try {
+                  const token = await getAccessToken(); if (!token) return;
+                  const titulo = urlForm.titulo.trim() || urlForm.url;
+                  const formData = new FormData();
+                  const blob = new Blob([urlForm.url.trim()], { type: "text/plain" });
+                  const file = new File([blob], `${titulo.replace(/[^a-zA-Z0-9 ]/g, "_").slice(0, 50)}.url`, { type: "text/plain" });
+                  formData.append("file", file);
+                  formData.append("curso_id", cursoId);
+                  formData.append("semana", String(showUrlModal.semana));
+                  formData.append("seccion", "material");
+                  const res = await fetch("/api/portal/materiales", { method: "POST", headers: { Authorization: `Bearer ${token}` }, body: formData });
+                  if (!res.ok) { const d = await res.json(); throw new Error(d.error); }
+                  await fetchMateriales();
+                  setShowUrlModal({ show: false, semana: 1 });
+                } catch (err) { alert(err instanceof Error ? err.message : "Error"); }
+                finally { setUrlSaving(false); }
+              }} className="flex-1 px-4 py-2 bg-[#C62828] text-white rounded-lg text-sm font-medium hover:bg-[#A31F1F] disabled:opacity-50 flex items-center justify-center gap-2">
+                {urlSaving && <Loader2 size={14} className="animate-spin" />}
+                Guardar enlace
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
