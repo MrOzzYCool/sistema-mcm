@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { getAccessToken } from "@/lib/get-token";
 import {
   ArrowLeft, ChevronLeft, ChevronRight, Calendar, RefreshCw,
-  Upload, Loader2, FileText, AlertTriangle, CheckCircle2, Clock,
+  Upload, Loader2, FileText, AlertTriangle, CheckCircle2, Clock, ClipboardList,
 } from "lucide-react";
 
 interface Actividad {
@@ -318,6 +318,8 @@ export default function ActividadViewer({
                     Ir a entregar tarea
                   </button>
                 )}
+              </div>
+
               {/* Indicaciones */}
               {actividad.indicaciones && (
                 <div className="mb-8">
