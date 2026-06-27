@@ -119,7 +119,7 @@ function CiclosContent() {
   const [saving, setSaving] = useState(false);
 
   // Forms
-  const [openingForm, setOpeningForm] = useState({ cycle_number: "1", start_date: "", fecha_fin: "", seccion: "", carrera_id: "" });
+  const [openingForm, setOpeningForm] = useState({ cycle_number: "1", start_date: "", fecha_fin: "", carrera_id: "" });
   const [scheduleForm, setScheduleForm] = useState({
     profesor_id: "", carrera_id: "", curso_id: "", ciclo: "1", apertura_id: "",
     dia_semana: "lunes", hora_inicio: "18:00", hora_fin: "20:00", aula: "",
@@ -169,7 +169,6 @@ function CiclosContent() {
           cycle_number: parseInt(openingForm.cycle_number),
           start_date: openingForm.start_date,
           fecha_fin: openingForm.fecha_fin || null,
-          seccion: openingForm.seccion ? parseInt(openingForm.seccion) : undefined,
           carrera_id: openingForm.carrera_id || undefined,
         }),
       });
@@ -657,13 +656,6 @@ function CiclosContent() {
                   className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#C62828]">
                   {Array.from({ length: carreras.find(c => c.id === openingForm.carrera_id)?.duracion_ciclos ?? 6 }, (_, i) => i + 1).map(n => <option key={n} value={String(n)}>Ciclo {n}</option>)}
                 </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-mcm-text mb-1">N° de Sección (opcional)</label>
-                <input type="number" value={openingForm.seccion} onChange={e => setOpeningForm({...openingForm, seccion: e.target.value})}
-                  placeholder="Auto (ej: 410, 210, 80)" min={1}
-                  className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#C62828]" />
-                <p className="text-[10px] text-gray-400 mt-0.5">Si dejas vacío, se genera automáticamente.</p>
               </div>
               <div>
                 <label className="block text-sm font-medium text-mcm-text mb-1">Fecha de inicio</label>

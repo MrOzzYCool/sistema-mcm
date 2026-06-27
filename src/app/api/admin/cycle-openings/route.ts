@@ -47,7 +47,7 @@ export async function POST(req: NextRequest) {
   // Auto-generate section number based on program type
   // Carreras técnicas: from 410
   // To allow custom sections, check if a custom seccion was provided
-  const { cycle_number, start_date, fecha_fin, seccion: customSeccion, carrera_id } = await req.json();
+  const { cycle_number, start_date, fecha_fin, carrera_id } = await req.json();
 
   if (!cycle_number || !start_date) {
     return NextResponse.json({ error: "cycle_number y start_date son requeridos" }, { status: 400 });
@@ -59,22 +59,31 @@ export async function POST(req: NextRequest) {
 
   // No restriction — multiple active openings of the same cycle can coexist
 
-  // Determine section number
+  // Determine section number automatically based on program type
   let nextSeccion: number;
-  if (customSeccion && Number.isInteger(Number(customSeccion))) {
-    nextSeccion = Number(customSeccion);
-  } else {
-    // Auto-generate: get max seccion and add 1
-    const { data: maxSeccion } = await supabaseAdmin
-      .from("cycle_openings")
-      .select("seccion")
-      .order("seccion", { ascending: false })
-      .limit(1);
 
-    nextSeccion = (maxSeccion && maxSeccion.length > 0 && maxSeccion[0].seccion)
-      ? maxSeccion[0].seccion + 1
-      : 410;
+  // Get carrera info to determine range
+  let baseSeccion = 410; // default for carreras técnicas
+  if (carrera_id) {
+    const { data: carrera } = await supabaseAdmin
+      .from("carreras").select("codigo, tipo_programa").eq("id", carrera_id).single();
+    if (carrera?.codigo === "ACT-SEC") baseSeccion = 210;
+    else if (carrera?.codigo === "ACT-IA") baseSeccion = 80;
+    else if (carrera?.tipo_programa === "actualizacion") baseSeccion = 200;
   }
+
+  // Get max seccion in this range
+  const { data: maxInRange } = await supabaseAdmin
+    .from("cycle_openings")
+    .select("seccion")
+    .gte("seccion", baseSeccion)
+    .lt("seccion", baseSeccion + 100) // each range has 100 slots
+    .order("seccion", { ascending: false })
+    .limit(1);
+
+  nextSeccion = (maxInRange && maxInRange.length > 0 && maxInRange[0].seccion)
+    ? maxInRange[0].seccion + 1
+    : baseSeccion;
 
   const { data, error } = await supabaseAdmin
     .from("cycle_openings")
