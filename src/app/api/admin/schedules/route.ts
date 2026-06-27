@@ -205,14 +205,31 @@ export async function POST(req: NextRequest) {
 
   // ── Obtener fechas del ciclo ──────────────────────────────────────────────
 
-  const { data: cycleOpening } = await supabaseAdmin
-    .from("cycle_openings")
-    .select("start_date, fecha_fin")
-    .eq("cycle_number", parseInt(ciclo))
-    .eq("status", "activo")
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .single();
+  let cycleOpening: { start_date: string; fecha_fin: string | null } | null = null;
+
+  if (apertura_id) {
+    // Si se proporciona apertura_id, usar esa apertura directamente
+    const { data } = await supabaseAdmin
+      .from("cycle_openings")
+      .select("start_date, fecha_fin")
+      .eq("id", apertura_id)
+      .eq("status", "activo")
+      .single();
+    cycleOpening = data;
+  }
+
+  if (!cycleOpening) {
+    // Fallback: buscar por cycle_number
+    const { data } = await supabaseAdmin
+      .from("cycle_openings")
+      .select("start_date, fecha_fin")
+      .eq("cycle_number", parseInt(ciclo))
+      .eq("status", "activo")
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .single();
+    cycleOpening = data;
+  }
 
   if (!cycleOpening || !cycleOpening.start_date) {
     return NextResponse.json(

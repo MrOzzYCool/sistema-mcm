@@ -19,6 +19,7 @@ interface Schedule {
   day_of_week: number; start_time: string; end_time: string;
   duration_minutes: number; location: string | null;
   start_date: string; end_date: string;
+  apertura_id: string | null;
   // Campos de compatibilidad agregados por el GET
   dia_semana: string; hora_inicio: string; hora_fin: string; aula: string | null; ciclo: number;
   profiles: { nombre_completo: string };
@@ -26,7 +27,7 @@ interface Schedule {
 }
 interface Profesor { id: string; nombre_completo: string; }
 interface Curso { id: string; nombre_curso: string; ciclo_perteneciente: number; malla_curricular?: { carrera_id: string }[]; }
-interface Carrera { id: string; nombre_carrera: string; duracion_ciclos: number; tipo_programa?: string; }
+interface Carrera { id: string; nombre_carrera: string; codigo: string; duracion_ciclos: number; tipo_programa?: string; }
 
 // ─── Combobox de Profesor (buscador predictivo) ─────────────────────────────
 
@@ -380,7 +381,20 @@ function CiclosContent() {
 
   const filteredSchedules = filterCiclo === "todos"
     ? schedules
-    : schedules.filter(s => s.cycle_number === parseInt(filterCiclo));
+    : (() => {
+        // Check if the filter matches a carrera de actualizacion
+        const actCarrera = carreras.find(c => c.tipo_programa === "actualizacion" && c.codigo === filterCiclo);
+        if (actCarrera) {
+          // Filter schedules that belong to an apertura linked to this carrera
+          return schedules.filter(s => {
+            const opening = openings.find(o => o.id === s.apertura_id);
+            if (!opening?.carrera_id) return false;
+            return opening.carrera_id === actCarrera.id;
+          });
+        }
+        // Otherwise filter by cycle number
+        return schedules.filter(s => s.cycle_number === parseInt(filterCiclo));
+      })();
 
   return (
     <div className="p-6 w-full space-y-5">
@@ -484,14 +498,35 @@ function CiclosContent() {
                 {c === "todos" ? "Todos" : `Ciclo ${c}`}
               </button>
             ))}
+            {(() => {
+              const actCarreras = carreras.filter(c => c.tipo_programa === "actualizacion" && c.codigo);
+              if (actCarreras.length === 0) return null;
+              return (
+                <>
+                  <span className="text-mcm-border">|</span>
+                  {actCarreras.map(c => (
+                    <button key={c.codigo} onClick={() => setFilterCiclo(c.codigo)}
+                      className={clsx("px-3 py-1.5 rounded-full text-xs font-semibold transition-colors",
+                        filterCiclo === c.codigo ? "bg-purple-600 text-white" : "bg-purple-50 text-purple-600 hover:bg-purple-100")}>
+                      {c.nombre_carrera.length > 20 ? c.codigo : c.nombre_carrera}
+                    </button>
+                  ))}
+                </>
+              );
+            })()}
           </div>
 
           {/* Info del ciclo seleccionado */}
           {filterCiclo !== "todos" && (() => {
-            const cicloActivo = openings.find(o => String(o.cycle_number) === filterCiclo && o.status === "activo");
+            // Determinar si es una carrera de actualizacion o un ciclo numérico
+            const actCarrera = carreras.find(c => c.tipo_programa === "actualizacion" && c.codigo === filterCiclo);
+            const cicloActivo = actCarrera
+              ? openings.find(o => o.carrera_id === actCarrera.id && o.status === "activo")
+              : openings.find(o => String(o.cycle_number) === filterCiclo && o.status === "activo");
+            const displayName = actCarrera ? actCarrera.nombre_carrera : `Ciclo ${filterCiclo}`;
             if (!cicloActivo) return (
               <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-3 text-sm text-yellow-800 flex items-center gap-2">
-                <AlertCircle size={16} /> No hay apertura activa para el Ciclo {filterCiclo}
+                <AlertCircle size={16} /> No hay apertura activa para {displayName}
               </div>
             );
             const hoy = new Date().toISOString().split("T")[0];
@@ -506,7 +541,7 @@ function CiclosContent() {
               )}>
                 <Calendar size={16} />
                 <span>
-                  <strong>Ciclo {filterCiclo}</strong>
+                  <strong>{displayName}</strong>
                   {" · "}
                   {new Date(cicloActivo.start_date + "T00:00:00").toLocaleDateString("es-PE", { day: "2-digit", month: "short", year: "numeric" })}
                   {cicloActivo.fecha_fin && (
@@ -733,9 +768,21 @@ function CiclosContent() {
                 <select value={scheduleForm.apertura_id} onChange={e => setScheduleForm({...scheduleForm, apertura_id: e.target.value})}
                   className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#C62828]">
                   <option value="">Sin asignar (general)</option>
-                  {openings.filter(o => String(o.cycle_number) === scheduleForm.ciclo && o.status === "activo").map(o => (
-                    <option key={o.id} value={o.id}>Sección {o.seccion} ({new Date(o.start_date + "T00:00:00").toLocaleDateString("es-PE", { month: "short", year: "numeric" })})</option>
-                  ))}
+                  {openings.filter(o => {
+                    if (o.status !== "activo") return false;
+                    // Si hay carrera seleccionada, filtrar por carrera_id
+                    if (scheduleForm.carrera_id) {
+                      return o.carrera_id === scheduleForm.carrera_id;
+                    }
+                    // Si no hay carrera, filtrar por ciclo
+                    return String(o.cycle_number) === scheduleForm.ciclo;
+                  }).map(o => {
+                    const carrera = carreras.find(c => c.id === o.carrera_id);
+                    const label = carrera?.tipo_programa === "actualizacion"
+                      ? `${carrera.nombre_carrera} - Sección ${o.seccion ?? "—"}`
+                      : `Sección ${o.seccion} (${new Date(o.start_date + "T00:00:00").toLocaleDateString("es-PE", { month: "short", year: "numeric" })})`;
+                    return <option key={o.id} value={o.id}>{label}</option>;
+                  })}
                 </select>
               </div>
               <div>
