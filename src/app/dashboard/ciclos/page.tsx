@@ -121,7 +121,7 @@ function CiclosContent() {
   // Forms
   const [openingForm, setOpeningForm] = useState({ cycle_number: "1", start_date: "", fecha_fin: "" });
   const [scheduleForm, setScheduleForm] = useState({
-    profesor_id: "", carrera_id: "", curso_id: "", ciclo: "1",
+    profesor_id: "", carrera_id: "", curso_id: "", ciclo: "1", apertura_id: "",
     dia_semana: "lunes", hora_inicio: "18:00", hora_fin: "20:00", aula: "",
   });
   const [filterCiclo, setFilterCiclo] = useState("todos");
@@ -241,6 +241,7 @@ function CiclosContent() {
           profesor_id: scheduleForm.profesor_id,
           curso_id: scheduleForm.curso_id,
           ciclo: scheduleForm.ciclo,
+          apertura_id: scheduleForm.apertura_id || null,
           dia_semana: scheduleForm.dia_semana,
           hora_inicio: scheduleForm.hora_inicio,
           hora_fin: scheduleForm.hora_fin,
@@ -700,6 +701,16 @@ function CiclosContent() {
                 <select value={scheduleForm.ciclo} onChange={e => setScheduleForm({...scheduleForm, ciclo: e.target.value, curso_id: ""})}
                   className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#C62828]">
                   {Array.from({ length: carreras.find(c => c.id === scheduleForm.carrera_id)?.duracion_ciclos ?? 6 }, (_, i) => i + 1).map(n => <option key={n} value={String(n)}>Ciclo {n}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-mcm-text mb-1">Sección (apertura)</label>
+                <select value={scheduleForm.apertura_id} onChange={e => setScheduleForm({...scheduleForm, apertura_id: e.target.value})}
+                  className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#C62828]">
+                  <option value="">Sin asignar (general)</option>
+                  {openings.filter(o => String(o.cycle_number) === scheduleForm.ciclo && o.status === "activo").map(o => (
+                    <option key={o.id} value={o.id}>Sección {o.seccion} ({new Date(o.start_date + "T00:00:00").toLocaleDateString("es-PE", { month: "short", year: "numeric" })})</option>
+                  ))}
                 </select>
               </div>
               <div>

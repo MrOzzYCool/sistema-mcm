@@ -107,7 +107,7 @@ export async function POST(req: NextRequest) {
   if (!admin) return NextResponse.json({ error: "No autorizado" }, { status: 403 });
 
   const body = await req.json();
-  const { profesor_id, curso_id, ciclo, dia_semana, hora_inicio, hora_fin, aula } = body;
+  const { profesor_id, curso_id, ciclo, apertura_id, dia_semana, hora_inicio, hora_fin, aula } = body;
 
   // ── Validaciones ──────────────────────────────────────────────────────────
 
@@ -247,7 +247,7 @@ export async function POST(req: NextRequest) {
 
   // ── INSERT con nombres EXACTOS de columnas ────────────────────────────────
 
-  const insertPayload = {
+  const insertPayload: Record<string, unknown> = {
     professor_id:     profesor_id,
     course_id:        curso_id,
     cycle_number:     parseInt(ciclo),
@@ -259,6 +259,8 @@ export async function POST(req: NextRequest) {
     start_date:       cycleOpening.start_date,
     end_date:         cycleOpening.fecha_fin ?? cycleOpening.start_date,
   };
+
+  if (apertura_id) insertPayload.apertura_id = apertura_id;
 
   console.log("[schedules POST] INSERT payload:", JSON.stringify(insertPayload, null, 2));
 
