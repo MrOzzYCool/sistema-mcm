@@ -329,6 +329,23 @@ export default function DocenteCursoPage() {
                         {matsMaterial.length > 0 ? matsMaterial.map(mat => (
                           <MaterialRow key={mat.id} mat={mat} onOpen={openFile} onDelete={handleDelete} onToggle={toggleVisibility} />
                         )) : <p className="text-xs text-gray-400 italic">Sin material. Usa el bot&oacute;n + para agregar.</p>}
+                        <button onClick={async () => {
+                          const url = prompt("Pega la URL del enlace (YouTube, web, etc.):");
+                          if (!url?.trim()) return;
+                          const titulo = prompt("Título del enlace:") || url;
+                          const token = await getAccessToken(); if (!token) return;
+                          const formData = new FormData();
+                          const blob = new Blob([url], { type: "text/plain" });
+                          const file = new File([blob], `${titulo.replace(/[^a-zA-Z0-9]/g, "_")}.url`, { type: "text/plain" });
+                          formData.append("file", file);
+                          formData.append("curso_id", cursoId);
+                          formData.append("semana", String(week));
+                          formData.append("seccion", "material");
+                          await fetch("/api/portal/materiales", { method: "POST", headers: { Authorization: `Bearer ${token}` }, body: formData });
+                          await fetchMateriales();
+                        }} className="text-xs text-blue-500 hover:underline flex items-center gap-1">
+                          <ExternalLink size={11} /> Agregar enlace (URL / YouTube)
+                        </button>
                       </div>
                     )}
 
