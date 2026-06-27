@@ -65,7 +65,7 @@ export async function POST(req: NextRequest) {
 
   if (carrera_id) {
     const { data: carrera } = await supabaseAdmin
-      .from("carreras").select("codigo, tipo_programa").eq("id", carrera_id).single();
+      .from("carreras").select("codigo, tipo_programa, nombre_carrera").eq("id", carrera_id).single();
 
     // Each carrera/program has its own range
     if (carrera?.codigo === "ACT-SEC") baseSeccion = 210;
