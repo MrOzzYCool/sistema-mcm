@@ -44,7 +44,10 @@ export async function POST(req: NextRequest) {
   const admin = await verifyAccess(req);
   if (!admin) return NextResponse.json({ error: "No autorizado" }, { status: 403 });
 
-  const { cycle_number, start_date, fecha_fin } = await req.json();
+  // Auto-generate section number based on program type
+  // Carreras técnicas: from 410
+  // To allow custom sections, check if a custom seccion was provided
+  const { cycle_number, start_date, fecha_fin, seccion: customSeccion, carrera_id } = await req.json();
 
   if (!cycle_number || !start_date) {
     return NextResponse.json({ error: "cycle_number y start_date son requeridos" }, { status: 400 });
@@ -55,22 +58,27 @@ export async function POST(req: NextRequest) {
   }
 
   // No restriction — multiple active openings of the same cycle can coexist
-  // (different groups of students, different date ranges)
 
-  // Auto-generate section number (correlative from 410)
-  const { data: maxSeccion } = await supabaseAdmin
-    .from("cycle_openings")
-    .select("seccion")
-    .order("seccion", { ascending: false })
-    .limit(1);
+  // Determine section number
+  let nextSeccion: number;
+  if (customSeccion && Number.isInteger(Number(customSeccion))) {
+    nextSeccion = Number(customSeccion);
+  } else {
+    // Auto-generate: get max seccion and add 1
+    const { data: maxSeccion } = await supabaseAdmin
+      .from("cycle_openings")
+      .select("seccion")
+      .order("seccion", { ascending: false })
+      .limit(1);
 
-  const nextSeccion = (maxSeccion && maxSeccion.length > 0 && maxSeccion[0].seccion)
-    ? maxSeccion[0].seccion + 1
-    : 410;
+    nextSeccion = (maxSeccion && maxSeccion.length > 0 && maxSeccion[0].seccion)
+      ? maxSeccion[0].seccion + 1
+      : 410;
+  }
 
   const { data, error } = await supabaseAdmin
     .from("cycle_openings")
-    .insert({ cycle_number, start_date, fecha_fin: fecha_fin || null, status: "activo", seccion: nextSeccion, created_by: admin.id })
+    .insert({ cycle_number, start_date, fecha_fin: fecha_fin || null, status: "activo", seccion: nextSeccion, carrera_id: carrera_id || null, created_by: admin.id })
     .select()
     .single();
 
