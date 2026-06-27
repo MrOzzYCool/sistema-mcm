@@ -31,10 +31,10 @@ export default function SidebarAulaVirtual() {
     return (
       <aside className="w-16 min-h-screen flex flex-col items-center shrink-0 py-4 bg-[#C62828] transition-all duration-300">
         {/* Logo icon */}
-        <div className="mb-4">
+        <Link href="/aula-virtual" className="mb-4">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/logo-mc-icon.png" alt="MC" className="w-10 h-10 object-contain" />
-        </div>
+        </Link>
 
         {/* Menu toggle */}
         <button onClick={() => setExpanded(true)} className="text-white/80 hover:text-white mb-6 transition-colors">
@@ -74,10 +74,10 @@ export default function SidebarAulaVirtual() {
   return (
     <aside className="w-64 min-h-screen flex flex-col shrink-0 bg-[#C62828] transition-all duration-300">
       {/* Header: Logo */}
-      <div className="flex flex-col items-center px-5 py-5 border-b border-white/10">
+      <Link href="/aula-virtual" className="flex flex-col items-center px-5 py-5 border-b border-white/10">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src="/logo-mc.png" alt="I.E.S. Privada Margarita Cabrera" className="w-full max-w-[180px] h-auto" />
-      </div>
+      </Link>
 
       {/* Close button */}
       <button onClick={() => setExpanded(false)} className="self-start mx-4 mt-3 text-white/70 hover:text-white transition-colors">
