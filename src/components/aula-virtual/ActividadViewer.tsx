@@ -170,13 +170,13 @@ export default function ActividadViewer({
       {/* If showing entrega form - full page replacement */}
       {showEntrega ? (
         <>
-          {/* Header */}
+          {/* Header - centered title */}
           <div className="px-6 py-3 border-b border-gray-200 shrink-0 flex items-center justify-between">
-            <div>
+            <div className="flex-1">
               <h1 className="text-lg font-bold text-gray-800">{actividad.titulo}</h1>
               <p className="text-xs text-gray-500">{getTipoLabel(actividad.tipo)} • {estadoLabel}</p>
             </div>
-            <div className="text-right">
+            <div className="text-right shrink-0">
               <p className="text-xs text-gray-500">Criterio de la nota final</p>
               <p className="text-sm font-semibold text-gray-700">La nota más reciente</p>
             </div>
@@ -193,6 +193,16 @@ export default function ActividadViewer({
                   ← Volver a indicaciones
                 </button>
               </div>
+
+              {/* Indicaciones de la tarea (same as main view) */}
+              {actividad.indicaciones && (
+                <div className="mb-6">
+                  <h2 className="text-lg font-semibold text-gray-800 mb-3">Indicaciones de la tarea</h2>
+                  <div className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">
+                    {actividad.indicaciones}
+                  </div>
+                </div>
+              )}
 
               {/* Fecha de entrega */}
               <div className="mb-6">
@@ -276,9 +286,9 @@ export default function ActividadViewer({
 
           {/* Header with nota */}
           <div className="px-6 py-3 border-b border-gray-200 shrink-0 flex items-center justify-between">
-            <div>
+            <div className="flex-1 text-center">
               <h1 className="text-lg font-bold text-gray-800">{actividad.titulo}</h1>
-              <div className="flex items-center gap-2 mt-0.5">
+              <div className="flex items-center gap-2 mt-0.5 justify-center">
                 <span className="text-xs text-gray-500">{getTipoLabel(actividad.tipo)}</span>
                 <span className="text-gray-300">•</span>
                 <span className={`inline-flex items-center text-xs px-2 py-0.5 rounded-full font-medium ${estadoColor}`}>
@@ -286,21 +296,17 @@ export default function ActividadViewer({
                 </span>
               </div>
             </div>
-            <div className="text-right flex items-center gap-3">
+            <div className="text-right shrink-0 flex items-center gap-3">
               {lastEntrega?.estado === "calificado" ? (
                 <div className="text-center">
-                  <p className="text-xs text-gray-500">Nota</p>
+                  <p className="text-[10px] text-gray-400">Estado</p>
+                  <p className="text-xs text-green-600 font-semibold">Calificado</p>
                   <p className="text-2xl font-bold text-green-700">{lastEntrega.nota}<span className="text-sm text-gray-400">/{actividad.nota_maxima}</span></p>
                 </div>
               ) : (
-                <div className="flex items-center gap-2">
-                  <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                    <ClipboardList size={20} className="text-blue-600" />
-                  </div>
-                  <div>
-                    <p className="text-xs text-gray-500">Estado</p>
-                    <p className="text-sm font-semibold text-blue-700">Por calificar</p>
-                  </div>
+                <div className="text-center">
+                  <p className="text-[10px] text-gray-400">Estado</p>
+                  <p className="text-sm font-semibold text-[#C62828]">Por calificar</p>
                 </div>
               )}
             </div>
