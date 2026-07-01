@@ -27,7 +27,16 @@ export default function DocenteDashboard() {
         if (!mountedRef.current) return;
         const data = await res.json();
         if (!res.ok) { setError(data.error ?? "Error"); setLoading(false); return; }
-        setCourses(data.cursos ?? []);
+        // Deduplicar por curso (puede haber múltiples horarios del mismo curso)
+        const allCursos = data.cursos ?? [];
+        const seen = new Set<string>();
+        const uniqueCursos = allCursos.filter((c: { curso_id?: string; id: string }) => {
+          const key = c.curso_id ?? c.id;
+          if (seen.has(key)) return false;
+          seen.add(key);
+          return true;
+        });
+        setCourses(uniqueCursos);
       } catch (err: unknown) {
         if (mountedRef.current) setError(err instanceof Error ? err.message : String(err));
       } finally {

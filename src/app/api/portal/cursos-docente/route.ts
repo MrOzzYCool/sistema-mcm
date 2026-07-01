@@ -4,8 +4,8 @@ import { supabaseAdmin } from "@/lib/supabase-admin";
 /**
  * GET /api/portal/cursos-docente
  *
- * Devuelve los cursos asignados al profesor logueado.
- * Flujo: class_schedules (professor_id) → cursos
+ * Devuelve los cursos asignados al profesor logueado CON información de horarios.
+ * Flujo: class_schedules (professor_id) → cursos + horarios
  */
 export async function GET(req: NextRequest) {
   const token = (req.headers.get("authorization") ?? "").replace("Bearer ", "");
@@ -27,38 +27,38 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    // 1. Get course_ids from class_schedules where professor_id = user.id
-    const { data: schedules } = await supabaseAdmin
+    // 1. Get all schedules for this professor with course info
+    const { data: schedules, error: schedError } = await supabaseAdmin
       .from("class_schedules")
-      .select("course_id, cycle_number")
-      .eq("professor_id", user.id);
+      .select("id, course_id, cycle_number, day_of_week, start_time, end_time, location, start_date, end_date")
+      .eq("professor_id", user.id)
+      .order("day_of_week")
+      .order("start_time");
 
-    const courseIds = [...new Set((schedules ?? []).map(s => s.course_id).filter(Boolean))];
+    if (schedError) {
+      return NextResponse.json({ error: "Error al consultar horarios" }, { status: 500 });
+    }
 
-    if (courseIds.length === 0) {
+    if (!schedules || schedules.length === 0) {
       return NextResponse.json({ cursos: [], message: "No tienes cursos asignados" });
     }
 
-    // 2. Get course details
-    const { data: cursos, error: cursosError } = await supabaseAdmin
+    // 2. Get course details for all course_ids
+    const courseIds = [...new Set(schedules.map(s => s.course_id).filter(Boolean))];
+    const { data: cursos } = await supabaseAdmin
       .from("cursos")
-      .select("*")
-      .in("id", courseIds)
-      .order("ciclo_perteneciente");
+      .select("id, nombre_curso, ciclo_perteneciente")
+      .in("id", courseIds);
 
-    if (cursosError) {
-      return NextResponse.json({ error: "Error al consultar cursos" }, { status: 500 });
-    }
+    const cursoMap = new Map((cursos ?? []).map(c => [c.id, c]));
 
     // 3. Enrich with carrera name via malla_curricular
-    const allCursoIds = (cursos ?? []).map(c => c.id);
     let carreraMap: Record<string, string> = {};
-
-    if (allCursoIds.length > 0) {
+    if (courseIds.length > 0) {
       const { data: malla } = await supabaseAdmin
         .from("malla_curricular")
         .select("curso_id, carreras:carrera_id(nombre_carrera)")
-        .in("curso_id", allCursoIds);
+        .in("curso_id", courseIds);
 
       for (const m of malla ?? []) {
         const carreraObj = m.carreras as unknown as { nombre_carrera?: string } | null;
@@ -68,12 +68,28 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    const cursosEnriquecidos = (cursos ?? []).map(c => ({
-      ...c,
-      carrera: carreraMap[c.id] || c.carrera || null,
-    }));
+    // 4. Build response: one entry per schedule with course + horario info
+    const cursosConHorario = schedules.map(s => {
+      const curso = cursoMap.get(s.course_id);
+      return {
+        id: curso?.id ?? s.course_id,
+        schedule_id: s.id,
+        curso_id: s.course_id,
+        nombre_curso: curso?.nombre_curso ?? "Curso sin nombre",
+        ciclo_perteneciente: curso?.ciclo_perteneciente ?? s.cycle_number,
+        cycle_number: s.cycle_number,
+        dia_semana: s.day_of_week,
+        hora_inicio: s.start_time,
+        hora_fin: s.end_time,
+        aula: s.location,
+        start_date: s.start_date,
+        end_date: s.end_date,
+        carrera: carreraMap[s.course_id] ?? null,
+        url_clase: null, // TODO: agregar campo url_clase a class_schedules si se necesita
+      };
+    });
 
-    return NextResponse.json({ cursos: cursosEnriquecidos }, { headers: { "Cache-Control": "no-store" } });
+    return NextResponse.json({ cursos: cursosConHorario }, { headers: { "Cache-Control": "no-store" } });
   } catch (err) {
     console.error("[CURSOS-DOCENTE] Error:", err);
     return NextResponse.json({ error: "Error interno" }, { status: 500 });
