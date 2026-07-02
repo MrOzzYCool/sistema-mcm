@@ -6,7 +6,7 @@ import { useAuth } from "@/lib/auth-context";
 import RouteGuard from "@/components/RouteGuard";
 import {
   Loader2, Plus, Calendar, Clock, X, RefreshCw, CheckCircle,
-  AlertCircle, Trash2, Save, Pencil,
+  AlertCircle, Trash2, Save, Pencil, Ban,
 } from "lucide-react";
 import clsx from "clsx";
 import ClockTimePicker from "@/components/ClockTimePicker";
@@ -431,6 +431,44 @@ function CiclosContent() {
     } catch (err) { setError(err instanceof Error ? err.message : "Error"); }
   }
 
+  async function handleSuspendOpening(o: CycleOpening) {
+    const carrera = carreras.find(c => c.id === o.carrera_id);
+    const label = carrera ? `${carrera.nombre_carrera} (Ciclo ${o.cycle_number})` : `Ciclo ${o.cycle_number}`;
+    if (!confirm(`¿Suspender ${label}?\n\nEsto va a:\n• Cambiar el estado de la apertura a "suspendido"\n• Cancelar todas las cuotas pendientes de los alumnos\n• Desactivar los alumnos inscritos en este ciclo\n• Los horarios ya no se mostrarán\n\nEsta acción se puede revertir manualmente.`)) return;
+    setSaving(true); setError(""); setSuccess("");
+    try {
+      const token = await getToken();
+      // 1. Cambiar estado de la apertura a suspendido
+      const resOpening = await fetch("/api/admin/cycle-openings", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ id: o.id, cycle_number: o.cycle_number, start_date: o.start_date, fecha_fin: o.fecha_fin, status: "suspendido" }),
+      });
+      if (!resOpening.ok) throw new Error((await resOpening.json()).error ?? "Error al suspender apertura");
+
+      // 2. Cancelar cuotas pendientes de los alumnos del ciclo
+      const resPayments = await fetch("/api/admin/payments", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ action: "cancel-by-opening", cycle_number: o.cycle_number, carrera_id: o.carrera_id }),
+      });
+      const payResult = await resPayments.json();
+
+      // 3. Desactivar alumnos del ciclo
+      const resToggle = await fetch("/api/admin/toggle-user", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ action: "deactivate-by-cycle", cycle_number: o.cycle_number, carrera_id: o.carrera_id }),
+      });
+
+      const toggleMsg = resToggle.ok ? (await resToggle.json()).message ?? "" : "";
+
+      setSuccess(`${label} suspendido. ${payResult.message ?? ""} ${toggleMsg}`);
+      cargar();
+    } catch (err) { setError(err instanceof Error ? err.message : "Error"); }
+    finally { setSaving(false); }
+  }
+
   function openEditOpening(o: CycleOpening) {
     setEditOpeningForm({
       cycle_number: String(o.cycle_number),
@@ -555,13 +593,17 @@ function CiclosContent() {
                     </td>
                     <td className="py-3 px-4">{new Date(o.start_date + "T00:00:00").toLocaleDateString("es-PE", { day: "2-digit", month: "long", year: "numeric" })}</td>
                     <td className="py-3 px-4">{o.fecha_fin ? new Date(o.fecha_fin + "T00:00:00").toLocaleDateString("es-PE", { day: "2-digit", month: "long", year: "numeric" }) : "—"}</td>
-                    <td className="py-3 px-4"><span className={o.status === "activo" ? "badge-green" : "badge-gray"}>{o.status}</span></td>
+                    <td className="py-3 px-4"><span className={o.status === "activo" ? "badge-green" : o.status === "suspendido" ? "badge-yellow" : "badge-gray"}>{o.status}</span></td>
                     <td className="py-3 px-4 text-mcm-muted text-xs">{new Date(o.created_at).toLocaleDateString("es-PE", { day: "2-digit", month: "short" })}</td>
                     {canDelete && (
                       <td className="py-3 px-4">
                         <div className="flex gap-2">
                           <button onClick={() => openEditOpening(o)} title="Editar apertura"
                             className="text-mcm-muted hover:text-[#C62828]"><Pencil size={14} /></button>
+                          {o.status === "activo" && (
+                            <button onClick={() => handleSuspendOpening(o)} title="Suspender ciclo (cancela cuotas y desactiva alumnos)"
+                              className="text-mcm-muted hover:text-orange-600"><Ban size={14} /></button>
+                          )}
                           <button onClick={() => handleDeleteOpening(o.id, o.cycle_number)} title="Eliminar apertura"
                             className="text-mcm-muted hover:text-red-600"><Trash2 size={14} /></button>
                         </div>
