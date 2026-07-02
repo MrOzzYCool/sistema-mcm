@@ -166,5 +166,73 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ success: true, message: `Comprobante ${comprobante_serie}-${comprobante_numero} adjuntado. Cuota marcada como pagada.` });
   }
 
+  if (action === "cancel-by-opening") {
+    // Cancelar todas las cuotas pendientes de alumnos de un ciclo/apertura específica
+    const { cycle_number, carrera_id } = body;
+    if (!cycle_number) {
+      return NextResponse.json({ error: "cycle_number es requerido" }, { status: 400 });
+    }
+
+    try {
+      // Buscar alumnos inscritos en ese ciclo (y opcionalmente carrera)
+      let query = supabaseAdmin
+        .from("inscripciones")
+        .select("alumno_id")
+        .eq("ciclo_actual", parseInt(cycle_number));
+
+      if (carrera_id) {
+        query = query.eq("carrera_id", carrera_id);
+      }
+
+      const { data: inscripciones } = await query;
+      const alumnoIds = [...new Set((inscripciones ?? []).map(i => i.alumno_id).filter(Boolean))];
+
+      if (alumnoIds.length === 0) {
+        return NextResponse.json({ success: true, message: "No se encontraron alumnos para ese ciclo.", cancelled: 0 });
+      }
+
+      // Buscar planes de pago de esos alumnos
+      const { data: plans } = await supabaseAdmin
+        .from("payment_plans")
+        .select("id")
+        .in("alumno_id", alumnoIds);
+
+      const planIds = (plans ?? []).map(p => p.id);
+
+      if (planIds.length === 0) {
+        return NextResponse.json({ success: true, message: "No hay planes de pago para esos alumnos.", cancelled: 0 });
+      }
+
+      // Cancelar todas las cuotas pendientes de esos planes
+      const { data: updated, error: cancelErr } = await supabaseAdmin
+        .from("installments")
+        .update({ status: "cancelled" })
+        .in("plan_id", planIds)
+        .eq("status", "pending")
+        .select("id");
+
+      if (cancelErr) {
+        return NextResponse.json({ error: cancelErr.message }, { status: 500 });
+      }
+
+      const cancelled = updated?.length ?? 0;
+
+      await supabaseAdmin.from("historial_auditoria").insert({
+        accion: "cancelar_cuotas_masivo",
+        admin_id: admin.id, admin_email: admin.email,
+        detalle: { cycle_number, carrera_id, alumnos: alumnoIds.length, cuotas_canceladas: cancelled },
+      });
+
+      return NextResponse.json({
+        success: true,
+        message: `${cancelled} cuotas pendientes canceladas para ${alumnoIds.length} alumnos del Ciclo ${cycle_number}.`,
+        cancelled,
+        alumnos: alumnoIds.length,
+      });
+    } catch (err) {
+      return NextResponse.json({ error: err instanceof Error ? err.message : "Error" }, { status: 500 });
+    }
+  }
+
   return NextResponse.json({ error: "Acción no reconocida" }, { status: 400 });
 }

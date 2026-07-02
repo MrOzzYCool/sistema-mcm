@@ -59,7 +59,7 @@ export async function POST(req: NextRequest) {
 
     console.log(`[CRON] Encontradas ${installments.length} cuotas pendientes`);
 
-    // 4. Obtener datos de alumnos (DNI + nombre)
+    // 4. Obtener datos de alumnos (DNI + nombre) — solo alumnos ACTIVOS
     const alumnoIds = [...new Set(
       installments.map((inst) => {
         const plan = inst.payment_plans as unknown as { alumno_id?: string } | null;
@@ -69,11 +69,21 @@ export async function POST(req: NextRequest) {
 
     const { data: profiles } = await supabaseAdmin
       .from("profiles")
-      .select("id, nombre_completo, dni")
+      .select("id, nombre_completo, dni, is_active")
       .in("id", alumnoIds);
 
+    // Filtrar: solo alumnos activos participan en facturación
+    const activeProfiles = (profiles ?? []).filter(p => p.is_active !== false);
+    const inactiveIds = new Set(
+      (profiles ?? []).filter(p => p.is_active === false).map(p => p.id)
+    );
+
+    if (inactiveIds.size > 0) {
+      console.log(`[CRON] Excluyendo ${inactiveIds.size} alumnos inactivos de la facturación`);
+    }
+
     const profileMap = new Map(
-      (profiles ?? []).map((p) => [p.id, { nombre: p.nombre_completo ?? "", dni: p.dni ?? "" }])
+      activeProfiles.map((p) => [p.id, { nombre: p.nombre_completo ?? "", dni: p.dni ?? "" }])
     );
 
     // 5. Códigos de producto Nubefact
@@ -94,6 +104,11 @@ export async function POST(req: NextRequest) {
       const alumnoData = profileMap.get(alumnoId);
 
       if (!alumnoData || !alumnoData.dni) {
+        // Si el alumno está inactivo, saltamos sin warning
+        if (inactiveIds.has(alumnoId)) {
+          results.push({ id: inst.id, concepto: inst.concepto, status: "skipped", error: "Alumno inactivo/retirado" });
+          continue;
+        }
         console.warn(`[CRON] Alumno ${alumnoId} sin DNI, saltando cuota ${inst.id}`);
         results.push({ id: inst.id, concepto: inst.concepto, status: "skipped", error: "Sin DNI" });
         continue;
