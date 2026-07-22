@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { getSolicitudes, actualizarEstado } from "@/lib/solicitudes-service";
 import { SolicitudDB } from "@/lib/supabase";
 import { useAuth } from "@/lib/auth-context";
@@ -8,7 +8,7 @@ import RouteGuard from "@/components/RouteGuard";
 import { ACTUALIZACIONES_CATALOGO } from "@/lib/mock-data";
 import {
   CheckCircle, XCircle, AlertTriangle, Eye, X,
-  ExternalLink, RefreshCw, Loader2, BarChart2, Plus,
+  ExternalLink, RefreshCw, Loader2, BarChart2, Plus, Upload,
 } from "lucide-react";
 import clsx from "clsx";
 
@@ -486,19 +486,20 @@ type RegistroForm = {
   actualizacionId: string;
   tipoComprobante: "boleta" | "factura" | "";
   ruc: string; razonSocial: string; direccionFiscal: string;
-  pdfUrl: string;
 };
 
 const REGISTRO_INIT: RegistroForm = {
   nombres: "", apellidos: "", dni: "", email: "", celular: "",
   actualizacionId: "", tipoComprobante: "",
-  ruc: "", razonSocial: "", direccionFiscal: "", pdfUrl: "",
+  ruc: "", razonSocial: "", direccionFiscal: "",
 };
 
 function RegistroManualModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: () => void }) {
   const [form, setForm] = useState<RegistroForm>(REGISTRO_INIT);
+  const [pdfFile, setPdfFile] = useState<File | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const pdfInputRef = useRef<HTMLInputElement>(null);
 
   const actualizacion = ACTUALIZACIONES_CATALOGO.find((a) => a.id === form.actualizacionId);
 
@@ -518,8 +519,23 @@ function RegistroManualModal({ onClose, onSuccess }: { onClose: () => void; onSu
     setError("");
 
     try {
-      const { data: { session } } = await (await import("@/lib/supabase")).supabase.auth.getSession();
+      const { supabase } = await import("@/lib/supabase");
+      const { data: { session } } = await supabase.auth.getSession();
       const token = session?.access_token ?? "";
+
+      // Subir PDF si se adjuntó
+      let pdfUrl: string | null = null;
+      if (pdfFile) {
+        const ts = Math.floor(Date.now() / 1000);
+        const ext = pdfFile.name.split(".").pop()?.toLowerCase() || "pdf";
+        const path = `${form.dni.trim()}/comprobante-manual-${ts}.${ext}`;
+        const { error: upErr } = await supabase.storage
+          .from("tramites-mcm")
+          .upload(path, pdfFile, { upsert: true, contentType: pdfFile.type });
+        if (upErr) throw new Error(`Error subiendo PDF: ${upErr.message}`);
+        const { data: urlData } = supabase.storage.from("tramites-mcm").getPublicUrl(path);
+        pdfUrl = urlData.publicUrl;
+      }
 
       const res = await fetch("/api/admin/solicitudes-ops/registro-manual", {
         method: "POST",
@@ -533,7 +549,7 @@ function RegistroManualModal({ onClose, onSuccess }: { onClose: () => void; onSu
           tipo_tramite:     actualizacion.label,
           monto_pagado:     actualizacion.costo,
           tipo_comprobante: form.tipoComprobante,
-          pdf_boleta_url:   form.pdfUrl.trim() || null,
+          pdf_boleta_url:   pdfUrl,
           ...(form.tipoComprobante === "factura" && {
             ruc:              form.ruc,
             razon_social:     form.razonSocial.trim(),
@@ -640,17 +656,32 @@ function RegistroManualModal({ onClose, onSuccess }: { onClose: () => void; onSu
             </div>
           )}
 
-          {/* URL del PDF existente */}
+          {/* PDF del comprobante existente */}
           <div>
             <label className="block text-xs font-medium text-mcm-text mb-1">
-              URL del comprobante (boleta/factura PDF)
+              Comprobante PDF (boleta/factura)
             </label>
-            <input type="url" value={form.pdfUrl}
-              onChange={(e) => set("pdfUrl", e.target.value)}
-              placeholder="https://... (opcional, pega la URL de Nubefact)"
-              className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#a93526]" />
+            {pdfFile ? (
+              <div className="flex items-center gap-3 bg-green-50 border border-green-300 rounded-xl px-4 py-3">
+                <CheckCircle size={16} className="text-green-600 shrink-0" />
+                <p className="text-xs text-green-700 font-medium truncate flex-1">{pdfFile.name}</p>
+                <button type="button" onClick={() => { setPdfFile(null); if (pdfInputRef.current) pdfInputRef.current.value = ""; }}
+                  className="w-6 h-6 rounded-full bg-red-100 hover:bg-red-200 text-red-600 flex items-center justify-center shrink-0">
+                  <X size={12} />
+                </button>
+              </div>
+            ) : (
+              <div onClick={() => pdfInputRef.current?.click()}
+                className="border-2 border-dashed border-mcm-border hover:border-[#a93526] hover:bg-red-50 rounded-xl p-4 text-center cursor-pointer transition-colors">
+                <Upload size={20} className="text-mcm-muted mx-auto mb-1" />
+                <p className="text-xs text-mcm-muted font-medium">Haz clic para subir el PDF</p>
+                <p className="text-xs text-mcm-muted">PDF, JPG o PNG del comprobante</p>
+              </div>
+            )}
+            <input ref={pdfInputRef} type="file" accept=".pdf,image/*" className="hidden"
+              onChange={(e) => { if (e.target.files?.[0]) setPdfFile(e.target.files[0]); }} />
             <p className="text-xs text-mcm-muted mt-1">
-              Si ya se generó el comprobante en Nubefact, pega aquí la URL del PDF para vincularlo.
+              Opcional — adjunta el PDF de la boleta o factura ya generada.
             </p>
           </div>
 
