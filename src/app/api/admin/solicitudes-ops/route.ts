@@ -12,12 +12,13 @@ async function verifyAdmin(req: NextRequest) {
     "admin@margaritacabrera.edu.pe",
     "staff@margaritacabrera.edu.pe",
     "nvasquez@margaritacabrera.edu.pe",
+    "milnarvaez@margaritacabrera.edu.pe",
   ];
   if (user.email && ADMIN_EMAILS.includes(user.email.toLowerCase())) return user;
   // Verificar rol en profiles
   const { data: profile } = await supabaseAdmin
     .from("profiles").select("rol").eq("id", user.id).single();
-  if (!profile || !["super_admin", "staff_tramites", "gestor"].includes(profile.rol)) return null;
+  if (!profile || !["super_admin", "staff_tramites", "gestor", "actualizacion"].includes(profile.rol)) return null;
   return user;
 }
 
