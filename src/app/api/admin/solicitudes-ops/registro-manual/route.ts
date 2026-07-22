@@ -72,9 +72,9 @@ export async function POST(req: NextRequest) {
         direccion_fiscal: direccion_fiscal ?? null,
       }),
       // Sin voucher ni DNI porque fue registrado manualmente
-      voucher_url:      null,
-      dni_anverso_url:  null,
-      dni_reverso_url:  null,
+      voucher_url:      "registro-manual",
+      dni_anverso_url:  "registro-manual",
+      dni_reverso_url:  "registro-manual",
     };
 
     const { data, error } = await supabaseAdmin
