@@ -8,7 +8,7 @@ import RouteGuard from "@/components/RouteGuard";
 import { ACTUALIZACIONES_CATALOGO } from "@/lib/mock-data";
 import {
   CheckCircle, XCircle, AlertTriangle, Eye, X,
-  ExternalLink, RefreshCw, Loader2, BarChart2,
+  ExternalLink, RefreshCw, Loader2, BarChart2, Plus,
 } from "lucide-react";
 import clsx from "clsx";
 
@@ -36,6 +36,7 @@ function ActualizacionContent() {
   const [vista, setVista]           = useState<Vista>("solicitudes");
   // Pestaña activa: id de ACTUALIZACIONES_CATALOGO
   const [tabActiva, setTabActiva] = useState<string>(ACTUALIZACIONES_CATALOGO[0].id);
+  const [showRegistroManual, setShowRegistroManual] = useState(false);
 
   const cargar = useCallback(async () => {
     setLoading(true);
@@ -67,6 +68,10 @@ function ActualizacionContent() {
           <p className="text-mcm-muted text-sm mt-0.5">Gestión de solicitudes de actualización</p>
         </div>
         <div className="flex items-center gap-2">
+          <button onClick={() => setShowRegistroManual(true)}
+            className="btn-primary flex items-center gap-2 text-sm">
+            <Plus size={14} /> Registrar inscripción
+          </button>
           <button onClick={() => setRefreshKey((k) => k + 1)} disabled={loading}
             className="btn-secondary flex items-center gap-2 text-sm">
             <RefreshCw size={14} className={loading ? "animate-spin" : ""} />
@@ -105,6 +110,14 @@ function ActualizacionContent() {
         />
       ) : (
         <ReportesView todas={todas} loading={loading} />
+      )}
+
+      {/* Modal Registro Manual */}
+      {showRegistroManual && (
+        <RegistroManualModal
+          onClose={() => setShowRegistroManual(false)}
+          onSuccess={() => { setShowRegistroManual(false); setRefreshKey((k) => k + 1); }}
+        />
       )}
     </div>
   );
@@ -461,6 +474,211 @@ function ReporteKpi({ label, value, color, large }: {
     <div className={`rounded-xl p-3 ${color}`}>
       <p className="text-xs font-medium opacity-80 mb-1">{label}</p>
       <p className={`font-bold ${large ? "text-base" : "text-2xl"}`}>{value}</p>
+    </div>
+  );
+}
+
+// ─── Modal Registro Manual ────────────────────────────────────────────────────
+
+type RegistroForm = {
+  nombres: string; apellidos: string; dni: string;
+  email: string; celular: string;
+  actualizacionId: string;
+  tipoComprobante: "boleta" | "factura" | "";
+  ruc: string; razonSocial: string; direccionFiscal: string;
+  pdfUrl: string;
+};
+
+const REGISTRO_INIT: RegistroForm = {
+  nombres: "", apellidos: "", dni: "", email: "", celular: "",
+  actualizacionId: "", tipoComprobante: "",
+  ruc: "", razonSocial: "", direccionFiscal: "", pdfUrl: "",
+};
+
+function RegistroManualModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: () => void }) {
+  const [form, setForm] = useState<RegistroForm>(REGISTRO_INIT);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+
+  const actualizacion = ACTUALIZACIONES_CATALOGO.find((a) => a.id === form.actualizacionId);
+
+  const puedeGuardar =
+    !!form.nombres.trim() && !!form.apellidos.trim() &&
+    form.dni.length === 8 && !!actualizacion && !!form.tipoComprobante &&
+    (form.tipoComprobante === "boleta" || form.ruc.length === 11);
+
+  function set(k: keyof RegistroForm, v: string) {
+    setForm((p) => ({ ...p, [k]: v }));
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!puedeGuardar || !actualizacion) return;
+    setSaving(true);
+    setError("");
+
+    try {
+      const { data: { session } } = await (await import("@/lib/supabase")).supabase.auth.getSession();
+      const token = session?.access_token ?? "";
+
+      const res = await fetch("/api/admin/solicitudes-ops/registro-manual", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          nombres:          form.nombres.trim(),
+          apellidos:        form.apellidos.trim(),
+          dni:              form.dni.trim(),
+          email:            form.email.trim().toLowerCase(),
+          celular:          form.celular.trim(),
+          tipo_tramite:     actualizacion.label,
+          monto_pagado:     actualizacion.costo,
+          tipo_comprobante: form.tipoComprobante,
+          pdf_boleta_url:   form.pdfUrl.trim() || null,
+          ...(form.tipoComprobante === "factura" && {
+            ruc:              form.ruc,
+            razon_social:     form.razonSocial.trim(),
+            direccion_fiscal: form.direccionFiscal.trim(),
+          }),
+        }),
+      });
+
+      if (!res.ok) {
+        const json = await res.json();
+        throw new Error(json.error ?? "Error al registrar");
+      }
+
+      onSuccess();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Error al guardar");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4 overflow-y-auto">
+      <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-lg my-8">
+        <div className="flex items-center justify-between mb-5">
+          <div>
+            <h3 className="font-bold text-mcm-text text-lg">Registrar inscripción existente</h3>
+            <p className="text-mcm-muted text-xs mt-0.5">
+              Para alumnas ya inscritas fuera del sistema — NO genera comprobante nuevo en Nubefact.
+            </p>
+          </div>
+          <button onClick={onClose} className="text-mcm-muted hover:text-mcm-text">
+            <X size={20} />
+          </button>
+        </div>
+
+        {error && (
+          <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg p-3 mb-4 text-sm">{error}</div>
+        )}
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Datos personales */}
+          <div className="grid grid-cols-2 gap-3">
+            <InputField label="Nombres" value={form.nombres}
+              onChange={(v) => set("nombres", v.toUpperCase())} placeholder="MARÍA ELENA" required />
+            <InputField label="Apellidos" value={form.apellidos}
+              onChange={(v) => set("apellidos", v.toUpperCase())} placeholder="GARCÍA LÓPEZ" required />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-mcm-text mb-1">DNI *</label>
+              <input type="text" value={form.dni}
+                onChange={(e) => set("dni", e.target.value.replace(/\D/g, "").slice(0, 8))}
+                placeholder="12345678" maxLength={8} required
+                className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#a93526]" />
+            </div>
+            <InputField label="Celular" value={form.celular} onChange={(v) => set("celular", v)} placeholder="987654321" />
+          </div>
+          <InputField label="Email" value={form.email} onChange={(v) => set("email", v)} placeholder="alumna@ejemplo.com" />
+
+          {/* Actualización */}
+          <div>
+            <label className="block text-xs font-medium text-mcm-text mb-1">Actualización *</label>
+            <select value={form.actualizacionId} onChange={(e) => set("actualizacionId", e.target.value)} required
+              className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#a93526]">
+              <option value="">Selecciona...</option>
+              {ACTUALIZACIONES_CATALOGO.map((a) => (
+                <option key={a.id} value={a.id}>{a.label} — S/ {a.costo}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Tipo comprobante */}
+          <div>
+            <label className="block text-xs font-medium text-mcm-text mb-1">Tipo de comprobante *</label>
+            <div className="grid grid-cols-2 gap-2">
+              {(["boleta", "factura"] as const).map((tipo) => (
+                <button key={tipo} type="button" onClick={() => set("tipoComprobante", tipo)}
+                  className={clsx(
+                    "py-2.5 rounded-xl border-2 text-sm font-semibold transition-all",
+                    form.tipoComprobante === tipo
+                      ? "border-[#a93526] bg-red-50 text-[#a93526]"
+                      : "border-mcm-border text-mcm-muted hover:border-[#a93526]"
+                  )}>
+                  {tipo === "boleta" ? "🧾 Boleta" : "📄 Factura"}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {form.tipoComprobante === "factura" && (
+            <div className="space-y-3 border-l-4 border-[#a93526]/20 pl-4">
+              <div>
+                <label className="block text-xs font-medium text-mcm-text mb-1">RUC *</label>
+                <input type="text" value={form.ruc}
+                  onChange={(e) => set("ruc", e.target.value.replace(/\D/g, "").slice(0, 11))}
+                  placeholder="20123456789" maxLength={11} required
+                  className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#a93526]" />
+              </div>
+              <InputField label="Razón Social *" value={form.razonSocial}
+                onChange={(v) => set("razonSocial", v.toUpperCase())} placeholder="EMPRESA S.A.C." required />
+              <InputField label="Dirección Fiscal *" value={form.direccionFiscal}
+                onChange={(v) => set("direccionFiscal", v)} placeholder="Av. Principal 123, Lima" required />
+            </div>
+          )}
+
+          {/* URL del PDF existente */}
+          <div>
+            <label className="block text-xs font-medium text-mcm-text mb-1">
+              URL del comprobante (boleta/factura PDF)
+            </label>
+            <input type="url" value={form.pdfUrl}
+              onChange={(e) => set("pdfUrl", e.target.value)}
+              placeholder="https://... (opcional, pega la URL de Nubefact)"
+              className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#a93526]" />
+            <p className="text-xs text-mcm-muted mt-1">
+              Si ya se generó el comprobante en Nubefact, pega aquí la URL del PDF para vincularlo.
+            </p>
+          </div>
+
+          {/* Botones */}
+          <div className="flex gap-3 pt-2">
+            <button type="button" onClick={onClose} className="btn-secondary flex-1 text-sm">Cancelar</button>
+            <button type="submit" disabled={!puedeGuardar || saving}
+              className="flex-1 text-sm text-white font-semibold px-4 py-2.5 rounded-lg bg-[#C62828] hover:bg-[#B71C1C] transition-colors disabled:opacity-50 flex items-center justify-center gap-2">
+              {saving && <Loader2 size={14} className="animate-spin" />}
+              {saving ? "Guardando..." : "Registrar como aprobado"}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+function InputField({ label, value, onChange, placeholder, required }: {
+  label: string; value: string; onChange: (v: string) => void;
+  placeholder?: string; required?: boolean;
+}) {
+  return (
+    <div>
+      <label className="block text-xs font-medium text-mcm-text mb-1">{label}</label>
+      <input type="text" value={value} onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder} required={required}
+        className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#a93526]" />
     </div>
   );
 }
