@@ -8,7 +8,7 @@ import RouteGuard from "@/components/RouteGuard";
 import { ACTUALIZACIONES_CATALOGO } from "@/lib/mock-data";
 import {
   CheckCircle, XCircle, AlertTriangle, Eye, X,
-  ExternalLink, RefreshCw, Loader2, BarChart2, Plus, Upload,
+  ExternalLink, RefreshCw, Loader2, BarChart2, Plus, Upload, Pencil,
 } from "lucide-react";
 import clsx from "clsx";
 
@@ -138,6 +138,7 @@ function SolicitudesView({ todas, loading, tabActiva, setTabActiva, setTodas, se
   const [modalObs, setModalObs] = useState<SolicitudDB | null>(null);
   const [obsFields, setObsFields] = useState({ voucher: "", dni_anverso: "", dni_reverso: "" });
   const [saving, setSaving]     = useState<string | null>(null);
+  const [editDocsSol, setEditDocsSol] = useState<SolicitudDB | null>(null);
 
   // Filtrar por pestaña activa
   const actCat    = ACTUALIZACIONES_CATALOGO.find((a) => a.id === tabActiva);
@@ -276,23 +277,26 @@ function SolicitudesView({ todas, loading, tabActiva, setTabActiva, setTodas, se
                     </td>
                     <td className="py-4 px-4">
                       <div className="flex flex-col gap-1.5">
-                        {s.voucher_url && (
+                        {s.voucher_url && s.voucher_url !== "registro-manual" && (
                           <button onClick={() => setLightbox({ url: s.voucher_url, titulo: "Voucher" })}
                             className="flex items-center gap-1 text-xs text-[#C62828] hover:underline font-medium">
                             <Eye size={12} /> Voucher
                           </button>
                         )}
-                        {s.dni_anverso_url && (
+                        {s.dni_anverso_url && s.dni_anverso_url !== "registro-manual" && (
                           <button onClick={() => setLightbox({ url: s.dni_anverso_url, titulo: "DNI ▲" })}
                             className="flex items-center gap-1 text-xs text-mcm-muted hover:text-mcm-text font-medium">
                             <Eye size={12} /> DNI ▲
                           </button>
                         )}
-                        {s.dni_reverso_url && (
+                        {s.dni_reverso_url && s.dni_reverso_url !== "registro-manual" && (
                           <button onClick={() => setLightbox({ url: s.dni_reverso_url, titulo: "DNI ▼" })}
                             className="flex items-center gap-1 text-xs text-mcm-muted hover:text-mcm-text font-medium">
                             <Eye size={12} /> DNI ▼
                           </button>
+                        )}
+                        {(!s.voucher_url || s.voucher_url === "registro-manual") && (
+                          <span className="text-xs text-mcm-muted italic">Sin docs</span>
                         )}
                       </div>
                     </td>
@@ -316,18 +320,22 @@ function SolicitudesView({ todas, loading, tabActiva, setTabActiva, setTodas, se
                               <CheckCircle size={12} /> Aprobar
                             </button>
                           )}
-                          {s.estado !== "observado" && (
+                          {s.estado !== "aprobado" && s.estado !== "observado" && (
                             <button onClick={() => handleObservar(s.id!)}
                               className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 font-medium whitespace-nowrap">
                               <AlertTriangle size={12} /> Observar
                             </button>
                           )}
-                          {s.estado !== "rechazado" && (
+                          {s.estado !== "aprobado" && s.estado !== "rechazado" && (
                             <button onClick={() => { setModalObs(s); setObsFields({ voucher: "", dni_anverso: "", dni_reverso: "" }); }}
                               className="flex items-center gap-1 text-xs text-red-500 hover:text-red-700 font-medium whitespace-nowrap">
                               <XCircle size={12} /> Rechazar
                             </button>
                           )}
+                          <button onClick={() => setEditDocsSol(s)}
+                            className="flex items-center gap-1 text-xs text-purple-600 hover:text-purple-800 font-medium whitespace-nowrap">
+                            <Pencil size={12} /> Editar docs
+                          </button>
                         </div>
                       )}
                     </td>
@@ -411,6 +419,18 @@ function SolicitudesView({ todas, loading, tabActiva, setTabActiva, setTodas, se
             </div>
           </div>
         </div>
+      )}
+
+      {/* Modal editar docs */}
+      {editDocsSol && (
+        <EditDocsModal
+          solicitud={editDocsSol}
+          onClose={() => setEditDocsSol(null)}
+          onSuccess={(updated) => {
+            setTodas((prev) => prev.map((s) => s.id === updated.id ? { ...s, ...updated } : s));
+            setEditDocsSol(null);
+          }}
+        />
       )}
     </div>
   );
@@ -753,6 +773,189 @@ function InputField({ label, value, onChange, placeholder, required }: {
       <input type="text" value={value} onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder} required={required}
         className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#a93526]" />
+    </div>
+  );
+}
+
+// ─── Modal Editar Documentos ──────────────────────────────────────────────────
+
+function EditDocsModal({ solicitud, onClose, onSuccess }: {
+  solicitud: SolicitudDB;
+  onClose: () => void;
+  onSuccess: (updated: Partial<SolicitudDB> & { id: string }) => void;
+}) {
+  const [voucherFile, setVoucherFile] = useState<File | null>(null);
+  const [dniAnversoFile, setDniAnversoFile] = useState<File | null>(null);
+  const [dniReversoFile, setDniReversoFile] = useState<File | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  const voucherRef = useRef<HTMLInputElement>(null);
+  const dniAnversoRef = useRef<HTMLInputElement>(null);
+  const dniReversoRef = useRef<HTMLInputElement>(null);
+
+  const tieneVoucher = solicitud.voucher_url && solicitud.voucher_url !== "registro-manual";
+  const tieneAnverso = solicitud.dni_anverso_url && solicitud.dni_anverso_url !== "registro-manual";
+  const tieneReverso = solicitud.dni_reverso_url && solicitud.dni_reverso_url !== "registro-manual";
+
+  async function handleSave() {
+    if (!voucherFile && !dniAnversoFile && !dniReversoFile) {
+      onClose();
+      return;
+    }
+    setSaving(true);
+    setError("");
+
+    try {
+      const { supabase } = await import("@/lib/supabase");
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token ?? "";
+      const ts = Math.floor(Date.now() / 1000);
+      const dni = solicitud.dni;
+
+      const updates: Record<string, string> = {};
+
+      if (voucherFile) {
+        const ext = voucherFile.name.split(".").pop()?.toLowerCase() || "jpg";
+        const path = `${dni}/voucher-edit-${ts}.${ext}`;
+        const { error: upErr } = await supabase.storage
+          .from("tramites-mcm").upload(path, voucherFile, { upsert: true, contentType: voucherFile.type });
+        if (upErr) throw new Error(`Error subiendo voucher: ${upErr.message}`);
+        const { data } = supabase.storage.from("tramites-mcm").getPublicUrl(path);
+        updates.voucher_url = data.publicUrl;
+      }
+
+      if (dniAnversoFile) {
+        const ext = dniAnversoFile.name.split(".").pop()?.toLowerCase() || "jpg";
+        const path = `${dni}/dni-anverso-edit-${ts}.${ext}`;
+        const { error: upErr } = await supabase.storage
+          .from("tramites-mcm").upload(path, dniAnversoFile, { upsert: true, contentType: dniAnversoFile.type });
+        if (upErr) throw new Error(`Error subiendo DNI anverso: ${upErr.message}`);
+        const { data } = supabase.storage.from("tramites-mcm").getPublicUrl(path);
+        updates.dni_anverso_url = data.publicUrl;
+      }
+
+      if (dniReversoFile) {
+        const ext = dniReversoFile.name.split(".").pop()?.toLowerCase() || "jpg";
+        const path = `${dni}/dni-reverso-edit-${ts}.${ext}`;
+        const { error: upErr } = await supabase.storage
+          .from("tramites-mcm").upload(path, dniReversoFile, { upsert: true, contentType: dniReversoFile.type });
+        if (upErr) throw new Error(`Error subiendo DNI reverso: ${upErr.message}`);
+        const { data } = supabase.storage.from("tramites-mcm").getPublicUrl(path);
+        updates.dni_reverso_url = data.publicUrl;
+      }
+
+      // Actualizar en BD
+      const res = await fetch("/api/admin/solicitudes-ops", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ id: solicitud.id, ...updates }),
+      });
+      if (!res.ok) {
+        const json = await res.json();
+        throw new Error(json.error ?? "Error actualizando");
+      }
+
+      onSuccess({ id: solicitud.id!, ...updates });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Error al guardar");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4 overflow-y-auto">
+      <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-md my-8">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h3 className="font-bold text-mcm-text text-lg">Editar documentos</h3>
+            <p className="text-mcm-muted text-xs mt-0.5">{solicitud.nombres} {solicitud.apellidos}</p>
+          </div>
+          <button onClick={onClose} className="text-mcm-muted hover:text-mcm-text"><X size={20} /></button>
+        </div>
+
+        {error && (
+          <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg p-3 mb-4 text-sm">{error}</div>
+        )}
+
+        <div className="space-y-4">
+          {/* Voucher */}
+          <DocUploadField
+            label="Voucher de pago"
+            currentUrl={tieneVoucher ? solicitud.voucher_url : null}
+            file={voucherFile}
+            inputRef={voucherRef}
+            onFileChange={setVoucherFile}
+          />
+
+          {/* DNI Anverso */}
+          <DocUploadField
+            label="DNI — Anverso"
+            currentUrl={tieneAnverso ? solicitud.dni_anverso_url : null}
+            file={dniAnversoFile}
+            inputRef={dniAnversoRef}
+            onFileChange={setDniAnversoFile}
+          />
+
+          {/* DNI Reverso */}
+          <DocUploadField
+            label="DNI — Reverso"
+            currentUrl={tieneReverso ? solicitud.dni_reverso_url : null}
+            file={dniReversoFile}
+            inputRef={dniReversoRef}
+            onFileChange={setDniReversoFile}
+          />
+        </div>
+
+        <div className="flex gap-3 mt-6">
+          <button onClick={onClose} className="btn-secondary flex-1 text-sm">Cancelar</button>
+          <button onClick={handleSave} disabled={saving}
+            className="flex-1 text-sm text-white font-semibold px-4 py-2.5 rounded-lg bg-[#C62828] hover:bg-[#B71C1C] transition-colors disabled:opacity-50 flex items-center justify-center gap-2">
+            {saving && <Loader2 size={14} className="animate-spin" />}
+            {saving ? "Guardando..." : "Guardar cambios"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function DocUploadField({ label, currentUrl, file, inputRef, onFileChange }: {
+  label: string;
+  currentUrl: string | null;
+  file: File | null;
+  inputRef: React.RefObject<HTMLInputElement>;
+  onFileChange: (f: File | null) => void;
+}) {
+  return (
+    <div>
+      <label className="block text-xs font-medium text-mcm-text mb-1">{label}</label>
+      {currentUrl && !file && (
+        <div className="flex items-center gap-2 bg-green-50 border border-green-200 rounded-lg px-3 py-2 mb-2">
+          <CheckCircle size={14} className="text-green-600" />
+          <a href={currentUrl} target="_blank" rel="noreferrer" className="text-xs text-green-700 hover:underline truncate flex-1">
+            Archivo actual
+          </a>
+        </div>
+      )}
+      {file ? (
+        <div className="flex items-center gap-3 bg-blue-50 border border-blue-300 rounded-xl px-4 py-3">
+          <Upload size={14} className="text-blue-600 shrink-0" />
+          <p className="text-xs text-blue-700 font-medium truncate flex-1">{file.name}</p>
+          <button type="button" onClick={() => { onFileChange(null); if (inputRef.current) inputRef.current.value = ""; }}
+            className="w-6 h-6 rounded-full bg-red-100 hover:bg-red-200 text-red-600 flex items-center justify-center shrink-0">
+            <X size={12} />
+          </button>
+        </div>
+      ) : (
+        <div onClick={() => inputRef.current?.click()}
+          className="border-2 border-dashed border-mcm-border hover:border-[#a93526] hover:bg-red-50 rounded-xl p-3 text-center cursor-pointer transition-colors">
+          <Upload size={16} className="text-mcm-muted mx-auto mb-0.5" />
+          <p className="text-xs text-mcm-muted">{currentUrl ? "Reemplazar archivo" : "Subir archivo"}</p>
+        </div>
+      )}
+      <input ref={inputRef} type="file" accept="image/*,.pdf" className="hidden"
+        onChange={(e) => { if (e.target.files?.[0]) onFileChange(e.target.files[0]); }} />
     </div>
   );
 }
