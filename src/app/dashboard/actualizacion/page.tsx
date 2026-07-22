@@ -112,6 +112,7 @@ function ActualizacionContent() {
           todas={todas} loading={loading}
           tabActiva={tabActiva} setTabActiva={setTabActiva}
           setTodas={setTodas} setError={setError}
+          esSuperAdmin={esSuperAdmin}
         />
       ) : (
         <ReportesView todas={todas} loading={loading} />
@@ -130,13 +131,14 @@ function ActualizacionContent() {
 
 // ─── Vista Solicitudes ────────────────────────────────────────────────────────
 
-function SolicitudesView({ todas, loading, tabActiva, setTabActiva, setTodas, setError }: {
+function SolicitudesView({ todas, loading, tabActiva, setTabActiva, setTodas, setError, esSuperAdmin }: {
   todas: SolicitudDB[];
   loading: boolean;
   tabActiva: string;
   setTabActiva: (id: string) => void;
   setTodas: React.Dispatch<React.SetStateAction<SolicitudDB[]>>;
   setError: (e: string) => void;
+  esSuperAdmin: boolean;
 }) {
   const [filtro, setFiltro]     = useState<Estado | "todos">("todos");
   const [lightbox, setLightbox] = useState<{ url: string; titulo: string } | null>(null);
@@ -337,10 +339,12 @@ function SolicitudesView({ todas, loading, tabActiva, setTabActiva, setTodas, se
                               <XCircle size={12} /> Rechazar
                             </button>
                           )}
-                          <button onClick={() => setEditDocsSol(s)}
-                            className="flex items-center gap-1 text-xs text-purple-600 hover:text-purple-800 font-medium whitespace-nowrap">
-                            <Pencil size={12} /> Editar docs
-                          </button>
+                          {esSuperAdmin && (
+                            <button onClick={() => setEditDocsSol(s)}
+                              className="flex items-center gap-1 text-xs text-purple-600 hover:text-purple-800 font-medium whitespace-nowrap">
+                              <Pencil size={12} /> Editar docs
+                            </button>
+                          )}
                         </div>
                       )}
                     </td>
