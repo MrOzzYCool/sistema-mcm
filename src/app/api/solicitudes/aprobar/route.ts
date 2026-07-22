@@ -42,12 +42,12 @@ export async function POST(req: NextRequest) {
     if (tramite) {
       nubefactItem = NUBEFACT_MAP[tramite.id] ?? null;
     } else if (actualizacion) {
-      // Usar monto_pagado de la solicitud (puede tener descuento exalumna)
-      const montoPagado = Number(sol.monto_pagado ?? actualizacion.precioUnitario);
+      // Usar precio original del catálogo como precioUnitario
+      // El descuento se calcula si monto_pagado < costo original
       nubefactItem = {
         codigo:      actualizacion.codigoNubefact,
         descripcion: actualizacion.descripcionNubefact,
-        monto:       montoPagado,
+        monto:       actualizacion.precioUnitario,
       };
     }
 
@@ -60,10 +60,18 @@ export async function POST(req: NextRequest) {
     const esCertModular = tramite?.id === "te4";
     const cantidad   = esSilabo ? 70 : esCertModular ? (sol.cantidad_silabos ?? 1) : 1;
     const precioUnit = esSilabo ? 5 : nubefactItem!.monto;
-    const montoTotal = Math.round(precioUnit * cantidad * 100) / 100;
+    const esActualizacion = !!actualizacion;
+
+    // Calcular descuento para actualizaciones (exalumna)
+    const montoPagado = Number(sol.monto_pagado ?? 0);
+    const descuentoActualizacion = esActualizacion && montoPagado > 0 && montoPagado < actualizacion.precioUnitario
+      ? Math.round((actualizacion.precioUnitario - montoPagado) * 100) / 100
+      : 0;
+
+    const montoTotal = Math.round((precioUnit * cantidad - descuentoActualizacion) * 100) / 100;
 
     console.log("Código Nubefact:", nubefactItem.codigo, "| Desc:", nubefactItem.descripcion);
-    console.log("Cantidad:", cantidad, "| Precio unit:", precioUnit, "| Total:", montoTotal);
+    console.log("Cantidad:", cantidad, "| Precio unit:", precioUnit, "| Descuento:", descuentoActualizacion, "| Total:", montoTotal);
 
     // ── 3. Generar boleta en Nubefact ─────────────────────────────────────────
     let pdfUrl = "";
@@ -71,7 +79,6 @@ export async function POST(req: NextRequest) {
     if (montoTotal > 0) {
       try {
         // IGV solo aplica para actualizaciones, NUNCA para trámites externos
-        const esActualizacion = !!actualizacion;
         console.log("tipo_tramite BD:", sol.tipo_tramite, "| esActualizacion:", esActualizacion);
         const boleta = await generarBoleta({
           codigoProducto:  nubefactItem.codigo,
@@ -83,6 +90,10 @@ export async function POST(req: NextRequest) {
           // Solo actualizaciones llevan IGV (gravado)
           ...(esActualizacion && {
             tipoIgv:       actualizacion.tipoIgv,
+          }),
+          // Descuento exalumna (si aplica)
+          ...(descuentoActualizacion > 0 && {
+            descuento:     descuentoActualizacion,
           }),
           // Trámites externos siempre inafectos (sin IGV) - código 9
           ...(!esActualizacion && { tipoIgv: 9 }),

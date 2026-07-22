@@ -10,6 +10,7 @@ export interface BoletaInput {
   precioUnitario:  number;
   valorUnitario?:  number;
   tipoIgv?:        number;
+  descuento?:      number;  // monto de descuento (con IGV incluido)
   codigoUnico:     string;
   tipoComprobante: "boleta" | "factura";
   dniCliente:      string;
@@ -48,8 +49,12 @@ export async function generarBoleta(datos: BoletaInput): Promise<BoletaResult> {
     ? r2(datos.valorUnitario ?? precioUnit / 1.18)
     : precioUnit;
 
-  const subtotal      = r2(valorUnit  * cantidad);
-  const totalItem     = r2(precioUnit * cantidad);
+  // Descuento: monto con IGV incluido que se descuenta del ítem
+  const descuentoConIgv = r2(datos.descuento ?? 0);
+  const descuentoBase   = esGravado ? r2(descuentoConIgv / 1.18) : descuentoConIgv;
+
+  const subtotal      = r2(valorUnit  * cantidad - descuentoBase);
+  const totalItem     = r2(precioUnit * cantidad - descuentoConIgv);
   const igvItem       = esGravado ? r2(totalItem - subtotal) : 0;
   const totalGravada  = esGravado ? subtotal  : 0;
   const totalInafecta = esGravado ? 0         : totalItem;
@@ -118,7 +123,7 @@ export async function generarBoleta(datos: BoletaInput): Promise<BoletaResult> {
         cantidad,
         valor_unitario:    esGravado ? valorUnit : precioUnit,
         precio_unitario:   precioUnit,
-        descuento:         0,
+        descuento:         descuentoBase,
         subtotal:          esGravado ? subtotal : totalItem,
         tipo_de_igv:       tipoIgv,
         afectacion_de_igv: tipoIgv,
