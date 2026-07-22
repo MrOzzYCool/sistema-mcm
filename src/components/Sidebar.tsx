@@ -6,7 +6,7 @@ import { useAuth } from "@/lib/auth-context";
 import {
   LayoutDashboard, BookOpen, FileText, Calendar, Users, CreditCard,
   Settings, LogOut, ChevronRight, BarChart2, RefreshCw, UserCog, Moon, Sun,
-  PieChart,
+  PieChart, Calculator,
 } from "lucide-react";
 import clsx from "clsx";
 import { useTheme } from "@/lib/theme-context";
@@ -21,6 +21,7 @@ const NAV_ITEMS = [
   { href: "/dashboard/ciclos",            label: "Ciclos y Horarios",   icon: Calendar,        roles: ["super_admin", "cycle_manager"] },
   { href: "/dashboard/vouchers",          label: "Vouchers",            icon: CreditCard,      roles: ["super_admin", "administradora", "secretaria_academica"] },
   { href: "/dashboard/reportes",          label: "Reportes",            icon: BarChart2,       roles: ["super_admin", "gestor"] },
+  { href: "/dashboard/contabilidad",      label: "Contabilidad",        icon: Calculator,      roles: ["super_admin", "contabilidad"] },
   { href: "/dashboard/gerencia",          label: "Gerencia",            icon: PieChart,        roles: ["super_admin", "gerenta"] },
   { href: "/dashboard/config",            label: "Configuración",       icon: Settings,        roles: ["super_admin"] },
 ];

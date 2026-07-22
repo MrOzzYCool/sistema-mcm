@@ -11,6 +11,7 @@ function getDestination(email: string, role: string): string {
     "staff@margaritacabrera.edu.pe":      "/dashboard/tramites-externos",
     "nvasquez@margaritacabrera.edu.pe":   "/dashboard/tramites-externos",
     "milnarvaez@margaritacabrera.edu.pe": "/dashboard/actualizacion",
+    "contabilidad@margaritacabrera.edu.pe": "/dashboard/contabilidad",
   };
   return map[email.toLowerCase()] ?? (role === "alumno" ? "/seleccionar" : role === "profesor" ? "/seleccionar-docente" : "/dashboard");
 }

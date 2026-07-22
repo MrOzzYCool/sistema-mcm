@@ -13,6 +13,7 @@ import clsx from "clsx";
 const STAFF_ROLES = [
   "super_admin", "staff_tramites", "gestor", "actualizacion", "cycle_manager",
   "administradora", "secretaria_academica", "secretaria_atencion_academica", "coordinacion_academica",
+  "contabilidad",
 ];
 
 const ROLE_LABELS: Record<string, string> = {
@@ -21,6 +22,7 @@ const ROLE_LABELS: Record<string, string> = {
   administradora: "GERENTE GENERAL", secretaria_academica: "SECRETARÍA ACADÉMICA",
   secretaria_atencion_academica: "SECRETARÍA ATENCIÓN ACADÉMICA",
   coordinacion_academica: "COORDINACIÓN ACADÉMICA",
+  contabilidad: "CONTABILIDAD",
 };
 
 const ASSIGNABLE_ROLES = [
