@@ -156,7 +156,7 @@ export default function CertificadosActualizacionPage() {
   if (enviado) {
     return (
       <div className="min-h-screen flex items-center justify-center p-6"
-        style={{ background: "linear-gradient(160deg,#a93526 0%,#8a2b1f 100%)" }}>
+        style={{ background: "linear-gradient(160deg,#C62828 0%,#8a2b1f 100%)" }}>
         <div className="bg-white rounded-2xl shadow-xl p-10 max-w-md w-full text-center">
           <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
             <CheckCircle className="w-8 h-8 text-green-600" />
@@ -182,7 +182,7 @@ export default function CertificadosActualizacionPage() {
   // ─── Formulario ──────────────────────────────────────────────────────────────
 
   return (
-    <div className="min-h-screen" style={{ background: "linear-gradient(160deg,#a93526 0%,#8a2b1f 100%)" }}>
+    <div className="min-h-screen" style={{ background: "linear-gradient(160deg,#C62828 0%,#8a2b1f 100%)" }}>
 
       {/* Header */}
       <header className="flex items-center gap-4 px-6 py-4 border-b border-white/10">
@@ -237,7 +237,7 @@ export default function CertificadosActualizacionPage() {
         {/* Formulario */}
         <div className="bg-white rounded-2xl shadow-2xl p-6 sm:p-8">
           <h2 className="text-lg font-bold text-mcm-text mb-1">Solicitud de Certificado — Actualización</h2>
-          <p className="text-mcm-muted text-sm mb-6">Completa todos los campos; adjunta tu voucher de pago y DNI.</p>
+          <p className="text-mcm-muted text-sm mb-6">Completa todos los campos y adjunta tu voucher de pago.</p>
 
           {error && (
             <div className="flex items-center gap-2 bg-red-50 border border-red-200 text-red-700 rounded-lg p-3 mb-4 text-sm">
@@ -258,7 +258,7 @@ export default function CertificadosActualizacionPage() {
                   <input type="text" value={form.dni}
                     onChange={(e) => set("dni", e.target.value.replace(/\D/g, "").slice(0, 8))}
                     placeholder="12345678" inputMode="numeric" maxLength={8} required
-                    className="w-full border border-mcm-border rounded-lg px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#a93526]" />
+                    className="w-full border border-mcm-border rounded-lg px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#C62828]" />
                 </div>
                 <Field label="Celular" value={form.celular} onChange={(v) => set("celular", v)} placeholder="987654321" required />
                 <EmailField value={form.email} onChange={(v) => set("email", v)} />
@@ -270,9 +270,9 @@ export default function CertificadosActualizacionPage() {
             <fieldset>
               <legend className="text-xs font-semibold text-mcm-muted uppercase tracking-wide mb-3">Actualización cursada</legend>
               <select value={form.actualizacionOrigen}
-                onChange={(e) => set("actualizacionOrigen", e.target.value)}
+                onChange={(e) => { set("actualizacionOrigen", e.target.value); set("certificadoId", ""); }}
                 required
-                className="w-full border border-mcm-border rounded-lg px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#a93526]">
+                className="w-full border border-mcm-border rounded-lg px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#C62828]">
                 <option value="">¿En qué actualización participaste?</option>
                 {ACTUALIZACIONES_CATALOGO.map((a) => (
                   <option key={a.id} value={a.id}>{a.label}</option>
@@ -280,32 +280,33 @@ export default function CertificadosActualizacionPage() {
               </select>
             </fieldset>
 
-            {/* Tipo de certificado */}
-            <fieldset>
-              <legend className="text-xs font-semibold text-mcm-muted uppercase tracking-wide mb-3">Tipo de certificado</legend>
-              <div className="space-y-3">
-                <div className="grid grid-cols-2 gap-3">
-                  {CERTIFICADOS_ACTUALIZACION_CATALOGO.map((c) => (
-                    <button key={c.id} type="button" onClick={() => set("certificadoId", c.id)}
-                      className={`py-4 rounded-xl border-2 text-center transition-all ${
-                        form.certificadoId === c.id
-                          ? "border-[#a93526] bg-red-50 text-[#a93526]"
-                          : "border-mcm-border text-mcm-muted hover:border-[#a93526]"
-                      }`}>
-                      <p className="text-sm font-semibold">{c.id === "cert-digital" ? "💻" : "📜"} {c.label}</p>
-                      <p className="text-lg font-bold mt-1">S/ {c.costo.toFixed(2)}</p>
-                    </button>
-                  ))}
-                </div>
-
-                {certificado && (
-                  <div className="flex items-center justify-between bg-[#a93526] rounded-xl px-5 py-4">
-                    <span className="text-white font-medium text-sm">Monto a pagar:</span>
-                    <span className="text-white font-bold text-2xl">S/ {certificado.costo.toFixed(2)}</span>
+            {/* Tipo de certificado — solo se muestra si eligió actualización */}
+            {form.actualizacionOrigen && (
+              <fieldset>
+                <legend className="text-xs font-semibold text-mcm-muted uppercase tracking-wide mb-3">Tipo de certificado</legend>
+                <div className="space-y-3">
+                  <div className="grid grid-cols-2 gap-3">
+                    {CERTIFICADOS_ACTUALIZACION_CATALOGO.map((c) => (
+                      <button key={c.id} type="button" onClick={() => set("certificadoId", c.id)}
+                        className={`py-4 rounded-xl border-2 text-center transition-all ${
+                          form.certificadoId === c.id
+                            ? "border-[#C62828] bg-red-50 text-[#C62828]"
+                            : "border-mcm-border text-mcm-muted hover:border-[#C62828]"
+                        }`}>
+                        <p className="text-sm font-semibold">{c.id === "cert-digital" ? "💻" : "📜"} {c.label}</p>
+                      </button>
+                    ))}
                   </div>
-                )}
-              </div>
-            </fieldset>
+
+                  {certificado && (
+                    <div className="flex items-center justify-between bg-[#C62828] rounded-xl px-5 py-4">
+                      <span className="text-white font-medium text-sm">Monto a pagar:</span>
+                      <span className="text-white font-bold text-2xl">S/ {certificado.costo.toFixed(2)}</span>
+                    </div>
+                  )}
+                </div>
+              </fieldset>
+            )}
 
             {/* Comprobante */}
             <fieldset>
@@ -316,8 +317,8 @@ export default function CertificadosActualizacionPage() {
                     <button key={tipo} type="button" onClick={() => set("tipoComprobante", tipo)}
                       className={`py-3 rounded-xl border-2 text-sm font-semibold transition-all ${
                         form.tipoComprobante === tipo
-                          ? "border-[#a93526] bg-red-50 text-[#a93526]"
-                          : "border-mcm-border text-mcm-muted hover:border-[#a93526]"
+                          ? "border-[#C62828] bg-red-50 text-[#C62828]"
+                          : "border-mcm-border text-mcm-muted hover:border-[#C62828]"
                       }`}>
                       {tipo === "boleta" ? "🧾 Boleta" : "📄 Factura"}
                     </button>
@@ -330,7 +331,7 @@ export default function CertificadosActualizacionPage() {
                       <input type="text" value={form.ruc}
                         onChange={(e) => set("ruc", e.target.value.replace(/\D/g, "").slice(0, 11))}
                         placeholder="20123456789" inputMode="numeric" maxLength={11} required
-                        className={`w-full border rounded-lg px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#a93526] ${
+                        className={`w-full border rounded-lg px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#C62828] ${
                           form.ruc.length > 0 && form.ruc.length !== 11 ? "border-red-400 bg-red-50" : "border-mcm-border"
                         }`} />
                     </div>
@@ -373,7 +374,7 @@ function Field({ label, value, onChange, type = "text", placeholder, required, s
       <label className="block text-sm font-medium text-mcm-text mb-1.5">{label}</label>
       <input type={type} value={value} onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder} required={required} style={style}
-        className="w-full border border-mcm-border rounded-lg px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#a93526]" />
+        className="w-full border border-mcm-border rounded-lg px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#C62828]" />
     </div>
   );
 }
@@ -410,7 +411,7 @@ function MultiFileUpload({ label, sublabel, files, inputRef, onChange }: {
         </div>
       )}
       <div onClick={() => inputRef.current?.click()}
-        className="border-2 border-dashed border-mcm-border hover:border-[#a93526] hover:bg-red-50 rounded-xl p-4 text-center cursor-pointer transition-colors">
+        className="border-2 border-dashed border-mcm-border hover:border-[#C62828] hover:bg-red-50 rounded-xl p-4 text-center cursor-pointer transition-colors">
         <Upload size={20} className="text-mcm-muted mx-auto mb-1" />
         <p className="text-xs text-mcm-muted font-medium">{files.length > 0 ? "Agregar más vouchers" : "Haz clic para subir"}</p>
         <p className="text-xs text-mcm-muted">JPG, PNG — puedes seleccionar varios</p>
