@@ -281,7 +281,16 @@ function SolicitudesView({ todas, loading, tabActiva, setTabActiva, setTodas, se
                     <td className="py-4 px-4 font-mono text-sm text-mcm-text whitespace-nowrap">{s.dni}</td>
                     <td className="py-4 px-4 text-xs text-mcm-muted capitalize">{s.tipo_comprobante ?? "—"}</td>
                     <td className="py-4 px-4 font-semibold text-mcm-text whitespace-nowrap">
-                      {Number(s.monto_pagado) > 0 ? `S/ ${Number(s.monto_pagado).toLocaleString()}` : "—"}
+                      {Number(s.monto_pagado) > 0 ? (
+                        Number(s.costo_tramite) > Number(s.monto_pagado) ? (
+                          <div>
+                            <span className="text-xs text-mcm-muted line-through">S/ {Number(s.costo_tramite).toLocaleString()}</span>
+                            <span className="block text-green-700 font-bold">S/ {Number(s.monto_pagado).toLocaleString()}</span>
+                          </div>
+                        ) : (
+                          <span>S/ {Number(s.monto_pagado).toLocaleString()}</span>
+                        )
+                      ) : "—"}
                     </td>
                     <td className="py-4 px-4 text-mcm-muted text-xs whitespace-nowrap">
                       {s.created_at ? new Date(s.created_at).toLocaleDateString("es-PE", { day: "2-digit", month: "short", year: "numeric" }) : "—"}
@@ -896,12 +905,14 @@ function EditMontoModal({ solicitud, onClose, onSuccess }: {
   onSuccess: (id: string, nuevoMonto: number) => void;
 }) {
   const [monto, setMonto] = useState(String(Number(solicitud.monto_pagado ?? 0)));
+  const [costoOriginal, setCostoOriginal] = useState(String(Number(solicitud.costo_tramite ?? solicitud.monto_pagado ?? 0)));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
   async function handleSave() {
     const nuevoMonto = parseFloat(monto);
-    if (isNaN(nuevoMonto) || nuevoMonto < 0) {
+    const nuevoCosto = parseFloat(costoOriginal);
+    if (isNaN(nuevoMonto) || nuevoMonto < 0 || isNaN(nuevoCosto) || nuevoCosto < 0) {
       setError("Monto inválido");
       return;
     }
@@ -915,7 +926,7 @@ function EditMontoModal({ solicitud, onClose, onSuccess }: {
       const res = await fetch("/api/admin/solicitudes-ops", {
         method: "PUT",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ id: solicitud.id, monto_pagado: nuevoMonto }),
+        body: JSON.stringify({ id: solicitud.id, monto_pagado: nuevoMonto, costo_tramite: nuevoCosto }),
       });
       if (!res.ok) {
         const json = await res.json();
@@ -942,11 +953,26 @@ function EditMontoModal({ solicitud, onClose, onSuccess }: {
           <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg p-2 mb-3 text-xs">{error}</div>
         )}
 
-        <div>
-          <label className="block text-xs font-medium text-mcm-text mb-1">Monto pagado (S/)</label>
-          <input type="number" step="0.01" min="0" value={monto}
-            onChange={(e) => setMonto(e.target.value)}
-            className="w-full border border-mcm-border rounded-lg px-3 py-2.5 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-[#C62828]" />
+        <div className="space-y-3">
+          <div>
+            <label className="block text-xs font-medium text-mcm-text mb-1">Costo original (S/)</label>
+            <input type="number" step="0.01" min="0" value={costoOriginal}
+              onChange={(e) => setCostoOriginal(e.target.value)}
+              className="w-full border border-mcm-border rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#C62828]" />
+            <p className="text-xs text-mcm-muted mt-0.5">Precio sin descuento del catálogo</p>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-mcm-text mb-1">Monto pagado (S/)</label>
+            <input type="number" step="0.01" min="0" value={monto}
+              onChange={(e) => setMonto(e.target.value)}
+              className="w-full border border-mcm-border rounded-lg px-3 py-2.5 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-[#C62828]" />
+            <p className="text-xs text-mcm-muted mt-0.5">Monto real que pagó (con descuento)</p>
+          </div>
+          {parseFloat(costoOriginal) > parseFloat(monto) && parseFloat(monto) > 0 && (
+            <div className="bg-green-50 border border-green-200 rounded-lg p-2 text-xs text-green-700 font-medium">
+              Descuento: S/ {(parseFloat(costoOriginal) - parseFloat(monto)).toFixed(2)}
+            </div>
+          )}
         </div>
 
         <div className="flex gap-3 mt-5">
