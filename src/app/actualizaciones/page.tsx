@@ -49,6 +49,7 @@ const INIT: FormState = {
 
 export default function ActualizacionesPage() {
   const [form, setForm]                         = useState<FormState>(INIT);
+  const [esExalumna, setEsExalumna]             = useState(false);
   const [voucherFiles, setVoucherFiles]         = useState<File[]>([]);
   const [dniAnversoFile, setDniAnversoFile]     = useState<File | null>(null);
   const [dniReversoFile, setDniReversoFile]     = useState<File | null>(null);
@@ -60,6 +61,8 @@ export default function ActualizacionesPage() {
   const dniReversoRef = useRef<HTMLInputElement>(null);
 
   const actualizacion    = ACTUALIZACIONES_CATALOGO.find((a) => a.id === form.actualizacionId);
+  const DESCUENTO_EXALUMNA = 100;
+  const montoFinal       = actualizacion ? (esExalumna ? actualizacion.costo - DESCUENTO_EXALUMNA : actualizacion.costo) : 0;
   const emailNoCoincide  = form.emailConfirm.length > 0 && form.email !== form.emailConfirm;
 
   const puedeEnviar =
@@ -108,7 +111,7 @@ export default function ActualizacionesPage() {
               anio_egreso:      "—",
               tipo_tramite:     actualizacion.label,
               costo_tramite:    actualizacion.costo,
-              monto_pagado:     actualizacion.costo,
+              monto_pagado:     montoFinal,
               voucher_url:      vu,
               dni_anverso_url:  dau,
               dni_reverso_url:  dru,
@@ -159,7 +162,7 @@ export default function ActualizacionesPage() {
           <p className="text-mcm-muted text-sm mb-6">
             Tu solicitud fue registrada. Te contactaremos al correo <strong>{form.email}</strong>.
           </p>
-          <button onClick={() => { setForm(INIT); setVoucherFiles([]); setDniAnversoFile(null); setDniReversoFile(null); setEnviado(false); }}
+          <button onClick={() => { setForm(INIT); setVoucherFiles([]); setDniAnversoFile(null); setDniReversoFile(null); setEsExalumna(false); setEnviado(false); }}
             className="btn-primary w-full py-2.5 text-sm">
             Enviar otra solicitud
           </button>
@@ -279,9 +282,41 @@ export default function ActualizacionesPage() {
                 </select>
 
                 {actualizacion && (
-                  <div className="flex items-center justify-between bg-[#a93526] rounded-xl px-5 py-4">
-                    <span className="text-white font-medium text-sm">Monto a pagar:</span>
-                    <span className="text-white font-bold text-2xl">S/ {actualizacion.costo.toFixed(2)}</span>
+                  <div className="space-y-3">
+                    {/* Checkbox exalumna */}
+                    <label className="flex items-center gap-3 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 cursor-pointer hover:bg-amber-100 transition-colors">
+                      <input type="checkbox" checked={esExalumna} onChange={(e) => setEsExalumna(e.target.checked)}
+                        className="w-5 h-5 accent-[#a93526] rounded" />
+                      <div>
+                        <span className="text-sm font-medium text-amber-900">Soy exalumna de I.E.S. Margarita Cabrera</span>
+                        <p className="text-xs text-amber-700 mt-0.5">Descuento de S/ {DESCUENTO_EXALUMNA}.00 para egresadas</p>
+                      </div>
+                    </label>
+
+                    {/* Monto */}
+                    <div className="bg-[#a93526] rounded-xl px-5 py-4">
+                      {esExalumna ? (
+                        <div className="space-y-1">
+                          <div className="flex items-center justify-between">
+                            <span className="text-white/70 text-xs">Precio regular:</span>
+                            <span className="text-white/70 text-sm line-through">S/ {actualizacion.costo.toFixed(2)}</span>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <span className="text-white/70 text-xs">Descuento exalumna:</span>
+                            <span className="text-green-300 text-sm font-medium">-S/ {DESCUENTO_EXALUMNA}.00</span>
+                          </div>
+                          <div className="flex items-center justify-between border-t border-white/20 pt-2 mt-1">
+                            <span className="text-white font-medium text-sm">Monto a pagar:</span>
+                            <span className="text-white font-bold text-2xl">S/ {montoFinal.toFixed(2)}</span>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="flex items-center justify-between">
+                          <span className="text-white font-medium text-sm">Monto a pagar:</span>
+                          <span className="text-white font-bold text-2xl">S/ {actualizacion.costo.toFixed(2)}</span>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 )}
               </div>
