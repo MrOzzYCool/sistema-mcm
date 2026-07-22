@@ -64,6 +64,7 @@ export async function POST(req: NextRequest) {
       tipo_formulario:  "actualizacion",
       estado:           "aprobado",
       pdf_boleta_url:   (pdf_boleta_url ?? "").trim() || null,
+      anio_egreso:      "—",
       // Campos opcionales de factura
       ...(tipo_comprobante === "factura" && {
         ruc:              ruc ?? null,
