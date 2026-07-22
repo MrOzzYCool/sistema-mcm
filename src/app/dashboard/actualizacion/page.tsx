@@ -149,6 +149,7 @@ function SolicitudesView({ todas, loading, tabActiva, setTabActiva, setTodas, se
   const [obsFields, setObsFields] = useState({ voucher: "", dni_anverso: "", dni_reverso: "" });
   const [saving, setSaving]     = useState<string | null>(null);
   const [editDocsSol, setEditDocsSol] = useState<SolicitudDB | null>(null);
+  const [editMontoSol, setEditMontoSol] = useState<SolicitudDB | null>(null);
 
   // Filtrar por pestaña activa
   const actCat    = ACTUALIZACIONES_CATALOGO.find((a) => a.id === tabActiva);
@@ -348,6 +349,12 @@ function SolicitudesView({ todas, loading, tabActiva, setTabActiva, setTodas, se
                               <Pencil size={12} /> Editar docs
                             </button>
                           )}
+                          {esSuperAdmin && (
+                            <button onClick={() => setEditMontoSol(s)}
+                              className="flex items-center gap-1 text-xs text-orange-600 hover:text-orange-800 font-medium whitespace-nowrap">
+                              <Pencil size={12} /> Editar monto
+                            </button>
+                          )}
                         </div>
                       )}
                     </td>
@@ -441,6 +448,18 @@ function SolicitudesView({ todas, loading, tabActiva, setTabActiva, setTodas, se
           onSuccess={(updated) => {
             setTodas((prev) => prev.map((s) => s.id === updated.id ? { ...s, ...updated } : s));
             setEditDocsSol(null);
+          }}
+        />
+      )}
+
+      {/* Modal editar monto */}
+      {editMontoSol && (
+        <EditMontoModal
+          solicitud={editMontoSol}
+          onClose={() => setEditMontoSol(null)}
+          onSuccess={(id, nuevoMonto) => {
+            setTodas((prev) => prev.map((s) => s.id === id ? { ...s, monto_pagado: nuevoMonto } : s));
+            setEditMontoSol(null);
           }}
         />
       )}
@@ -865,6 +884,80 @@ function InputField({ label, value, onChange, placeholder, required }: {
       <input type="text" value={value} onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder} required={required}
         className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#a93526]" />
+    </div>
+  );
+}
+
+// ─── Modal Editar Monto ───────────────────────────────────────────────────────
+
+function EditMontoModal({ solicitud, onClose, onSuccess }: {
+  solicitud: SolicitudDB;
+  onClose: () => void;
+  onSuccess: (id: string, nuevoMonto: number) => void;
+}) {
+  const [monto, setMonto] = useState(String(Number(solicitud.monto_pagado ?? 0)));
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+
+  async function handleSave() {
+    const nuevoMonto = parseFloat(monto);
+    if (isNaN(nuevoMonto) || nuevoMonto < 0) {
+      setError("Monto inválido");
+      return;
+    }
+    setSaving(true);
+    setError("");
+    try {
+      const { supabase } = await import("@/lib/supabase");
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token ?? "";
+
+      const res = await fetch("/api/admin/solicitudes-ops", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ id: solicitud.id, monto_pagado: nuevoMonto }),
+      });
+      if (!res.ok) {
+        const json = await res.json();
+        throw new Error(json.error ?? "Error actualizando");
+      }
+      onSuccess(solicitud.id!, nuevoMonto);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Error al guardar");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-sm">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="font-bold text-mcm-text text-lg">Editar monto</h3>
+          <button onClick={onClose} className="text-mcm-muted hover:text-mcm-text"><X size={20} /></button>
+        </div>
+        <p className="text-mcm-muted text-xs mb-4">{solicitud.nombres} {solicitud.apellidos}</p>
+
+        {error && (
+          <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg p-2 mb-3 text-xs">{error}</div>
+        )}
+
+        <div>
+          <label className="block text-xs font-medium text-mcm-text mb-1">Monto pagado (S/)</label>
+          <input type="number" step="0.01" min="0" value={monto}
+            onChange={(e) => setMonto(e.target.value)}
+            className="w-full border border-mcm-border rounded-lg px-3 py-2.5 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-[#C62828]" />
+        </div>
+
+        <div className="flex gap-3 mt-5">
+          <button onClick={onClose} className="btn-secondary flex-1 text-sm">Cancelar</button>
+          <button onClick={handleSave} disabled={saving}
+            className="flex-1 text-sm text-white font-semibold px-4 py-2.5 rounded-lg bg-[#C62828] hover:bg-[#B71C1C] transition-colors disabled:opacity-50 flex items-center justify-center gap-2">
+            {saving && <Loader2 size={14} className="animate-spin" />}
+            {saving ? "Guardando..." : "Guardar"}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

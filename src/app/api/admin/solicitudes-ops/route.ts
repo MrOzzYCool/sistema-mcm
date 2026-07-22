@@ -51,7 +51,7 @@ export async function PUT(req: NextRequest) {
   if (!admin) return NextResponse.json({ error: "No autorizado" }, { status: 403 });
 
   const body = await req.json();
-  const { id, estado, observacion, voucher_url, dni_anverso_url, dni_reverso_url } = body;
+  const { id, estado, observacion, voucher_url, dni_anverso_url, dni_reverso_url, monto_pagado } = body;
   if (!id) return NextResponse.json({ error: "id requerido" }, { status: 400 });
 
   const update: Record<string, unknown> = {};
@@ -60,6 +60,7 @@ export async function PUT(req: NextRequest) {
   if (voucher_url) update.voucher_url = voucher_url;
   if (dni_anverso_url) update.dni_anverso_url = dni_anverso_url;
   if (dni_reverso_url) update.dni_reverso_url = dni_reverso_url;
+  if (monto_pagado !== undefined) update.monto_pagado = monto_pagado;
 
   if (Object.keys(update).length === 0) {
     return NextResponse.json({ error: "Nada que actualizar" }, { status: 400 });
