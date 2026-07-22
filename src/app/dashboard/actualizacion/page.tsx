@@ -29,6 +29,7 @@ const ESTADO_LABEL: Record<NonNullable<Estado>, string> = {
 // ─── Contenido principal ──────────────────────────────────────────────────────
 
 function ActualizacionContent() {
+  const { user } = useAuth();
   const [todas, setTodas]           = useState<SolicitudDB[]>([]);
   const [loading, setLoading]       = useState(true);
   const [error, setError]           = useState("");
@@ -37,6 +38,8 @@ function ActualizacionContent() {
   // Pestaña activa: id de ACTUALIZACIONES_CATALOGO
   const [tabActiva, setTabActiva] = useState<string>(ACTUALIZACIONES_CATALOGO[0].id);
   const [showRegistroManual, setShowRegistroManual] = useState(false);
+
+  const esSuperAdmin = user?.role === "super_admin";
 
   const cargar = useCallback(async () => {
     setLoading(true);
@@ -68,10 +71,12 @@ function ActualizacionContent() {
           <p className="text-mcm-muted text-sm mt-0.5">Gestión de solicitudes de actualización</p>
         </div>
         <div className="flex items-center gap-2">
-          <button onClick={() => setShowRegistroManual(true)}
-            className="btn-primary flex items-center gap-2 text-sm">
-            <Plus size={14} /> Registrar inscripción
-          </button>
+          {esSuperAdmin && (
+            <button onClick={() => setShowRegistroManual(true)}
+              className="btn-primary flex items-center gap-2 text-sm">
+              <Plus size={14} /> Registrar inscripción
+            </button>
+          )}
           <button onClick={() => setRefreshKey((k) => k + 1)} disabled={loading}
             className="btn-secondary flex items-center gap-2 text-sm">
             <RefreshCw size={14} className={loading ? "animate-spin" : ""} />
