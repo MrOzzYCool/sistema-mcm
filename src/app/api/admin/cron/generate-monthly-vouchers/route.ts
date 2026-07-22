@@ -36,7 +36,7 @@ export async function POST(req: NextRequest) {
     const { data: installments, error: queryError } = await supabaseAdmin
       .from("installments")
       .select(`
-        id, concepto, amount, due_date, plan_id,
+        id, concepto, amount, amount_original, due_date, plan_id,
         payment_plans!inner(alumno_id)
       `)
       .gte("due_date", `${firstDay}T00:00:00`)
@@ -121,6 +121,9 @@ export async function POST(req: NextRequest) {
       }
 
       try {
+        const amountOriginal = Number(inst.amount_original ?? amount);
+        const descuento = amountOriginal > amount ? Math.round((amountOriginal - amount) * 100) / 100 : 0;
+
         const resultado = await generarBoleta({
           tipoComprobante: "boleta",
           dniCliente: alumnoData.dni,
@@ -128,8 +131,9 @@ export async function POST(req: NextRequest) {
           cantidad: 1,
           codigoProducto: NUBEFACT_CODES[inst.concepto] ?? 16,
           descripcion: inst.concepto ?? "PAGO ACADÉMICO",
-          precioUnitario: amount,
+          precioUnitario: amountOriginal,
           tipoIgv: 9, // Inafecto - Operación Onerosa (mismo que el flujo manual)
+          ...(descuento > 0 && { descuento }),
           codigoUnico: `CRON-${inst.id}-${Date.now()}`,
         });
 

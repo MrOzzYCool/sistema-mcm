@@ -81,7 +81,7 @@ export async function POST(req: NextRequest) {
     // Get installment details
     const { data: inst } = await supabaseAdmin
       .from("installments")
-      .select("id, concepto, amount, numero, plan_id, boleta_pregenerada, comprobante_url, comprobante_serie, comprobante_numero, tipo_comprobante")
+      .select("id, concepto, amount, amount_original, numero, plan_id, boleta_pregenerada, comprobante_url, comprobante_serie, comprobante_numero, tipo_comprobante")
       .eq("id", voucher.installment_id)
       .single();
 
@@ -131,6 +131,10 @@ export async function POST(req: NextRequest) {
 
     try {
       const { generarBoleta } = await import("@/lib/nubefactService");
+      const instAmount = Number(inst?.amount ?? 0);
+      const instAmountOriginal = Number(inst?.amount_original ?? instAmount);
+      const descuento = instAmountOriginal > instAmount ? Math.round((instAmountOriginal - instAmount) * 100) / 100 : 0;
+
       const resultado = await generarBoleta({
         tipoComprobante: finalTipoComprobante as "boleta" | "factura",
         dniCliente: finalTipoComprobante === "boleta" ? (alumno?.dni ?? "") : "",
@@ -141,8 +145,9 @@ export async function POST(req: NextRequest) {
         cantidad: 1,
         codigoProducto,
         descripcion: inst?.concepto ?? "PAGO ACADÉMICO",
-        precioUnitario: Number(inst?.amount ?? 0),
+        precioUnitario: instAmountOriginal,
         tipoIgv: 9, // Inafecto - Operación Onerosa
+        ...(descuento > 0 && { descuento }),
         codigoUnico: Date.now().toString(),
       });
 
