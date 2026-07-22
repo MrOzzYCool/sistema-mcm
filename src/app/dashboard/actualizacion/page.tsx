@@ -497,9 +497,11 @@ const REGISTRO_INIT: RegistroForm = {
 function RegistroManualModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: () => void }) {
   const [form, setForm] = useState<RegistroForm>(REGISTRO_INIT);
   const [pdfFile, setPdfFile] = useState<File | null>(null);
+  const [voucherFile, setVoucherFile] = useState<File | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const pdfInputRef = useRef<HTMLInputElement>(null);
+  const voucherInputRef = useRef<HTMLInputElement>(null);
 
   const actualizacion = ACTUALIZACIONES_CATALOGO.find((a) => a.id === form.actualizacionId);
 
@@ -537,6 +539,20 @@ function RegistroManualModal({ onClose, onSuccess }: { onClose: () => void; onSu
         pdfUrl = urlData.publicUrl;
       }
 
+      // Subir voucher si se adjuntó
+      let voucherUrl: string | null = null;
+      if (voucherFile) {
+        const ts = Math.floor(Date.now() / 1000);
+        const ext = voucherFile.name.split(".").pop()?.toLowerCase() || "jpg";
+        const path = `${form.dni.trim()}/voucher-manual-${ts}.${ext}`;
+        const { error: upErr } = await supabase.storage
+          .from("tramites-mcm")
+          .upload(path, voucherFile, { upsert: true, contentType: voucherFile.type });
+        if (upErr) throw new Error(`Error subiendo voucher: ${upErr.message}`);
+        const { data: urlData } = supabase.storage.from("tramites-mcm").getPublicUrl(path);
+        voucherUrl = urlData.publicUrl;
+      }
+
       const res = await fetch("/api/admin/solicitudes-ops/registro-manual", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
@@ -550,6 +566,7 @@ function RegistroManualModal({ onClose, onSuccess }: { onClose: () => void; onSu
           monto_pagado:     actualizacion.costo,
           tipo_comprobante: form.tipoComprobante,
           pdf_boleta_url:   pdfUrl,
+          voucher_url:      voucherUrl,
           ...(form.tipoComprobante === "factura" && {
             ruc:              form.ruc,
             razon_social:     form.razonSocial.trim(),
@@ -655,6 +672,32 @@ function RegistroManualModal({ onClose, onSuccess }: { onClose: () => void; onSu
                 onChange={(v) => set("direccionFiscal", v)} placeholder="Av. Principal 123, Lima" required />
             </div>
           )}
+
+          {/* Voucher de pago */}
+          <div>
+            <label className="block text-xs font-medium text-mcm-text mb-1">
+              Voucher de pago *
+            </label>
+            {voucherFile ? (
+              <div className="flex items-center gap-3 bg-green-50 border border-green-300 rounded-xl px-4 py-3">
+                <CheckCircle size={16} className="text-green-600 shrink-0" />
+                <p className="text-xs text-green-700 font-medium truncate flex-1">{voucherFile.name}</p>
+                <button type="button" onClick={() => { setVoucherFile(null); if (voucherInputRef.current) voucherInputRef.current.value = ""; }}
+                  className="w-6 h-6 rounded-full bg-red-100 hover:bg-red-200 text-red-600 flex items-center justify-center shrink-0">
+                  <X size={12} />
+                </button>
+              </div>
+            ) : (
+              <div onClick={() => voucherInputRef.current?.click()}
+                className="border-2 border-dashed border-mcm-border hover:border-[#a93526] hover:bg-red-50 rounded-xl p-4 text-center cursor-pointer transition-colors">
+                <Upload size={20} className="text-mcm-muted mx-auto mb-1" />
+                <p className="text-xs text-mcm-muted font-medium">Subir voucher de pago</p>
+                <p className="text-xs text-mcm-muted">JPG, PNG o PDF</p>
+              </div>
+            )}
+            <input ref={voucherInputRef} type="file" accept="image/*,.pdf" className="hidden"
+              onChange={(e) => { if (e.target.files?.[0]) setVoucherFile(e.target.files[0]); }} />
+          </div>
 
           {/* PDF del comprobante existente */}
           <div>
