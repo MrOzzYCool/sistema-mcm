@@ -42,10 +42,12 @@ export async function POST(req: NextRequest) {
     if (tramite) {
       nubefactItem = NUBEFACT_MAP[tramite.id] ?? null;
     } else if (actualizacion) {
+      // Usar monto_pagado de la solicitud (puede tener descuento exalumna)
+      const montoPagado = Number(sol.monto_pagado ?? actualizacion.precioUnitario);
       nubefactItem = {
         codigo:      actualizacion.codigoNubefact,
         descripcion: actualizacion.descripcionNubefact,
-        monto:       actualizacion.precioUnitario,
+        monto:       montoPagado,
       };
     }
 
@@ -80,7 +82,6 @@ export async function POST(req: NextRequest) {
           precioUnitario:  precioUnit,
           // Solo actualizaciones llevan IGV (gravado)
           ...(esActualizacion && {
-            valorUnitario: actualizacion.valorUnitario,
             tipoIgv:       actualizacion.tipoIgv,
           }),
           // Trámites externos siempre inafectos (sin IGV) - código 9
