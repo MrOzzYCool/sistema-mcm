@@ -518,10 +518,14 @@ function RegistroManualModal({ onClose, onSuccess }: { onClose: () => void; onSu
   const [form, setForm] = useState<RegistroForm>(REGISTRO_INIT);
   const [pdfFile, setPdfFile] = useState<File | null>(null);
   const [voucherFile, setVoucherFile] = useState<File | null>(null);
+  const [dniAnversoFile, setDniAnversoFile] = useState<File | null>(null);
+  const [dniReversoFile, setDniReversoFile] = useState<File | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const pdfInputRef = useRef<HTMLInputElement>(null);
   const voucherInputRef = useRef<HTMLInputElement>(null);
+  const dniAnversoInputRef = useRef<HTMLInputElement>(null);
+  const dniReversoInputRef = useRef<HTMLInputElement>(null);
 
   const actualizacion = ACTUALIZACIONES_CATALOGO.find((a) => a.id === form.actualizacionId);
 
@@ -573,6 +577,34 @@ function RegistroManualModal({ onClose, onSuccess }: { onClose: () => void; onSu
         voucherUrl = urlData.publicUrl;
       }
 
+      // Subir DNI anverso si se adjuntó
+      let dniAnversoUrl: string | null = null;
+      if (dniAnversoFile) {
+        const ts = Math.floor(Date.now() / 1000);
+        const ext = dniAnversoFile.name.split(".").pop()?.toLowerCase() || "jpg";
+        const path = `${form.dni.trim()}/dni-anverso-manual-${ts}.${ext}`;
+        const { error: upErr } = await supabase.storage
+          .from("tramites-mcm")
+          .upload(path, dniAnversoFile, { upsert: true, contentType: dniAnversoFile.type });
+        if (upErr) throw new Error(`Error subiendo DNI anverso: ${upErr.message}`);
+        const { data: urlData } = supabase.storage.from("tramites-mcm").getPublicUrl(path);
+        dniAnversoUrl = urlData.publicUrl;
+      }
+
+      // Subir DNI reverso si se adjuntó
+      let dniReversoUrl: string | null = null;
+      if (dniReversoFile) {
+        const ts = Math.floor(Date.now() / 1000);
+        const ext = dniReversoFile.name.split(".").pop()?.toLowerCase() || "jpg";
+        const path = `${form.dni.trim()}/dni-reverso-manual-${ts}.${ext}`;
+        const { error: upErr } = await supabase.storage
+          .from("tramites-mcm")
+          .upload(path, dniReversoFile, { upsert: true, contentType: dniReversoFile.type });
+        if (upErr) throw new Error(`Error subiendo DNI reverso: ${upErr.message}`);
+        const { data: urlData } = supabase.storage.from("tramites-mcm").getPublicUrl(path);
+        dniReversoUrl = urlData.publicUrl;
+      }
+
       const res = await fetch("/api/admin/solicitudes-ops/registro-manual", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
@@ -587,6 +619,8 @@ function RegistroManualModal({ onClose, onSuccess }: { onClose: () => void; onSu
           tipo_comprobante: form.tipoComprobante,
           pdf_boleta_url:   pdfUrl,
           voucher_url:      voucherUrl,
+          dni_anverso_url:  dniAnversoUrl,
+          dni_reverso_url:  dniReversoUrl,
           ...(form.tipoComprobante === "factura" && {
             ruc:              form.ruc,
             razon_social:     form.razonSocial.trim(),
@@ -717,6 +751,52 @@ function RegistroManualModal({ onClose, onSuccess }: { onClose: () => void; onSu
             )}
             <input ref={voucherInputRef} type="file" accept="image/*,.pdf" className="hidden"
               onChange={(e) => { if (e.target.files?.[0]) setVoucherFile(e.target.files[0]); }} />
+          </div>
+
+          {/* DNI Anverso */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-mcm-text mb-1">DNI — Anverso</label>
+              {dniAnversoFile ? (
+                <div className="flex items-center gap-2 bg-green-50 border border-green-300 rounded-xl px-3 py-2.5">
+                  <CheckCircle size={14} className="text-green-600 shrink-0" />
+                  <p className="text-xs text-green-700 font-medium truncate flex-1">{dniAnversoFile.name}</p>
+                  <button type="button" onClick={() => { setDniAnversoFile(null); if (dniAnversoInputRef.current) dniAnversoInputRef.current.value = ""; }}
+                    className="w-5 h-5 rounded-full bg-red-100 hover:bg-red-200 text-red-600 flex items-center justify-center shrink-0">
+                    <X size={10} />
+                  </button>
+                </div>
+              ) : (
+                <div onClick={() => dniAnversoInputRef.current?.click()}
+                  className="border-2 border-dashed border-mcm-border hover:border-[#a93526] hover:bg-red-50 rounded-xl p-3 text-center cursor-pointer transition-colors">
+                  <Upload size={16} className="text-mcm-muted mx-auto mb-0.5" />
+                  <p className="text-xs text-mcm-muted">Subir</p>
+                </div>
+              )}
+              <input ref={dniAnversoInputRef} type="file" accept="image/*,.pdf" className="hidden"
+                onChange={(e) => { if (e.target.files?.[0]) setDniAnversoFile(e.target.files[0]); }} />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-mcm-text mb-1">DNI — Reverso</label>
+              {dniReversoFile ? (
+                <div className="flex items-center gap-2 bg-green-50 border border-green-300 rounded-xl px-3 py-2.5">
+                  <CheckCircle size={14} className="text-green-600 shrink-0" />
+                  <p className="text-xs text-green-700 font-medium truncate flex-1">{dniReversoFile.name}</p>
+                  <button type="button" onClick={() => { setDniReversoFile(null); if (dniReversoInputRef.current) dniReversoInputRef.current.value = ""; }}
+                    className="w-5 h-5 rounded-full bg-red-100 hover:bg-red-200 text-red-600 flex items-center justify-center shrink-0">
+                    <X size={10} />
+                  </button>
+                </div>
+              ) : (
+                <div onClick={() => dniReversoInputRef.current?.click()}
+                  className="border-2 border-dashed border-mcm-border hover:border-[#a93526] hover:bg-red-50 rounded-xl p-3 text-center cursor-pointer transition-colors">
+                  <Upload size={16} className="text-mcm-muted mx-auto mb-0.5" />
+                  <p className="text-xs text-mcm-muted">Subir</p>
+                </div>
+              )}
+              <input ref={dniReversoInputRef} type="file" accept="image/*,.pdf" className="hidden"
+                onChange={(e) => { if (e.target.files?.[0]) setDniReversoFile(e.target.files[0]); }} />
+            </div>
           </div>
 
           {/* PDF del comprobante existente */}

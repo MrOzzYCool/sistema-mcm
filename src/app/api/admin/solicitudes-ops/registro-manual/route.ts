@@ -40,7 +40,7 @@ export async function POST(req: NextRequest) {
       nombres, apellidos, dni, email, celular,
       tipo_tramite, monto_pagado,
       tipo_comprobante, ruc, razon_social, direccion_fiscal,
-      pdf_boleta_url, voucher_url,
+      pdf_boleta_url, voucher_url, dni_anverso_url, dni_reverso_url,
     } = body;
 
     // Validaciones básicas
@@ -73,8 +73,8 @@ export async function POST(req: NextRequest) {
       }),
       // Sin voucher ni DNI porque fue registrado manualmente
       voucher_url:      voucher_url || "registro-manual",
-      dni_anverso_url:  "registro-manual",
-      dni_reverso_url:  "registro-manual",
+      dni_anverso_url:  dni_anverso_url || "registro-manual",
+      dni_reverso_url:  dni_reverso_url || "registro-manual",
     };
 
     const { data, error } = await supabaseAdmin
