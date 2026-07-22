@@ -2,7 +2,6 @@
 
 import { useState, useRef } from "react";
 import { CERTIFICADOS_ACTUALIZACION_CATALOGO, ACTUALIZACIONES_CATALOGO } from "@/lib/mock-data";
-import { uploadSolicitudFiles } from "@/lib/solicitudes-service";
 import { EmailField, EmailConfirmField } from "@/components/EmailConfirmField";
 import {
   AlertCircle, CheckCircle, Upload, CreditCard, Smartphone,
@@ -51,21 +50,17 @@ const INIT: FormState = {
 export default function CertificadosActualizacionPage() {
   const [form, setForm]                         = useState<FormState>(INIT);
   const [voucherFiles, setVoucherFiles]         = useState<File[]>([]);
-  const [dniAnversoFile, setDniAnversoFile]     = useState<File | null>(null);
-  const [dniReversoFile, setDniReversoFile]     = useState<File | null>(null);
   const [enviado, setEnviado]                   = useState(false);
   const [error, setError]                       = useState("");
   const [submitting, setSubmitting]             = useState(false);
   const voucherRef    = useRef<HTMLInputElement>(null);
-  const dniAnversoRef = useRef<HTMLInputElement>(null);
-  const dniReversoRef = useRef<HTMLInputElement>(null);
 
   const certificado     = CERTIFICADOS_ACTUALIZACION_CATALOGO.find((c) => c.id === form.certificadoId);
   const emailNoCoincide = form.emailConfirm.length > 0 && form.email !== form.emailConfirm;
 
   const puedeEnviar =
     !!certificado && !!form.actualizacionOrigen &&
-    voucherFiles.length > 0 && !!dniAnversoFile && !!dniReversoFile &&
+    voucherFiles.length > 0 &&
     !!form.email && !!form.emailConfirm && !emailNoCoincide &&
     !!form.tipoComprobante &&
     (form.tipoComprobante === "boleta" || (
@@ -89,8 +84,26 @@ export default function CertificadosActualizacionPage() {
         !process.env.NEXT_PUBLIC_SUPABASE_URL.includes("TU_PROYECTO");
 
       if (supabaseConfigurado) {
-        const { voucherUrl: vu, dniAnversoUrl: dau, dniReversoUrl: dru, paths } =
-          await uploadSolicitudFiles(form.dni, voucherFiles, dniAnversoFile!, dniReversoFile!);
+        // Subir solo vouchers (no se necesita DNI para certificados)
+        const { supabase: sb } = await import("@/lib/supabase");
+        const ts = Math.floor(Date.now() / 1000);
+        const voucherUrls: string[] = [];
+        const uploadedPaths: string[] = [];
+
+        for (let i = 0; i < voucherFiles.length; i++) {
+          const file = voucherFiles[i];
+          const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
+          const path = `${form.dni.trim()}/voucher-cert-${ts}-${i + 1}.${ext}`;
+          const { error: upErr } = await sb.storage
+            .from("tramites-mcm")
+            .upload(path, file, { upsert: true, contentType: file.type });
+          if (upErr) throw new Error(`Error subiendo voucher: ${upErr.message}`);
+          const { data: urlData } = sb.storage.from("tramites-mcm").getPublicUrl(path);
+          voucherUrls.push(urlData.publicUrl);
+          uploadedPaths.push(path);
+        }
+
+        const voucherUrlJoined = voucherUrls.join(",");
 
         try {
           const actualizacionLabel = ACTUALIZACIONES_CATALOGO.find(a => a.id === form.actualizacionOrigen)?.label ?? "";
@@ -107,9 +120,9 @@ export default function CertificadosActualizacionPage() {
               tipo_tramite:     `${certificado.label} - ${actualizacionLabel}`,
               costo_tramite:    certificado.costo,
               monto_pagado:     certificado.costo,
-              voucher_url:      vu,
-              dni_anverso_url:  dau,
-              dni_reverso_url:  dru,
+              voucher_url:      voucherUrlJoined,
+              dni_anverso_url:  "no-requerido",
+              dni_reverso_url:  "no-requerido",
               tipo_comprobante: form.tipoComprobante,
               tipo_formulario:  "actualizacion",
               ...(form.tipoComprobante === "factura" && {
@@ -122,8 +135,7 @@ export default function CertificadosActualizacionPage() {
 
           if (!res.ok) {
             const { error: apiError } = await res.json();
-            const { supabase: sb } = await import("@/lib/supabase");
-            await sb.storage.from("tramites-mcm").remove(paths);
+            await sb.storage.from("tramites-mcm").remove(uploadedPaths);
             throw new Error(apiError ?? "Error al guardar la solicitud");
           }
         } catch (dbErr) {
@@ -153,7 +165,7 @@ export default function CertificadosActualizacionPage() {
           <p className="text-mcm-muted text-sm mb-6">
             Tu solicitud de certificado fue registrada. Te contactaremos al correo <strong>{form.email}</strong>.
           </p>
-          <button onClick={() => { setForm(INIT); setVoucherFiles([]); setDniAnversoFile(null); setDniReversoFile(null); setEnviado(false); }}
+          <button onClick={() => { setForm(INIT); setVoucherFiles([]); setEnviado(false); }}
             className="btn-primary w-full py-2.5 text-sm">
             Enviar otra solicitud
           </button>
@@ -333,12 +345,8 @@ export default function CertificadosActualizacionPage() {
             <fieldset>
               <legend className="text-xs font-semibold text-mcm-muted uppercase tracking-wide mb-3">Documentos adjuntos</legend>
               <div className="space-y-4">
-                <MultiFileUpload label="Voucher(s) de pago" sublabel="Puedes subir varios comprobantes"
+                <MultiFileUpload label="Voucher(s) de pago" sublabel="Puedes subir varios comprobantes de pago"
                   files={voucherFiles} inputRef={voucherRef} onChange={setVoucherFiles} />
-                <DniFileUpload label="DNI — Anverso" sublabel="Parte delantera"
-                  file={dniAnversoFile} inputRef={dniAnversoRef} onChange={setDniAnversoFile} />
-                <DniFileUpload label="DNI — Reverso" sublabel="Parte trasera"
-                  file={dniReversoFile} inputRef={dniReversoRef} onChange={setDniReversoFile} />
               </div>
             </fieldset>
 
@@ -409,52 +417,6 @@ function MultiFileUpload({ label, sublabel, files, inputRef, onChange }: {
       </div>
       <input ref={inputRef} type="file" accept="image/*" multiple className="hidden"
         onChange={(e) => addFiles(e.target.files)} />
-    </div>
-  );
-}
-
-function DniFileUpload({ label, sublabel, file, inputRef, onChange }: {
-  label: string; sublabel?: string; file: File | null;
-  inputRef: React.RefObject<HTMLInputElement>;
-  onChange: (f: File | null) => void;
-}) {
-  const cameraRef = useRef<HTMLInputElement>(null);
-  return (
-    <div>
-      <label className="block text-sm font-medium text-mcm-text mb-0.5">{label}</label>
-      {sublabel && <p className="text-xs text-mcm-muted mb-2">{sublabel}</p>}
-      {file ? (
-        <div className="border-2 border-green-400 bg-green-50 rounded-xl overflow-hidden">
-          <div className="w-full h-28 bg-slate-100">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={URL.createObjectURL(file)} alt="Preview" className="w-full h-full object-contain" />
-          </div>
-          <div className="flex items-center justify-between px-3 py-2">
-            <p className="text-green-700 text-xs font-medium truncate flex-1">{file.name}</p>
-            <button type="button" onClick={() => { onChange(null); if (inputRef.current) inputRef.current.value = ""; if (cameraRef.current) cameraRef.current.value = ""; }}
-              className="w-6 h-6 rounded-full bg-red-100 hover:bg-red-200 text-red-600 flex items-center justify-center shrink-0">
-              <X size={12} />
-            </button>
-          </div>
-        </div>
-      ) : (
-        <div className="grid grid-cols-2 gap-2">
-          <div onClick={() => inputRef.current?.click()}
-            className="border-2 border-dashed border-mcm-border hover:border-[#a93526] hover:bg-red-50 rounded-xl p-3 text-center cursor-pointer transition-colors">
-            <Upload size={18} className="text-mcm-muted mx-auto mb-1" />
-            <p className="text-xs text-mcm-muted">Subir archivo</p>
-          </div>
-          <div onClick={() => cameraRef.current?.click()}
-            className="border-2 border-dashed border-mcm-border hover:border-[#a93526] hover:bg-red-50 rounded-xl p-3 text-center cursor-pointer transition-colors">
-            <span className="text-lg block mb-0.5">📷</span>
-            <p className="text-xs text-mcm-muted">Tomar foto</p>
-          </div>
-        </div>
-      )}
-      <input ref={inputRef} type="file" accept="image/*" className="hidden"
-        onChange={(e) => { if (e.target.files?.[0]) onChange(e.target.files[0]); }} />
-      <input ref={cameraRef} type="file" accept="image/*" capture="environment" className="hidden"
-        onChange={(e) => { if (e.target.files?.[0]) onChange(e.target.files[0]); }} />
     </div>
   );
 }
