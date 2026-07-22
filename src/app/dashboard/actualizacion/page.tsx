@@ -85,6 +85,9 @@ function ActualizacionContent() {
           <a href="/actualizaciones" target="_blank" className="btn-secondary flex items-center gap-2 text-sm">
             <ExternalLink size={14} /> Formulario público
           </a>
+          <a href="/certificados-actualizacion" target="_blank" className="btn-secondary flex items-center gap-2 text-sm">
+            <ExternalLink size={14} /> Formulario certificados
+          </a>
         </div>
       </div>
 
