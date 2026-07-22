@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { generarBoleta } from "@/lib/nubefactService";
 import { enviarCorreoAprobacion } from "@/lib/emailService";
-import { NUBEFACT_MAP, TRAMITES_EXTERNOS_CATALOGO, ACTUALIZACIONES_CATALOGO } from "@/lib/mock-data";
+import { NUBEFACT_MAP, TRAMITES_EXTERNOS_CATALOGO, ACTUALIZACIONES_CATALOGO, CERTIFICADOS_ACTUALIZACION_CATALOGO } from "@/lib/mock-data";
 
 export async function POST(req: NextRequest) {
   try {
@@ -34,8 +34,14 @@ export async function POST(req: NextRequest) {
       ? ACTUALIZACIONES_CATALOGO.find((a) => a.label.trim().toLowerCase() === tipoNorm)
       : null;
 
+    // Check if it's a certificate (tipo_tramite starts with "CERTIFICADO DIGITAL" or "CERTIFICADO FÍSICO")
+    const certificado = !tramite && !actualizacion
+      ? CERTIFICADOS_ACTUALIZACION_CATALOGO.find((c) => tipoNorm.startsWith(c.label.trim().toLowerCase()))
+      : null;
+
     console.log("tipo_tramite BD:", sol.tipo_tramite);
     console.log("actualizacion match:", actualizacion?.label ?? "null");
+    console.log("certificado match:", certificado?.label ?? "null");
 
     let nubefactItem: { codigo: number; descripcion: string; monto: number } | null = null;
 
@@ -49,6 +55,12 @@ export async function POST(req: NextRequest) {
         descripcion: actualizacion.descripcionNubefact,
         monto:       actualizacion.precioUnitario,
       };
+    } else if (certificado) {
+      nubefactItem = {
+        codigo:      certificado.codigoNubefact,
+        descripcion: certificado.descripcionNubefact,
+        monto:       certificado.precioUnitario,
+      };
     }
 
     if (!nubefactItem) {
@@ -61,6 +73,8 @@ export async function POST(req: NextRequest) {
     const cantidad   = esSilabo ? 70 : esCertModular ? (sol.cantidad_silabos ?? 1) : 1;
     const precioUnit = esSilabo ? 5 : nubefactItem!.monto;
     const esActualizacion = !!actualizacion;
+    const esCertificado = !!certificado;
+    const esGravado = esActualizacion || esCertificado;
 
     // Calcular descuento para actualizaciones (exalumna)
     const montoPagado = Number(sol.monto_pagado ?? 0);
@@ -78,8 +92,8 @@ export async function POST(req: NextRequest) {
 
     if (montoTotal > 0) {
       try {
-        // IGV solo aplica para actualizaciones, NUNCA para trámites externos
-        console.log("tipo_tramite BD:", sol.tipo_tramite, "| esActualizacion:", esActualizacion);
+        // IGV solo aplica para actualizaciones y certificados, NUNCA para trámites externos
+        console.log("tipo_tramite BD:", sol.tipo_tramite, "| esActualizacion:", esActualizacion, "| esCertificado:", esCertificado);
         const boleta = await generarBoleta({
           codigoProducto:  nubefactItem.codigo,
           descripcion:     nubefactItem.descripcion,
@@ -87,16 +101,16 @@ export async function POST(req: NextRequest) {
           nombreCliente:   `${sol.nombres} ${sol.apellidos}`,
           cantidad,
           precioUnitario:  precioUnit,
-          // Solo actualizaciones llevan IGV (gravado)
-          ...(esActualizacion && {
-            tipoIgv:       actualizacion.tipoIgv,
+          // Actualizaciones y certificados llevan IGV (gravado)
+          ...(esGravado && {
+            tipoIgv: esActualizacion ? actualizacion.tipoIgv : certificado!.tipoIgv,
           }),
           // Descuento exalumna (si aplica)
           ...(descuentoActualizacion > 0 && {
             descuento:     descuentoActualizacion,
           }),
           // Trámites externos siempre inafectos (sin IGV) - código 9
-          ...(!esActualizacion && { tipoIgv: 9 }),
+          ...(!esGravado && { tipoIgv: 9 }),
           codigoUnico:     id,
           tipoComprobante: (sol.tipo_comprobante === "factura" ? "factura" : "boleta") as "boleta" | "factura",
           ruc:             sol.ruc ?? undefined,

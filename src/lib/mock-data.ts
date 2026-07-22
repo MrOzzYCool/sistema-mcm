@@ -298,3 +298,26 @@ export const ACTUALIZACIONES_CATALOGO = [
     tipoIgv:        10,
   },
 ] as const;
+
+// ─── Catálogo de Certificados de Actualizaciones ──────────────────────────────
+
+export const CERTIFICADOS_ACTUALIZACION_CATALOGO = [
+  {
+    id:                  "cert-digital",
+    label:               "CERTIFICADO DIGITAL",
+    costo:               80,            // precio con IGV
+    codigoNubefact:      50,
+    descripcionNubefact: "CERTIFICADO DIGITAL",
+    precioUnitario:      80.00,
+    tipoIgv:             10,            // Gravado
+  },
+  {
+    id:                  "cert-fisico",
+    label:               "CERTIFICADO FÍSICO",
+    costo:               120,           // precio con IGV
+    codigoNubefact:      49,
+    descripcionNubefact: "CERTIFICADO FÍSICO",
+    precioUnitario:      120.00,
+    tipoIgv:             10,            // Gravado
+  },
+] as const;
