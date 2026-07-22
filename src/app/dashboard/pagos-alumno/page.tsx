@@ -294,8 +294,14 @@ function PagosAlumnoContent() {
                         {inst.observacion && <span className="text-xs text-mcm-muted ml-2">({inst.observacion})</span>}
                       </td>
                       <td className="py-3 px-4 font-bold text-mcm-text">
-                        S/ {Number(inst.amount).toFixed(2)}
-                        {Number(inst.amount) !== Number(inst.amount_original) && <span className="text-xs text-amber-600 ml-1">(beca)</span>}
+                        {Number(inst.amount_original) > Number(inst.amount) && Number(inst.amount) > 0 ? (
+                          <div>
+                            <span className="text-xs text-mcm-muted line-through">S/ {Number(inst.amount_original).toFixed(2)}</span>
+                            <span className="block text-green-700 font-bold">S/ {Number(inst.amount).toFixed(2)}</span>
+                          </div>
+                        ) : (
+                          <span>S/ {Number(inst.amount).toFixed(2)}</span>
+                        )}
                       </td>
                       <td className="py-3 px-4 text-mcm-muted text-xs">S/ {Number(inst.amount_original).toFixed(2)}</td>
                       <td className={clsx("py-3 px-4 text-xs", inst.status === "overdue" ? "text-red-600 font-bold" : "text-mcm-muted")}>

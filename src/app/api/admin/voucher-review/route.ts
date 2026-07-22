@@ -26,7 +26,7 @@ export async function GET(req: NextRequest) {
 
   let query = supabaseAdmin
     .from("payment_vouchers")
-    .select("*, profiles!alumno_id(nombre_completo), installments(concepto, amount, due_date, comprobante_url, comprobante_serie, comprobante_numero, plan_id, payment_plans(ciclo, year))")
+    .select("*, profiles!alumno_id(nombre_completo), installments(concepto, amount, amount_original, due_date, comprobante_url, comprobante_serie, comprobante_numero, plan_id, payment_plans(ciclo, year))")
     .order("created_at", { ascending: false });
 
   if (status !== "all") {

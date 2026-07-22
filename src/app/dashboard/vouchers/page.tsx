@@ -9,7 +9,7 @@ interface Voucher {
   id: string; voucher_url: string; status: string; created_at: string; reviewed_at?: string;
   installment_id: string; alumno_id: string;
   profiles: { nombre_completo: string };
-  installments: { concepto: string; amount: number; due_date: string; plan_id: string;
+  installments: { concepto: string; amount: number; amount_original?: number; due_date: string; plan_id: string;
     payment_plans: { ciclo: number; year: number } };
 }
 
@@ -188,7 +188,16 @@ function VouchersContent() {
                     <td className="py-3 px-4 font-medium text-mcm-text">{v.profiles?.nombre_completo}</td>
                     <td className="py-3 px-4"><span className="badge-blue text-xs">Ciclo {(v.installments as unknown as { payment_plans: { ciclo: number } })?.payment_plans?.ciclo ?? "—"}</span></td>
                     <td className="py-3 px-4 text-mcm-text">{v.installments?.concepto}</td>
-                    <td className="py-3 px-4 font-bold">S/ {Number(v.installments?.amount ?? 0).toFixed(2)}</td>
+                    <td className="py-3 px-4 font-bold">
+                      {Number(v.installments?.amount_original ?? 0) > Number(v.installments?.amount ?? 0) && Number(v.installments?.amount ?? 0) > 0 ? (
+                        <div>
+                          <span className="text-xs text-mcm-muted line-through">S/ {Number(v.installments?.amount_original ?? 0).toFixed(2)}</span>
+                          <span className="block text-green-700 font-bold">S/ {Number(v.installments?.amount ?? 0).toFixed(2)}</span>
+                        </div>
+                      ) : (
+                        <span>S/ {Number(v.installments?.amount ?? 0).toFixed(2)}</span>
+                      )}
+                    </td>
                     <td className="py-3 px-4">
                       <span className="text-xs">
                         {(v as unknown as { tipo_comprobante?: string; ruc_factura?: string }).tipo_comprobante === "factura"
@@ -247,7 +256,16 @@ function VouchersContent() {
                       <td className="py-3 px-4 font-medium text-mcm-text">{v.profiles?.nombre_completo}</td>
                       <td className="py-3 px-4"><span className="badge-blue text-xs">Ciclo {(v.installments as unknown as { payment_plans: { ciclo: number } })?.payment_plans?.ciclo ?? "—"}</span></td>
                       <td className="py-3 px-4 text-mcm-text">{v.installments?.concepto}</td>
-                      <td className="py-3 px-4 font-bold">S/ {Number(v.installments?.amount ?? 0).toFixed(2)}</td>
+                      <td className="py-3 px-4 font-bold">
+                        {Number(v.installments?.amount_original ?? 0) > Number(v.installments?.amount ?? 0) && Number(v.installments?.amount ?? 0) > 0 ? (
+                          <div>
+                            <span className="text-xs text-mcm-muted line-through">S/ {Number(v.installments?.amount_original ?? 0).toFixed(2)}</span>
+                            <span className="block text-green-700 font-bold">S/ {Number(v.installments?.amount ?? 0).toFixed(2)}</span>
+                          </div>
+                        ) : (
+                          <span>S/ {Number(v.installments?.amount ?? 0).toFixed(2)}</span>
+                        )}
+                      </td>
                       <td className="py-3 px-4">
                         <span className={v.status === "approved" ? "badge-green" : "badge-red"}>
                           {v.status === "approved" ? "Aprobado" : "Rechazado"}
