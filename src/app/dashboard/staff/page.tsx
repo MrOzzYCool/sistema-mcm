@@ -30,6 +30,7 @@ const ASSIGNABLE_ROLES = [
   { value: "secretaria_academica", label: "Secretaría Académica" },
   { value: "secretaria_atencion_academica", label: "Secretaría Atención Académica" },
   { value: "coordinacion_academica", label: "Coordinación Académica" },
+  { value: "contabilidad", label: "Contabilidad" },
 ];
 
 interface StaffProfile {
