@@ -15,6 +15,8 @@ export default function PortalAlumnaHeader() {
   const navLinks = [
     { href: "/bolsa-laboral", label: "Ofertas" },
     { href: "/bolsa-laboral/mis-postulaciones", label: "Mis Postulaciones" },
+    // Show "Volver al portal" link for alumnas vigentes (rol alumno)
+    ...(user?.role === "alumno" ? [{ href: "/portal", label: "← Mi Portal" }] : []),
   ];
 
   function isActive(href: string) {

@@ -5,6 +5,9 @@ import { useRouter, usePathname } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import PortalAlumnaHeader from "@/components/bolsa-laboral/PortalAlumnaHeader";
 
+/** Roles allowed to access the bolsa laboral portal */
+const BOLSA_ROLES = ["alumna_bolsa", "alumno"];
+
 /** Routes within /bolsa-laboral that are publicly accessible (no auth required) */
 const PUBLIC_PATHS = ["/bolsa-laboral/publicar-oferta", "/bolsa-laboral/solicitar-acceso"];
 
@@ -52,7 +55,7 @@ export default function BolsaLaboralLayout({ children }: { children: React.React
       router.replace("/");
     } else if (user.forcePasswordReset) {
       router.replace("/cambiar-contrasena");
-    } else if (user.role !== "alumna_bolsa") {
+    } else if (!BOLSA_ROLES.includes(user.role)) {
       router.replace(getRoleRoute(user.role));
     }
   }, [user, initializing, router, isPublic]);
@@ -94,7 +97,7 @@ export default function BolsaLaboralLayout({ children }: { children: React.React
   }
 
   // If not authenticated or wrong role, render nothing (redirect is happening)
-  if (!user || user.role !== "alumna_bolsa") return null;
+  if (!user || !BOLSA_ROLES.includes(user.role)) return null;
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">

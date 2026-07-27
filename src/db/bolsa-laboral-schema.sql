@@ -105,20 +105,20 @@ CREATE POLICY "solicitudes_admin_select_update" ON solicitudes_acceso_bolsa
 
 ALTER TABLE postulaciones ENABLE ROW LEVEL SECURITY;
 
--- Allow alumna_bolsa to INSERT postulaciones for themselves
+-- Allow alumna_bolsa OR alumno to INSERT postulaciones for themselves
 CREATE POLICY "postulaciones_alumna_insert" ON postulaciones
   FOR INSERT
   WITH CHECK (
     alumna_id = auth.uid() AND
-    auth.uid() IN (SELECT id FROM profiles WHERE rol = 'alumna_bolsa')
+    auth.uid() IN (SELECT id FROM profiles WHERE rol IN ('alumna_bolsa', 'alumno'))
   );
 
--- Allow alumna_bolsa to SELECT only their own postulaciones
+-- Allow alumna_bolsa OR alumno to SELECT only their own postulaciones
 CREATE POLICY "postulaciones_alumna_select_own" ON postulaciones
   FOR SELECT
   USING (
     alumna_id = auth.uid() AND
-    auth.uid() IN (SELECT id FROM profiles WHERE rol = 'alumna_bolsa')
+    auth.uid() IN (SELECT id FROM profiles WHERE rol IN ('alumna_bolsa', 'alumno'))
   );
 
 -- Allow super_admin full access to all postulaciones
