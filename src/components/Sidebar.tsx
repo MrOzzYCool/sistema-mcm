@@ -6,10 +6,12 @@ import { useAuth } from "@/lib/auth-context";
 import {
   LayoutDashboard, BookOpen, FileText, Calendar, Users, CreditCard,
   Settings, LogOut, ChevronRight, BarChart2, RefreshCw, UserCog, Moon, Sun,
-  PieChart, Calculator,
+  PieChart, Calculator, Briefcase,
 } from "lucide-react";
 import clsx from "clsx";
 import { useTheme } from "@/lib/theme-context";
+import { useEffect, useState } from "react";
+import { getAccessToken } from "@/lib/get-token";
 
 const NAV_ITEMS = [
   { href: "/dashboard",                   label: "Inicio",              icon: LayoutDashboard, roles: ["super_admin", "staff_tramites", "gestor"] },
@@ -23,6 +25,7 @@ const NAV_ITEMS = [
   { href: "/dashboard/reportes",          label: "Reportes",            icon: BarChart2,       roles: ["super_admin", "gestor"] },
   { href: "/dashboard/contabilidad",      label: "Contabilidad",        icon: Calculator,      roles: ["super_admin", "contabilidad"] },
   { href: "/dashboard/gerencia",          label: "Gerencia",            icon: PieChart,        roles: ["super_admin", "gerenta"] },
+  { href: "/dashboard/bolsa-laboral",     label: "Bolsa Laboral",       icon: Briefcase,       roles: ["super_admin"] },
   { href: "/dashboard/config",            label: "Configuración",       icon: Settings,        roles: ["super_admin"] },
 ];
 
@@ -31,6 +34,33 @@ export default function Sidebar() {
   const router   = useRouter();
   const { user, logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
+  const [pendingSolicitudesCount, setPendingSolicitudesCount] = useState(0);
+
+  useEffect(() => {
+    if (user?.role !== "super_admin") return;
+
+    let cancelled = false;
+
+    async function fetchPendingCount() {
+      try {
+        const token = await getAccessToken();
+        if (!token || cancelled) return;
+        const res = await fetch("/api/bolsa-laboral/solicitudes/pendientes-count", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (res.ok && !cancelled) {
+          const data = await res.json();
+          setPendingSolicitudesCount(data.count ?? 0);
+        }
+      } catch {
+        // Silently ignore — badge just won't show
+      }
+    }
+
+    fetchPendingCount();
+
+    return () => { cancelled = true; };
+  }, [user?.role]);
 
   async function handleLogout() {
     await logout();
@@ -76,6 +106,7 @@ export default function Sidebar() {
         {NAV_ITEMS.filter((item) => item.roles.includes(user?.role ?? "alumno")).map(({ href, label, icon: Icon }) => {
           const active = pathname === href ||
             (href !== "/dashboard" && pathname.startsWith(href + "/"));
+          const showBadge = href === "/dashboard/bolsa-laboral" && pendingSolicitudesCount > 0;
           return (
             <Link
               key={href}
@@ -90,6 +121,11 @@ export default function Sidebar() {
             >
               <Icon size={18} className="shrink-0" />
               <span className="flex-1">{label}</span>
+              {showBadge && (
+                <span className="min-w-[20px] h-5 flex items-center justify-center rounded-full bg-red-500 text-white text-xs font-bold px-1.5">
+                  {pendingSolicitudesCount}
+                </span>
+              )}
               {active && <ChevronRight size={14} style={{ color: "#8E0000" }} />}
             </Link>
           );

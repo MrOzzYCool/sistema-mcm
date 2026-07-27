@@ -22,6 +22,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     else if (user.forcePasswordReset) router.replace("/cambiar-contrasena");
     else if (user.role === "alumno") router.replace("/seleccionar");
     else if (user.role === "profesor") router.replace("/seleccionar-docente");
+    else if (user.role === "alumna_bolsa") router.replace("/bolsa-laboral");
   }, [user, initializing, router]);
 
   if (initializing) {
@@ -43,7 +44,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     );
   }
 
-  if (!user || user.role === "alumno") return null;
+  if (!user || user.role === "alumno" || user.role === "alumna_bolsa") return null;
 
   return (
     <div className="flex min-h-screen bg-mcm-gray">
