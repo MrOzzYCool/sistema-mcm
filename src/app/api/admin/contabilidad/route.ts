@@ -2,12 +2,18 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 
 /**
- * GET /api/admin/contabilidad?month=2026-07
+ * GET /api/admin/contabilidad?month=2026-07&banco=BCP
  *
  * Retorna todos los ingresos del mes indicado, combinando:
  * 1. Cuotas académicas (installments con status=paid)
  * 2. Actualizaciones (solicitudes tipo_formulario=actualizacion, estado=aprobado)
  * 3. Trámites externos (solicitudes tipo_formulario=tramite, estado=aprobado)
+ *
+ * Query params:
+ * - month (required): formato YYYY-MM
+ * - banco (optional): filtra por banco detectado por OCR (ej: "BCP", "Yape", "Interbank")
+ *
+ * Cada registro incluye campos OCR: banco, operation_number, ocr_status
  */
 
 const ALLOWED_EMAILS = [
@@ -37,6 +43,8 @@ export async function GET(req: NextRequest) {
   if (!monthParam || !/^\d{4}-\d{2}$/.test(monthParam)) {
     return NextResponse.json({ error: "Parámetro 'month' requerido (formato: YYYY-MM)" }, { status: 400 });
   }
+
+  const bancoParam = req.nextUrl.searchParams.get("banco"); // filtro por banco (opcional)
 
   const [yearStr, monthStr] = monthParam.split("-");
   const year = Number(yearStr);
@@ -76,23 +84,33 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    // Resolver vouchers de alumnos para cada cuota
+    // Resolver vouchers de alumnos para cada cuota (incluye campos OCR)
     const cuotaIds = (cuotas ?? []).map(c => c.id);
-    let voucherMap: Record<string, string> = {};
+    let voucherMap: Record<string, { voucher_url: string; banco: string | null; operation_number: string | null; ocr_status: string | null }> = {};
     if (cuotaIds.length > 0) {
       const { data: vouchers } = await supabaseAdmin
         .from("payment_vouchers")
-        .select("installment_id, voucher_url")
+        .select("installment_id, voucher_url, banco, operation_number, ocr_status, status")
         .in("installment_id", cuotaIds)
-        .eq("status", "approved");
+        .in("status", ["approved", "pending_review"])
+        .order("created_at", { ascending: false });
       for (const v of vouchers ?? []) {
-        voucherMap[v.installment_id] = v.voucher_url ?? "";
+        // Priorizar voucher approved sobre pending_review para el mismo installment
+        if (!voucherMap[v.installment_id] || v.status === "approved") {
+          voucherMap[v.installment_id] = {
+            voucher_url: v.voucher_url ?? "",
+            banco: v.banco ?? null,
+            operation_number: v.operation_number ?? null,
+            ocr_status: v.ocr_status ?? null,
+          };
+        }
       }
     }
 
     const ingresosCuotas = (cuotas ?? []).map((c) => {
       const plan = c.payment_plans as unknown as { alumno_id?: string } | null;
       const alumnoId = plan?.alumno_id ?? "";
+      const voucherData = voucherMap[c.id] ?? null;
       return {
         id: c.id,
         tipo: "cuota_academica" as const,
@@ -100,7 +118,10 @@ export async function GET(req: NextRequest) {
         concepto: c.concepto ?? "Cuota",
         monto: Number(c.amount ?? 0),
         fecha: (c.due_date as string)?.slice(0, 10) ?? "—",
-        voucher_url: voucherMap[c.id] ?? null,
+        voucher_url: voucherData?.voucher_url ?? null,
+        banco: voucherData?.banco ?? null,
+        operation_number: voucherData?.operation_number ?? null,
+        ocr_status: voucherData?.ocr_status ?? null,
         comprobante_url: c.comprobante_url ?? null,
         comprobante_tipo: c.tipo_comprobante ?? "boleta",
         comprobante_serie: c.comprobante_serie ?? null,
@@ -126,6 +147,9 @@ export async function GET(req: NextRequest) {
       monto: Number(s.monto_pagado ?? 0),
       fecha: (s.created_at as string)?.slice(0, 10) ?? "—",
       voucher_url: (s.voucher_url && s.voucher_url !== "registro-manual") ? s.voucher_url : null,
+      banco: null as string | null,
+      operation_number: null as string | null,
+      ocr_status: null as string | null,
       comprobante_url: s.pdf_boleta_url ?? null,
       comprobante_tipo: s.tipo_comprobante ?? "boleta",
       comprobante_serie: null,
@@ -150,6 +174,9 @@ export async function GET(req: NextRequest) {
       monto: Number(s.monto_pagado ?? 0),
       fecha: (s.created_at as string)?.slice(0, 10) ?? "—",
       voucher_url: (s.voucher_url && s.voucher_url !== "registro-manual") ? s.voucher_url : null,
+      banco: null as string | null,
+      operation_number: null as string | null,
+      ocr_status: null as string | null,
       comprobante_url: s.pdf_boleta_url ?? null,
       comprobante_tipo: s.tipo_comprobante ?? "boleta",
       comprobante_serie: null,
@@ -157,7 +184,12 @@ export async function GET(req: NextRequest) {
     }));
 
     // ── 4. Combinar y calcular resumen ────────────────────────────────────────
-    const todos = [...ingresosCuotas, ...ingresosActualizaciones, ...ingresosTramites];
+    let todos = [...ingresosCuotas, ...ingresosActualizaciones, ...ingresosTramites];
+
+    // Aplicar filtro por banco si se proporciona el parámetro
+    if (bancoParam) {
+      todos = todos.filter((i) => i.banco === bancoParam);
+    }
 
     const resumen = {
       total: todos.reduce((acc, i) => acc + i.monto, 0),
