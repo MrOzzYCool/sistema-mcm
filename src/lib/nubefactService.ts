@@ -38,10 +38,14 @@ export async function generarBoleta(datos: BoletaInput): Promise<BoletaResult> {
 
   // ── IGV ────────────────────────────────────────────────────────────────────
   // El tipoIgv viene determinado por quien llama:
-  //   - Actualizaciones: tipoIgv=10 (Gravado - Operación Onerosa)
+  //   - Actualizaciones: tipoIgv=10 → se mapea a 1 (Gravado - Operación Onerosa)
   //   - Trámites externos y pagos académicos: tipoIgv=9 (Inafecto - Operación Onerosa)
-  const tipoIgv   = datos.tipoIgv ?? 9; // Default: Inafecto - Operación Onerosa
-  const esGravado = tipoIgv === 1 || tipoIgv === 10;
+  // NOTA: En la API de Nubefact, tipo_de_igv=1 es "Gravado - Operación Onerosa" (tributo 1000).
+  //       tipo_de_igv=10 es "Gravado - Retiro por Premio" (tributo 9996 = Gratuito) — NO usar.
+  const tipoIgvInput = datos.tipoIgv ?? 9;
+  const esGravado = tipoIgvInput === 1 || tipoIgvInput === 10;
+  // Mapear tipoIgv=10 a 1 para Nubefact (ambos son "gravado oneroso" en nuestro contexto)
+  const tipoIgv = esGravado ? 1 : tipoIgvInput;
   const cantidad  = datos.cantidad;
 
   const precioUnit    = r2(datos.precioUnitario);
@@ -74,7 +78,7 @@ export async function generarBoleta(datos: BoletaInput): Promise<BoletaResult> {
   const clienteDireccion = (!esBoleta && datos.direccionFiscal)
     ? datos.direccionFiscal : "";
 
-  // Series: Gravado(1)→BBB3/FFF3 | Inafecto(9)→BBB2/FFF2
+  // Series: Gravado(10)→BBB3/FFF3 | Inafecto(9)→BBB2/FFF2
   const serie = esGravado
     ? (esBoleta ? "BBB3" : "FFF3")
     : (esBoleta ? "BBB2" : "FFF2");
