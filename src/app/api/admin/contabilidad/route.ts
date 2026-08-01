@@ -55,17 +55,19 @@ export async function GET(req: NextRequest) {
 
   try {
     // ── 1. Cuotas académicas pagadas ──────────────────────────────────────────
+    // Filtrar por fecha_pago (fecha real de ingreso del dinero), NO por due_date.
+    // Contabilidad corta por mes según cuándo se recibió el pago.
     const { data: cuotas } = await supabaseAdmin
       .from("installments")
       .select(`
-        id, amount, due_date, concepto, status,
+        id, amount, due_date, fecha_pago, concepto, status,
         comprobante_url, comprobante_serie, comprobante_numero, tipo_comprobante,
         plan_id, payment_plans!inner(alumno_id)
       `)
       .eq("status", "paid")
-      .gte("due_date", from)
-      .lte("due_date", to)
-      .order("due_date", { ascending: false });
+      .gte("fecha_pago", from)
+      .lte("fecha_pago", to)
+      .order("fecha_pago", { ascending: false });
 
     // Resolver nombres de alumnos
     const alumnoIds = [...new Set(
@@ -117,7 +119,7 @@ export async function GET(req: NextRequest) {
         nombre: alumnoMap[alumnoId] ?? "—",
         concepto: c.concepto ?? "Cuota",
         monto: Number(c.amount ?? 0),
-        fecha: (c.due_date as string)?.slice(0, 10) ?? "—",
+        fecha: (c.fecha_pago as string)?.slice(0, 10) ?? (c.due_date as string)?.slice(0, 10) ?? "—",
         voucher_url: voucherData?.voucher_url ?? null,
         banco: voucherData?.banco ?? null,
         operation_number: voucherData?.operation_number ?? null,
