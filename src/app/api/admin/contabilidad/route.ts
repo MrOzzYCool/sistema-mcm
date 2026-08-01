@@ -1,6 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 
+/** Convierte un timestamp UTC a fecha en zona horaria Lima (UTC-5) formato YYYY-MM-DD */
+function toFechaLima(isoString: string | null | undefined): string | null {
+  if (!isoString) return null;
+  const date = new Date(isoString);
+  if (isNaN(date.getTime())) return null;
+  return date.toLocaleDateString("en-CA", { timeZone: "America/Lima" }); // en-CA da formato YYYY-MM-DD
+}
+
 /**
  * GET /api/admin/contabilidad?month=2026-07&banco=BCP
  *
@@ -126,7 +134,7 @@ export async function GET(req: NextRequest) {
         nombre: alumnoMap[alumnoId] ?? "—",
         concepto: c.concepto ?? "Cuota",
         monto: Number(c.amount ?? 0),
-        fecha: (c.fecha_pago as string)?.slice(0, 10) ?? (c.due_date as string)?.slice(0, 10) ?? "—",
+        fecha: toFechaLima(c.fecha_pago as string) ?? (c.due_date as string)?.slice(0, 10) ?? "—",
         voucher_url: voucherData?.voucher_url ?? null,
         banco: voucherData?.banco ?? null,
         operation_number: voucherData?.operation_number ?? null,
