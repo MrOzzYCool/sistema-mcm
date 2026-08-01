@@ -435,9 +435,9 @@ function MultiFileUpload({ label, sublabel, files, inputRef, onChange }: {
         className="border-2 border-dashed border-mcm-border hover:border-[#C62828] hover:bg-red-50 rounded-xl p-4 text-center cursor-pointer transition-colors">
         <Upload size={20} className="text-mcm-muted mx-auto mb-1" />
         <p className="text-xs text-mcm-muted font-medium">{files.length > 0 ? "Agregar más vouchers" : "Haz clic para subir"}</p>
-        <p className="text-xs text-mcm-muted">JPG, PNG — puedes seleccionar varios</p>
+        <p className="text-xs text-mcm-muted">JPG, PNG, PDF — puedes seleccionar varios</p>
       </div>
-      <input ref={inputRef} type="file" accept="image/*" multiple className="hidden"
+      <input ref={inputRef} type="file" accept="image/*,.pdf" multiple className="hidden"
         onChange={(e) => addFiles(e.target.files)} />
     </div>
   );
@@ -481,7 +481,7 @@ function DniFileUpload({ label, sublabel, file, inputRef, onChange }: {
           </div>
         </div>
       )}
-      <input ref={inputRef} type="file" accept="image/*" className="hidden"
+      <input ref={inputRef} type="file" accept="image/*,.pdf" className="hidden"
         onChange={(e) => { if (e.target.files?.[0]) onChange(e.target.files[0]); }} />
       <input ref={cameraRef} type="file" accept="image/*" capture="environment" className="hidden"
         onChange={(e) => { if (e.target.files?.[0]) onChange(e.target.files[0]); }} />

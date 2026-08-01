@@ -605,7 +605,7 @@ function MultiFileUpload({ label, sublabel, files, inputRef, onChange }: {
           <p className="text-xs text-mcm-muted">JPG, PNG — puedes seleccionar varios</p>
         </div>
       </div>
-      <input ref={inputRef} type="file" accept="image/*" multiple className="hidden"
+      <input ref={inputRef} type="file" accept="image/*,.pdf" multiple className="hidden"
         onChange={(e) => addFiles(e.target.files)} />
     </div>
   );
@@ -657,7 +657,7 @@ function DniFileUpload({ label, sublabel, file, inputRef, onChange }: {
       )}
 
       {/* Input normal */}
-      <input ref={inputRef} type="file" accept="image/*" className="hidden"
+      <input ref={inputRef} type="file" accept="image/*,.pdf" className="hidden"
         onChange={(e) => { if (e.target.files?.[0]) onChange(e.target.files[0]); }} />
       {/* Input cámara trasera */}
       <input ref={cameraRef} type="file" accept="image/*" capture="environment" className="hidden"
@@ -721,7 +721,7 @@ function FileUpload({ label, sublabel, file, inputRef, onChange }: {
       )}
 
       <input
-        ref={inputRef} type="file" accept="image/*" className="hidden"
+        ref={inputRef} type="file" accept="image/*,.pdf" className="hidden"
         onChange={(e) => { if (e.target.files?.[0]) onChange(e.target.files[0]); }}
       />
     </div>

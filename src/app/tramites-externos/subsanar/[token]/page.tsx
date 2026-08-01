@@ -274,7 +274,7 @@ function CampoArchivo({ label, observacion, file, inputRef, onChange, urlActual 
         </div>
       )}
 
-      <input ref={inputRef} type="file" accept="image/*" className="hidden"
+      <input ref={inputRef} type="file" accept="image/*,.pdf" className="hidden"
         onChange={(e) => { if (e.target.files?.[0]) onChange(e.target.files[0]); }} />
     </div>
   );
