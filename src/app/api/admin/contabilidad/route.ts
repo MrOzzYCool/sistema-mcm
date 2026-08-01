@@ -53,10 +53,17 @@ export async function GET(req: NextRequest) {
   const from = `${monthParam}-01T00:00:00`;
   const to = `${monthParam}-${String(lastDay).padStart(2, "0")}T23:59:59`;
 
+  // Para cuotas: filtrar por fecha_pago en zona horaria Lima (UTC-5)
+  // El mes en Lima empieza a las 05:00 UTC del día 1, y termina a las 04:59:59 UTC del día 1 del siguiente mes
+  const nextMonth = month === 12 ? 1 : month + 1;
+  const nextYear = month === 12 ? year + 1 : year;
+  const nextMonthFrom = `${nextYear}-${String(nextMonth).padStart(2, "0")}-01T05:00:00`;
+
   try {
     // ── 1. Cuotas académicas pagadas ──────────────────────────────────────────
     // Filtrar por fecha_pago (fecha real de ingreso del dinero), NO por due_date.
     // Contabilidad corta por mes según cuándo se recibió el pago.
+    // Usar zona horaria Lima (UTC-5) para el filtro, ya que los timestamps se guardan en UTC.
     const { data: cuotas } = await supabaseAdmin
       .from("installments")
       .select(`
@@ -65,8 +72,8 @@ export async function GET(req: NextRequest) {
         plan_id, payment_plans!inner(alumno_id)
       `)
       .eq("status", "paid")
-      .gte("fecha_pago", from)
-      .lte("fecha_pago", to)
+      .gte("fecha_pago", `${monthParam}-01T05:00:00`)
+      .lt("fecha_pago", nextMonthFrom)
       .order("fecha_pago", { ascending: false });
 
     // Resolver nombres de alumnos
