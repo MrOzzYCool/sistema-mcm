@@ -153,7 +153,12 @@ function SolicitudesView({ todas, loading, tabActiva, setTabActiva, setTodas, se
 
   // Filtrar por pestaña activa
   const actCat    = ACTUALIZACIONES_CATALOGO.find((a) => a.id === tabActiva);
-  const porTab    = todas.filter((s) => s.tipo_tramite === actCat?.label);
+  // Support certificate tabs: "cert-digital" and "cert-fisico"
+  const isCertTab = tabActiva === "cert-digital" || tabActiva === "cert-fisico";
+  const certLabel = tabActiva === "cert-digital" ? "CERTIFICADO DIGITAL" : "CERTIFICADO FÍSICO";
+  const porTab    = isCertTab
+    ? todas.filter((s) => s.tipo_tramite?.toUpperCase().startsWith(certLabel))
+    : todas.filter((s) => s.tipo_tramite === actCat?.label);
   const lista     = filtro === "todos" ? porTab : porTab.filter((s) => s.estado === filtro);
 
   const kpis = {
@@ -235,6 +240,28 @@ function SolicitudesView({ todas, loading, tabActiva, setTabActiva, setTodas, se
               {a.label}
               <span className={clsx("ml-2 px-1.5 py-0.5 rounded-full text-xs",
                 tabActiva === a.id ? "bg-white/30" : "bg-slate-100")}>
+                {count}
+              </span>
+            </button>
+          );
+        })}
+        {/* Tabs de certificados */}
+        {[
+          { id: "cert-digital", label: "📜 Certificado Digital" },
+          { id: "cert-fisico", label: "📜 Certificado Físico" },
+        ].map((c) => {
+          const count = todas.filter((s) => s.tipo_tramite?.toUpperCase().startsWith(c.id === "cert-digital" ? "CERTIFICADO DIGITAL" : "CERTIFICADO FÍSICO")).length;
+          return (
+            <button key={c.id} onClick={() => { setTabActiva(c.id); setFiltro("todos"); }}
+              className={clsx(
+                "px-4 py-2.5 rounded-xl text-xs font-semibold border-2 transition-all",
+                tabActiva === c.id
+                  ? "border-[#C62828] bg-[#C62828] text-white shadow-sm"
+                  : "border-mcm-border text-mcm-muted hover:border-[#C62828] hover:text-[#C62828]"
+              )}>
+              {c.label}
+              <span className={clsx("ml-2 px-1.5 py-0.5 rounded-full text-xs",
+                tabActiva === c.id ? "bg-white/30" : "bg-slate-100")}>
                 {count}
               </span>
             </button>
