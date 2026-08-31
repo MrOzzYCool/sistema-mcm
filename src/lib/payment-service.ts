@@ -82,6 +82,16 @@ export async function generateStudentPaymentPlan(
     const d = new Date(opening.start_date + "T00:00:00");
     startMonthIndex = d.getMonth();
     startYear = d.getFullYear();
+    // Regla de corte de fin de mes: si el ciclo inicia el día 16 o después,
+    // el primer pago (matrícula + cuota 01) corre al mes siguiente.
+    const startDay = d.getDate();
+    if (startDay >= 16) {
+      startMonthIndex += 1;
+      if (startMonthIndex > 11) {
+        startMonthIndex = 0;
+        startYear += 1;
+      }
+    }
   } else {
     startMonthIndex = ((ciclo - 1) % 3) * 4;
     const yearOffset = Math.floor((ciclo - 1) / 3);
