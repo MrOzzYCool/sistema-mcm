@@ -49,11 +49,26 @@ export async function POST(req: NextRequest) {
     }
 
     try {
+      const cicloNum = parseInt(ciclo);
+
+      // Resolver la carrera del alumno para elegir la apertura de ciclo correcta.
+      // Puede haber varias aperturas activas para el mismo ciclo (una por carrera).
+      const { data: insc } = await supabaseAdmin
+        .from("inscripciones")
+        .select("carrera_id")
+        .eq("alumno_id", alumno_id)
+        .eq("estado", "activo")
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      const carreraId = insc?.carrera_id ?? undefined;
+
       const { generateStudentPaymentPlan } = await import("@/lib/payment-service");
       const plan = await generateStudentPaymentPlan({
         alumnoId: alumno_id,
-        ciclo: parseInt(ciclo),
+        ciclo: cicloNum,
         year: parseInt(year),
+        carreraId,
       });
 
       await supabaseAdmin.from("historial_auditoria").insert({
@@ -90,12 +105,49 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "installment_id y monto requeridos" }, { status: 400 });
     }
 
+    const nuevoMonto = Number(monto);
+
+    // Obtener el status actual para decidir la transición
+    const { data: instActual } = await supabaseAdmin
+      .from("installments")
+      .select("status")
+      .eq("id", installment_id)
+      .single();
+
+    const statusActual = instActual?.status ?? "pending";
+
+    const updateData: Record<string, unknown> = {
+      amount: nuevoMonto,
+      observacion: observacion ?? null,
+    };
+
+    if (nuevoMonto === 0) {
+      // Monto 0 = exonerado (no genera deuda). Solo si no está ya pagada.
+      if (statusActual !== "paid") {
+        updateData.status = "exonerado";
+        updateData.fecha_pago = new Date().toISOString();
+      }
+    } else {
+      // Monto > 0: si estaba exonerado, revertir a pendiente para que sea cobrable.
+      if (statusActual === "exonerado") {
+        updateData.status = "pending";
+        updateData.fecha_pago = null;
+      }
+    }
+
     const { error } = await supabaseAdmin
       .from("installments")
-      .update({ amount: Number(monto), observacion: observacion ?? null })
+      .update(updateData)
       .eq("id", installment_id);
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+    await supabaseAdmin.from("historial_auditoria").insert({
+      accion: "editar_monto_cuota",
+      admin_id: admin.id, admin_email: admin.email,
+      detalle: { installment_id, monto: nuevoMonto, exonerado: nuevoMonto === 0 },
+    });
+
     return NextResponse.json({ success: true });
   }
 

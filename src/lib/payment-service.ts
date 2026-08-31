@@ -18,7 +18,7 @@ function getFirstDayOfMonth(year: number, month: number): string {
  * - Cuota 02, 03, 04 → día 01 de los meses siguientes consecutivos
  */
 export async function generateStudentPaymentPlan(
-  { alumnoId, ciclo, year }: { alumnoId: string; ciclo: number; year: number }
+  { alumnoId, ciclo, year, carreraId }: { alumnoId: string; ciclo: number; year: number; carreraId?: string }
 ) {
   if (!alumnoId || !ciclo || !year) throw new Error("alumnoId, ciclo y year son requeridos");
   if (!Number.isInteger(ciclo) || ciclo <= 0) throw new Error("ciclo inválido");
@@ -46,14 +46,37 @@ export async function generateStudentPaymentPlan(
   let startMonthIndex: number;
   let startYear: number;
 
-  const { data: opening } = await supabaseAdmin
+  // Resolver la carrera del alumno para elegir la apertura correcta.
+  // Un mismo cycle_number puede tener varias aperturas activas (una por carrera),
+  // por lo que filtramos por carrera_id para no tomar la fecha de inicio equivocada.
+  let resolvedCarreraId: string | undefined = carreraId;
+  if (!resolvedCarreraId) {
+    const { data: insc } = await supabaseAdmin
+      .from("inscripciones")
+      .select("carrera_id")
+      .eq("alumno_id", alumnoId)
+      .eq("ciclo_actual", ciclo)
+      .eq("estado", "activo")
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    resolvedCarreraId = insc?.carrera_id ?? undefined;
+  }
+
+  let openingQuery = supabaseAdmin
     .from("cycle_openings")
     .select("start_date")
     .eq("cycle_number", ciclo)
-    .eq("status", "activo")
+    .eq("status", "activo");
+
+  if (resolvedCarreraId) {
+    openingQuery = openingQuery.eq("carrera_id", resolvedCarreraId);
+  }
+
+  const { data: opening } = await openingQuery
     .order("created_at", { ascending: false })
     .limit(1)
-    .single();
+    .maybeSingle();
 
   if (opening?.start_date) {
     const d = new Date(opening.start_date + "T00:00:00");
