@@ -208,7 +208,7 @@ function VoucherUploadBtn({ installmentId, onSuccess }: { installmentId: string;
       for (let index = 0; index < files.length; index++) {
         const file = files[index];
         const ext = file.name.split(".").pop() ?? "jpg";
-        const path = `vouchers/${installmentId}_${Date.now()}_${index}.${ext}`;
+        const path = `${installmentId}_${Date.now()}_${index}.${ext}`;
         const { error: upErr } = await supabase.storage.from("vouchers").upload(path, file);
         if (upErr) throw new Error(upErr.message);
 
