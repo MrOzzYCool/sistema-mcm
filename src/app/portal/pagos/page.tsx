@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { getAccessToken } from "@/lib/get-token";
 import { supabase } from "@/lib/supabase";
-import { CreditCard, Loader2, AlertCircle, CheckCircle, Clock, Paperclip, Upload } from "lucide-react";
+import { CreditCard, Loader2, AlertCircle, CheckCircle, Clock, Paperclip, Plus, X } from "lucide-react";
 import clsx from "clsx";
 
 interface Installment {
@@ -177,16 +177,20 @@ function SummaryCard({ label, value, color }: { label: string; value: string; co
 }
 
 function VoucherUploadBtn({ installmentId, onSuccess }: { installmentId: string; onSuccess: () => void }) {
-  const [file, setFile] = useState<File | null>(null);
+  const [files, setFiles] = useState<File[]>([]);
   const [uploading, setUploading] = useState(false);
   const [tipoComprobante, setTipoComprobante] = useState<"boleta" | "factura">("boleta");
   const [facturaData, setFacturaData] = useState({ ruc: "", razon_social: "", direccion_fiscal: "", email_empresa: "" });
   const inputRef = useRef<HTMLInputElement>(null);
 
   function handleSelect(e: React.ChangeEvent<HTMLInputElement>) {
-    const f = e.target.files?.[0];
-    if (f) setFile(f);
+    const selected = Array.from(e.target.files ?? []);
+    if (selected.length > 0) setFiles(prev => [...prev, ...selected]);
     if (inputRef.current) inputRef.current.value = "";
+  }
+
+  function removeFile(index: number) {
+    setFiles(prev => prev.filter((_, i) => i !== index));
   }
 
   const facturaValid = tipoComprobante === "boleta" || (
@@ -194,25 +198,32 @@ function VoucherUploadBtn({ installmentId, onSuccess }: { installmentId: string;
   );
 
   async function handleSubmit() {
-    if (!file || !facturaValid) return;
+    if (files.length === 0 || !facturaValid) return;
     setUploading(true);
     try {
       const token = await getAccessToken();
       if (!token) throw new Error("Sesión no disponible");
 
-      const ext = file.name.split(".").pop() ?? "jpg";
-      const path = `vouchers/${installmentId}_${Date.now()}.${ext}`;
-      const { error: upErr } = await supabase.storage.from("vouchers").upload(path, file);
-      if (upErr) throw new Error(upErr.message);
+      const urls: string[] = [];
+      for (let index = 0; index < files.length; index++) {
+        const file = files[index];
+        const ext = file.name.split(".").pop() ?? "jpg";
+        const path = `vouchers/${installmentId}_${Date.now()}_${index}.${ext}`;
+        const { error: upErr } = await supabase.storage.from("vouchers").upload(path, file);
+        if (upErr) throw new Error(upErr.message);
 
-      const { data: urlData } = supabase.storage.from("vouchers").getPublicUrl(path);
+        const { data: urlData } = supabase.storage.from("vouchers").getPublicUrl(path);
+        urls.push(urlData.publicUrl);
+      }
+
+      const voucherUrl = urls.join(",");
 
       const res = await fetch("/api/portal/vouchers", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({
           installment_id: installmentId,
-          voucher_url: urlData.publicUrl,
+          voucher_url: voucherUrl,
           tipo_comprobante: tipoComprobante,
           ...(tipoComprobante === "factura" && {
             ruc_factura: facturaData.ruc,
@@ -225,7 +236,7 @@ function VoucherUploadBtn({ installmentId, onSuccess }: { installmentId: string;
       const json = await res.json();
       if (!res.ok) throw new Error(json.error);
 
-      setFile(null);
+      setFiles([]);
       setTipoComprobante("boleta");
       setFacturaData({ ruc: "", razon_social: "", direccion_fiscal: "", email_empresa: "" });
       alert(json.message ?? "Voucher enviado correctamente");
@@ -237,35 +248,47 @@ function VoucherUploadBtn({ installmentId, onSuccess }: { installmentId: string;
     }
   }
 
-  if (!file) {
+  if (files.length === 0) {
     return (
       <>
         <button onClick={() => inputRef.current?.click()}
           className="flex items-center gap-1 text-xs font-medium text-[#C62828] hover:text-[#8E0000]">
           <Paperclip size={12} /> Adjuntar voucher
         </button>
-        <input ref={inputRef} type="file" accept="image/*,.pdf" className="hidden" onChange={handleSelect} />
+        <input ref={inputRef} type="file" accept="image/*,.pdf" multiple className="hidden" onChange={handleSelect} />
       </>
     );
   }
 
-  const isImage = file.type.startsWith("image/");
-
   return (
     <div className="space-y-3 max-w-xs">
-      {/* Preview */}
-      <div className="flex items-center gap-2 bg-slate-50 border border-mcm-border rounded-lg p-2">
-        {isImage ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={URL.createObjectURL(file)} alt="Preview" className="w-10 h-10 object-cover rounded" />
-        ) : (
-          <div className="w-10 h-10 bg-red-50 rounded flex items-center justify-center text-red-600 text-xs font-bold">PDF</div>
-        )}
-        <span className="text-xs text-mcm-text truncate flex-1">{file.name}</span>
-        <button onClick={() => setFile(null)} className="text-mcm-muted hover:text-red-600 shrink-0">
-          <Upload size={12} />
-        </button>
+      {/* Preview list */}
+      <p className="text-[11px] text-mcm-muted">Puedes adjuntar varios comprobantes si pagaste en partes.</p>
+      <div className="space-y-2">
+        {files.map((file, index) => {
+          const isImage = file.type.startsWith("image/");
+          return (
+            <div key={`${file.name}-${index}`} className="flex items-center gap-2 bg-slate-50 border border-mcm-border rounded-lg p-2">
+              {isImage ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={URL.createObjectURL(file)} alt="Preview" className="w-10 h-10 object-cover rounded" />
+              ) : (
+                <div className="w-10 h-10 bg-red-50 rounded flex items-center justify-center text-red-600 text-xs font-bold">PDF</div>
+              )}
+              <span className="text-xs text-mcm-text truncate flex-1">{file.name}</span>
+              <button onClick={() => removeFile(index)} className="text-mcm-muted hover:text-red-600 shrink-0" title="Quitar">
+                <X size={14} />
+              </button>
+            </div>
+          );
+        })}
       </div>
+
+      {/* Agregar más */}
+      <button onClick={() => inputRef.current?.click()}
+        className="flex items-center gap-1 text-xs font-medium text-[#C62828] hover:text-[#8E0000]">
+        <Plus size={12} /> Agregar más
+      </button>
 
       {/* Tipo de comprobante */}
       <div>
@@ -315,11 +338,11 @@ function VoucherUploadBtn({ installmentId, onSuccess }: { installmentId: string;
           {uploading ? <Loader2 size={12} className="animate-spin" /> : <CheckCircle size={12} />}
           {uploading ? "Enviando..." : "Enviar voucher"}
         </button>
-        <button onClick={() => { setFile(null); setTipoComprobante("boleta"); }} className="text-xs text-mcm-muted hover:text-red-600">
+        <button onClick={() => { setFiles([]); setTipoComprobante("boleta"); }} className="text-xs text-mcm-muted hover:text-red-600">
           Cancelar
         </button>
       </div>
-      <input ref={inputRef} type="file" accept="image/*,.pdf" className="hidden" onChange={handleSelect} />
+      <input ref={inputRef} type="file" accept="image/*,.pdf" multiple className="hidden" onChange={handleSelect} />
     </div>
   );
 }

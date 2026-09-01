@@ -5,7 +5,8 @@ import { supabase } from "@/lib/supabase";
 import RouteGuard from "@/components/RouteGuard";
 import {
   Loader2, Download, Eye, ExternalLink, TrendingUp,
-  Receipt, FileText, RefreshCw,
+  Receipt, FileText, RefreshCw, AlertTriangle, XCircle,
+  Pencil, Check, X,
 } from "lucide-react";
 import clsx from "clsx";
 
@@ -23,6 +24,9 @@ interface Ingreso {
   comprobante_tipo: string;
   comprobante_serie: string | null;
   comprobante_numero: string | null;
+  banco: string | null;
+  operation_number: string | null;
+  ocr_status: string | null;
 }
 
 interface Resumen {
@@ -46,6 +50,17 @@ const TIPO_COLOR: Record<string, string> = {
   actualizacion: "bg-purple-100 text-purple-700",
   tramite: "bg-amber-100 text-amber-700",
 };
+
+const SUPPORTED_BANKS = [
+  "BCP",
+  "Agente BCP",
+  "Yape",
+  "Plin",
+  "Scotiabank",
+  "Interbank",
+  "BBVA",
+  "Banco de la Nación",
+] as const;
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -73,7 +88,14 @@ function ContabilidadContent() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [filtroTipo, setFiltroTipo] = useState<string>("todos");
-  const [lightbox, setLightbox] = useState<{ url: string; titulo: string } | null>(null);
+  const [filtroBanco, setFiltroBanco] = useState<string>("todos");
+  const [lightbox, setLightbox] = useState<{ urls: string[]; titulo: string } | null>(null);
+
+  // Manual OCR inline edit state
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editBanco, setEditBanco] = useState("");
+  const [editOpNumber, setEditOpNumber] = useState("");
+  const [saving, setSaving] = useState(false);
 
   const cargar = useCallback(async () => {
     setLoading(true);
@@ -100,19 +122,21 @@ function ContabilidadContent() {
 
   useEffect(() => { cargar(); }, [cargar]);
 
-  const listaFiltrada = filtroTipo === "todos"
-    ? ingresos
-    : ingresos.filter((i) => i.tipo === filtroTipo);
+  const listaFiltrada = ingresos
+    .filter((i) => filtroTipo === "todos" || i.tipo === filtroTipo)
+    .filter((i) => filtroBanco === "todos" || i.banco === filtroBanco);
 
   // Exportar a CSV
   function exportarCSV() {
-    const headers = ["Fecha", "Tipo", "Nombre", "Concepto", "Monto", "Comprobante", "Serie-Número"];
+    const headers = ["Fecha", "Tipo", "Nombre", "Concepto", "Monto", "Banco", "N° Operación", "Comprobante", "Serie-Número"];
     const rows = listaFiltrada.map((i) => [
       i.fecha,
       TIPO_LABEL[i.tipo] ?? i.tipo,
       i.nombre,
       i.concepto,
       i.monto.toFixed(2),
+      i.banco ?? "Pendiente",
+      i.operation_number ?? "Pendiente",
       i.comprobante_tipo,
       i.comprobante_serie && i.comprobante_numero
         ? `${i.comprobante_serie}-${i.comprobante_numero}`
@@ -126,6 +150,57 @@ function ContabilidadContent() {
     a.download = `contabilidad-${month}.csv`;
     a.click();
     URL.revokeObjectURL(url);
+  }
+
+  // Manual OCR: start editing a row
+  function startEditing(ingreso: Ingreso) {
+    setEditingId(ingreso.id);
+    setEditBanco(ingreso.banco ?? "");
+    setEditOpNumber(ingreso.operation_number ?? "");
+  }
+
+  function cancelEditing() {
+    setEditingId(null);
+    setEditBanco("");
+    setEditOpNumber("");
+  }
+
+  async function saveManualOcr() {
+    if (!editingId || !editBanco.trim() || !editOpNumber.trim()) return;
+    setSaving(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token ?? "";
+      const res = await fetch("/api/admin/contabilidad/manual-ocr", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          voucher_id: editingId,
+          operation_number: editOpNumber.trim(),
+          banco: editBanco.trim(),
+        }),
+      });
+      if (!res.ok) {
+        const json = await res.json();
+        throw new Error(json.error ?? `Error ${res.status}`);
+      }
+      // Update local state
+      setIngresos((prev) =>
+        prev.map((ing) =>
+          ing.id === editingId
+            ? { ...ing, banco: editBanco.trim(), operation_number: editOpNumber.trim(), ocr_status: "completed" }
+            : ing
+        )
+      );
+      cancelEditing();
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "Error al guardar");
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
@@ -167,7 +242,7 @@ function ContabilidadContent() {
       )}
 
       {/* Filtros por tipo */}
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         {[
           { key: "todos", label: "Todos", count: ingresos.length },
           { key: "cuota_academica", label: "Cuotas", count: ingresos.filter(i => i.tipo === "cuota_academica").length },
@@ -184,6 +259,18 @@ function ContabilidadContent() {
             {f.label} <span className="ml-1 opacity-70">({f.count})</span>
           </button>
         ))}
+
+        {/* Filtro por banco */}
+        <select
+          value={filtroBanco}
+          onChange={(e) => setFiltroBanco(e.target.value)}
+          className="border border-mcm-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#a93526] ml-auto"
+        >
+          <option value="todos">Todos los bancos</option>
+          {SUPPORTED_BANKS.map((banco) => (
+            <option key={banco} value={banco}>{banco}</option>
+          ))}
+        </select>
       </div>
 
       {/* Tabla */}
@@ -198,7 +285,7 @@ function ContabilidadContent() {
             <table className="w-full text-sm">
               <thead className="bg-slate-50">
                 <tr>
-                  {["Fecha", "Tipo", "Nombre", "Concepto", "Monto", "Voucher", "Comprobante"].map((h) => (
+                  {["Fecha", "Tipo", "Nombre", "Concepto", "Monto", "Banco", "N° Operación", "Voucher", "Comprobante"].map((h) => (
                     <th key={h} className="text-left py-3.5 px-4 text-mcm-muted font-medium text-xs uppercase tracking-wide whitespace-nowrap">{h}</th>
                   ))}
                 </tr>
@@ -215,9 +302,83 @@ function ContabilidadContent() {
                     <td className="py-3.5 px-4 font-medium text-mcm-text">{i.nombre}</td>
                     <td className="py-3.5 px-4 text-mcm-muted text-xs">{i.concepto}</td>
                     <td className="py-3.5 px-4 font-semibold text-mcm-text whitespace-nowrap">{formatMoney(i.monto)}</td>
+                    {/* Banco cell */}
+                    <td className="py-3.5 px-4">
+                      {editingId === i.id ? (
+                        <select
+                          value={editBanco}
+                          onChange={(e) => setEditBanco(e.target.value)}
+                          className="border border-mcm-border rounded px-2 py-1 text-xs w-full min-w-[100px] focus:outline-none focus:ring-1 focus:ring-[#a93526]"
+                        >
+                          <option value="">Seleccionar...</option>
+                          {SUPPORTED_BANKS.map((b) => (
+                            <option key={b} value={b}>{b}</option>
+                          ))}
+                        </select>
+                      ) : i.ocr_status === "processing" ? (
+                        <span className="flex items-center gap-1 text-xs text-blue-600">
+                          <Loader2 size={12} className="animate-spin" /> Procesando
+                        </span>
+                      ) : i.ocr_status === "needs_review" || i.ocr_status === "failed" ? (
+                        <span className="flex items-center gap-1 text-xs text-amber-600">
+                          {i.ocr_status === "failed" ? <XCircle size={12} className="text-red-500" /> : <AlertTriangle size={12} />}
+                          {i.banco ?? "Pendiente"}
+                          <button
+                            onClick={() => startEditing(i)}
+                            className="ml-1 text-[#C62828] hover:text-[#a93526] transition-colors"
+                            title="Editar manualmente"
+                          >
+                            <Pencil size={12} />
+                          </button>
+                        </span>
+                      ) : (
+                        <span className="text-xs text-mcm-text">{i.banco ?? "—"}</span>
+                      )}
+                    </td>
+                    {/* N° Operación cell */}
+                    <td className="py-3.5 px-4">
+                      {editingId === i.id ? (
+                        <div className="flex items-center gap-1">
+                          <input
+                            type="text"
+                            value={editOpNumber}
+                            onChange={(e) => setEditOpNumber(e.target.value)}
+                            placeholder="N° Operación"
+                            className="border border-mcm-border rounded px-2 py-1 text-xs w-full min-w-[90px] focus:outline-none focus:ring-1 focus:ring-[#a93526]"
+                          />
+                          <button
+                            onClick={saveManualOcr}
+                            disabled={saving || !editBanco.trim() || !editOpNumber.trim()}
+                            className="text-emerald-600 hover:text-emerald-700 disabled:opacity-40 transition-colors"
+                            title="Guardar"
+                          >
+                            {saving ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
+                          </button>
+                          <button
+                            onClick={cancelEditing}
+                            disabled={saving}
+                            className="text-mcm-muted hover:text-red-500 disabled:opacity-40 transition-colors"
+                            title="Cancelar"
+                          >
+                            <X size={14} />
+                          </button>
+                        </div>
+                      ) : i.ocr_status === "processing" ? (
+                        <span className="flex items-center gap-1 text-xs text-blue-600">
+                          <Loader2 size={12} className="animate-spin" /> Procesando
+                        </span>
+                      ) : i.ocr_status === "needs_review" || i.ocr_status === "failed" ? (
+                        <span className="flex items-center gap-1 text-xs text-amber-600">
+                          {i.ocr_status === "failed" ? <XCircle size={12} className="text-red-500" /> : <AlertTriangle size={12} />}
+                          {i.operation_number ?? "Pendiente"}
+                        </span>
+                      ) : (
+                        <span className="text-xs text-mcm-text">{i.operation_number ?? "—"}</span>
+                      )}
+                    </td>
                     <td className="py-3.5 px-4">
                       {i.voucher_url ? (
-                        <button onClick={() => setLightbox({ url: i.voucher_url!, titulo: "Voucher de pago" })}
+                        <button onClick={() => setLightbox({ urls: i.voucher_url!.split(",").map((u) => u.trim()).filter(Boolean), titulo: "Voucher de pago" })}
                           className="flex items-center gap-1 text-xs text-[#C62828] hover:underline font-medium">
                           <Eye size={12} /> Ver
                         </button>
@@ -242,7 +403,7 @@ function ContabilidadContent() {
                 ))}
                 {listaFiltrada.length === 0 && !loading && (
                   <tr>
-                    <td colSpan={7} className="py-12 text-center text-mcm-muted text-sm">
+                    <td colSpan={9} className="py-12 text-center text-mcm-muted text-sm">
                       No hay registros para este mes.
                     </td>
                   </tr>
@@ -258,18 +419,43 @@ function ContabilidadContent() {
         <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4" onClick={() => setLightbox(null)}>
           <div className="relative max-w-2xl w-full" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between bg-white rounded-t-2xl px-5 py-3">
-              <p className="font-semibold text-mcm-text">{lightbox.titulo}</p>
-              <div className="flex items-center gap-3">
-                <a href={lightbox.url} target="_blank" rel="noreferrer"
-                  className="text-xs text-[#C62828] hover:underline flex items-center gap-1">
-                  <ExternalLink size={12} /> Abrir
-                </a>
-                <button onClick={() => setLightbox(null)} className="text-mcm-muted hover:text-mcm-text text-xl">✕</button>
-              </div>
+              <p className="font-semibold text-mcm-text">
+                {lightbox.titulo}
+                {lightbox.urls.length > 1 && (
+                  <span className="ml-2 text-xs text-mcm-muted font-normal">({lightbox.urls.length} archivos)</span>
+                )}
+              </p>
+              <button onClick={() => setLightbox(null)} className="text-mcm-muted hover:text-mcm-text text-xl">✕</button>
             </div>
-            <div className="bg-slate-100 rounded-b-2xl overflow-hidden flex items-center justify-center min-h-64">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={lightbox.url} alt={lightbox.titulo} className="max-w-full max-h-[70vh] object-contain" />
+            <div className="bg-slate-100 rounded-b-2xl overflow-y-auto max-h-[75vh] p-3 space-y-3">
+              {lightbox.urls.map((url, idx) => {
+                const isPdf = url.split("?")[0].toLowerCase().endsWith(".pdf");
+                return (
+                  <div key={idx} className="bg-white rounded-xl overflow-hidden">
+                    <div className="flex items-center justify-between px-4 py-2 border-b border-slate-100">
+                      <span className="text-xs text-mcm-muted">
+                        {lightbox.urls.length > 1 ? `Comprobante ${idx + 1}` : "Comprobante"}
+                      </span>
+                      <a href={url} target="_blank" rel="noreferrer"
+                        className="text-xs text-[#C62828] hover:underline flex items-center gap-1">
+                        <ExternalLink size={12} /> Abrir
+                      </a>
+                    </div>
+                    {isPdf ? (
+                      <div className="flex flex-col items-center gap-2 p-3">
+                        <embed src={url} type="application/pdf" className="w-full h-[60vh] rounded-lg" />
+                        <a href={url} target="_blank" rel="noreferrer"
+                          className="text-xs text-[#C62828] hover:underline flex items-center gap-1">
+                          <ExternalLink size={12} /> Abrir PDF
+                        </a>
+                      </div>
+                    ) : (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={url} alt={`${lightbox.titulo} ${idx + 1}`} className="w-full max-h-[70vh] object-contain" />
+                    )}
+                  </div>
+                );
+              })}
             </div>
           </div>
         </div>

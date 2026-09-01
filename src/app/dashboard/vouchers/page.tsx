@@ -19,7 +19,12 @@ function VouchersContent() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState<string | null>(null);
   const [error, setError] = useState("");
-  const [preview, setPreview] = useState<string | null>(null);
+  const [preview, setPreview] = useState<string[] | null>(null);
+
+  function openPreview(voucherUrl: string) {
+    const urls = (voucherUrl ?? "").split(",").map(u => u.trim()).filter(Boolean);
+    setPreview(urls.length > 0 ? urls : null);
+  }
   const [rejectModal, setRejectModal] = useState<Voucher | null>(null);
   const [rejectReason, setRejectReason] = useState("");
   const [tab, setTab] = useState<"pendientes" | "historial">("pendientes");
@@ -206,7 +211,7 @@ function VouchersContent() {
                       </span>
                     </td>
                     <td className="py-3 px-4">
-                      <button onClick={() => setPreview(v.voucher_url)}
+                      <button onClick={() => openPreview(v.voucher_url)}
                         className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 font-medium">
                         <Eye size={12} /> Ver
                       </button>
@@ -284,7 +289,7 @@ function VouchersContent() {
                       </td>
                       <td className="py-3 px-4">
                         <div className="flex gap-2">
-                          <button onClick={() => setPreview(v.voucher_url)}
+                          <button onClick={() => openPreview(v.voucher_url)}
                             className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 font-medium">
                             <Eye size={12} /> Voucher
                           </button>
@@ -311,18 +316,45 @@ function VouchersContent() {
       )}
 
       {/* Preview modal */}
-      {preview && (
+      {preview && preview.length > 0 && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" onClick={() => setPreview(null)}>
           <div className="bg-white rounded-2xl shadow-xl p-4 max-w-lg w-full max-h-[80vh] overflow-auto" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-3">
-              <h3 className="font-bold text-mcm-text">Voucher</h3>
-              <div className="flex gap-2">
-                <a href={preview} target="_blank" rel="noreferrer" className="text-blue-600 hover:text-blue-800"><ExternalLink size={16} /></a>
-                <button onClick={() => setPreview(null)}><X size={20} className="text-mcm-muted" /></button>
-              </div>
+              <h3 className="font-bold text-mcm-text">
+                {preview.length > 1 ? `Vouchers (${preview.length})` : "Voucher"}
+              </h3>
+              <button onClick={() => setPreview(null)}><X size={20} className="text-mcm-muted" /></button>
             </div>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={preview} alt="Voucher" className="w-full rounded-lg" />
+            <div className="space-y-4">
+              {preview.map((url, i) => {
+                const isPdf = url.toLowerCase().split("?")[0].endsWith(".pdf");
+                return (
+                  <div key={`${url}-${i}`} className="space-y-1">
+                    {preview.length > 1 && (
+                      <p className="text-xs text-mcm-muted font-medium">Comprobante {i + 1}</p>
+                    )}
+                    {isPdf ? (
+                      <div className="border border-mcm-border rounded-lg overflow-hidden">
+                        <a href={url} target="_blank" rel="noreferrer"
+                          className="flex items-center gap-2 px-3 py-2 text-sm text-blue-600 hover:text-blue-800 font-medium bg-slate-50">
+                          <ExternalLink size={14} /> Abrir PDF en nueva pestaña
+                        </a>
+                        <embed src={url} type="application/pdf" className="w-full h-[400px]" />
+                      </div>
+                    ) : (
+                      <div className="relative">
+                        <a href={url} target="_blank" rel="noreferrer"
+                          className="absolute top-2 right-2 bg-white/90 rounded p-1 text-blue-600 hover:text-blue-800 shadow">
+                          <ExternalLink size={14} />
+                        </a>
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={url} alt={`Voucher ${i + 1}`} className="w-full rounded-lg" />
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
           </div>
         </div>
       )}
