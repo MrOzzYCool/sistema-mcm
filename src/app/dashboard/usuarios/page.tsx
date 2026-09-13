@@ -37,8 +37,11 @@ function UsuariosContent() {
 
   // Enrollment modal state
   const [enrollModal, setEnrollModal] = useState<{ show: boolean; target: Profile | null }>({ show: false, target: null });
-  const [enrollForm, setEnrollForm] = useState({ carrera_id: "", ciclo: "1", fecha_inicio_ciclo: "" });
+  const [enrollForm, setEnrollForm] = useState({ carrera_id: "", ciclo: "1", cycle_opening_id: "", fecha_inicio_ciclo: "" });
   const [enrollSaving, setEnrollSaving] = useState(false);
+  // Secciones disponibles para la carrera/ciclo seleccionados en el modal de matrícula
+  const [enrollSecciones, setEnrollSecciones] = useState<{ id: string; seccion: number; tope: number; vinculadas: number; cupos_disponibles: number }[]>([]);
+  const [enrollSeccionesLoading, setEnrollSeccionesLoading] = useState(false);
 
   // Edit modal state
   const [editModal, setEditModal] = useState<{ show: boolean; target: Profile | null }>({ show: false, target: null });
@@ -201,12 +204,43 @@ function UsuariosContent() {
   }
 
   function openEnrollModal(p: Profile) {
-    setEnrollForm({ carrera_id: "", ciclo: "1", fecha_inicio_ciclo: "" });
+    setEnrollForm({ carrera_id: "", ciclo: "1", cycle_opening_id: "", fecha_inicio_ciclo: "" });
+    setEnrollSecciones([]);
     setEnrollModal({ show: true, target: p });
   }
 
+  // Cargar las secciones disponibles cuando cambian carrera/ciclo en el modal de matrícula
+  useEffect(() => {
+    if (!enrollModal.show || !enrollForm.carrera_id || !enrollForm.ciclo) {
+      setEnrollSecciones([]);
+      return;
+    }
+    let cancelado = false;
+    async function loadSecciones() {
+      setEnrollSeccionesLoading(true);
+      try {
+        const token = await getToken();
+        const res = await fetch(
+          `/api/admin/cycle-openings/available?carrera_id=${encodeURIComponent(enrollForm.carrera_id)}&ciclo=${encodeURIComponent(enrollForm.ciclo)}`,
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+        const data = await res.json();
+        if (cancelado) return;
+        setEnrollSecciones(res.ok ? (data.secciones ?? []) : []);
+      } catch {
+        if (!cancelado) setEnrollSecciones([]);
+      } finally {
+        if (!cancelado) setEnrollSeccionesLoading(false);
+      }
+    }
+    loadSecciones();
+    // Al cambiar carrera/ciclo, limpiar la sección seleccionada previamente
+    setEnrollForm(prev => ({ ...prev, cycle_opening_id: "" }));
+    return () => { cancelado = true; };
+  }, [enrollModal.show, enrollForm.carrera_id, enrollForm.ciclo]);
+
   async function handleEnroll() {
-    if (!enrollModal.target || !enrollForm.carrera_id) return;
+    if (!enrollModal.target || !enrollForm.carrera_id || !enrollForm.cycle_opening_id) return;
     setEnrollSaving(true); setError("");
     try {
       const res = await fetch("/api/admin/enroll-user", {
@@ -216,10 +250,13 @@ function UsuariosContent() {
           alumno_id: enrollModal.target.id,
           carrera_id: enrollForm.carrera_id,
           ciclo: parseInt(enrollForm.ciclo),
+          cycle_opening_id: enrollForm.cycle_opening_id,
           fecha_inicio_ciclo: enrollForm.fecha_inicio_ciclo || null,
         }),
       });
       const json = await res.json();
+      // El endpoint mapea: 409 "La sección alcanzó su tope", 400 "La sección no
+      // admite matrículas", 409 "La alumna ya está matriculada en ese ciclo".
       if (!res.ok) throw new Error(json.error);
       alert(json.message ?? "Inscripción creada exitosamente.");
       setEnrollModal({ show: false, target: null });
@@ -628,6 +665,31 @@ function UsuariosContent() {
                 </select>
               </div>
               <div>
+                <label className="block text-sm font-medium text-mcm-text mb-1">Sección *</label>
+                <select value={enrollForm.cycle_opening_id}
+                  onChange={e => setEnrollForm({...enrollForm, cycle_opening_id: e.target.value})}
+                  disabled={!enrollForm.carrera_id || enrollSeccionesLoading}
+                  className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#C62828] disabled:bg-slate-100 disabled:cursor-not-allowed">
+                  <option value="">
+                    {!enrollForm.carrera_id
+                      ? "Selecciona una carrera primero"
+                      : enrollSeccionesLoading
+                        ? "Cargando secciones..."
+                        : enrollSecciones.length === 0
+                          ? "Sin secciones activas para este ciclo"
+                          : "Seleccionar sección..."}
+                  </option>
+                  {enrollSecciones.map(s => (
+                    <option key={s.id} value={s.id} disabled={s.cupos_disponibles <= 0}>
+                      Sección {s.seccion} — {s.vinculadas}/{s.tope}{s.cupos_disponibles <= 0 ? " (llena)" : ""}
+                    </option>
+                  ))}
+                </select>
+                {enrollForm.carrera_id && !enrollSeccionesLoading && enrollSecciones.length === 0 && (
+                  <p className="text-xs text-amber-600 mt-1">No hay secciones activas. Abre una apertura para esta carrera y ciclo.</p>
+                )}
+              </div>
+              <div>
                 <label className="block text-sm font-medium text-mcm-text mb-1">Fecha de inicio de clases</label>
                 <input type="date" value={enrollForm.fecha_inicio_ciclo}
                   onChange={e => setEnrollForm({...enrollForm, fecha_inicio_ciclo: e.target.value})}
@@ -643,7 +705,7 @@ function UsuariosContent() {
             </div>
             <div className="flex gap-3 mt-5">
               <button onClick={() => setEnrollModal({ show: false, target: null })} className="btn-secondary flex-1 text-sm">Cancelar</button>
-              <button onClick={handleEnroll} disabled={enrollSaving || !enrollForm.carrera_id}
+              <button onClick={handleEnroll} disabled={enrollSaving || !enrollForm.carrera_id || !enrollForm.cycle_opening_id}
                 className="btn-primary flex-1 text-sm disabled:opacity-50 flex items-center justify-center gap-2">
                 {enrollSaving && <Loader2 size={14} className="animate-spin" />}
                 {enrollSaving ? "Asignando..." : "Asignar inscripción"}

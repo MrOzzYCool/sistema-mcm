@@ -4,8 +4,10 @@ import { supabase } from "@/lib/supabase";
 
 /**
  * POST /api/admin/enroll-user
- * Asigna carrera y ciclo a un alumno existente.
- * Crea inscripción, historial de ciclo y genera cursos desde la malla.
+ * Asigna carrera y ciclo a un alumno existente, vinculándolo a una sección
+ * concreta (cycle_opening_id) mediante la RPC atómica `enroll_into_opening`,
+ * que controla estado de la sección, duplicados y cupo.
+ * Tras el vínculo: registra historial de ciclo y genera cursos desde la malla.
  */
 export async function POST(req: NextRequest) {
   const authHeader = req.headers.get("authorization") ?? "";
@@ -16,10 +18,14 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "No autorizado" }, { status: 403 });
   }
 
-  const { alumno_id, carrera_id, ciclo, fecha_inicio_ciclo } = await req.json();
+  const { alumno_id, carrera_id, ciclo, cycle_opening_id, fecha_inicio_ciclo } = await req.json();
 
   if (!alumno_id || !carrera_id || !ciclo) {
     return NextResponse.json({ error: "alumno_id, carrera_id y ciclo son requeridos" }, { status: 400 });
+  }
+
+  if (!cycle_opening_id) {
+    return NextResponse.json({ error: "cycle_opening_id es requerido" }, { status: 400 });
   }
 
   try {
@@ -45,7 +51,7 @@ export async function POST(req: NextRequest) {
 
     const ahora = new Date().toISOString();
 
-    // Verificar si ya tiene inscripción en esta carrera
+    // Detectar si la inscripción ya existía (para el mensaje final).
     const { data: existente } = await supabaseAdmin
       .from("inscripciones")
       .select("id")
@@ -53,27 +59,33 @@ export async function POST(req: NextRequest) {
       .eq("carrera_id", carrera_id)
       .single();
 
-    if (existente) {
-      // Actualizar inscripción existente
-      await supabaseAdmin.from("inscripciones").update({
-        ciclo_actual: ciclo,
-        fecha_inicio_ciclo: fechaInicio + "T00:00:00.000Z",
-        estado: "activo",
-        updated_at: ahora,
-      }).eq("id", existente.id);
-    } else {
-      // Crear nueva inscripción
-      const { error: inscErr } = await supabaseAdmin.from("inscripciones").insert({
-        alumno_id,
-        carrera_id,
-        ciclo_actual: ciclo,
-        fecha_inicio_ciclo: fechaInicio + "T00:00:00.000Z",
-        fecha_matricula: ahora,
-        estado: "activo",
-      });
-      if (inscErr) {
-        return NextResponse.json({ error: `Error creando inscripción: ${inscErr.message}` }, { status: 500 });
+    // Matrícula atómica por sección vía RPC: control de estado de la sección,
+    // duplicados, cupo, insert/update de la inscripción con cycle_opening_id
+    // y transición a 'llena' al alcanzar el tope.
+    const { data: enrollData, error: enrollErr } = await supabaseAdmin.rpc("enroll_into_opening", {
+      p_alumno_id: alumno_id,
+      p_carrera_id: carrera_id,
+      p_ciclo: ciclo,
+      p_opening_id: cycle_opening_id,
+      p_fecha_inicio: fechaInicio + "T00:00:00.000Z",
+      p_fecha_matricula: ahora,
+    });
+
+    if (enrollErr) {
+      const msg = enrollErr.message ?? "";
+      if (msg.includes("SECCION_LLENA")) {
+        return NextResponse.json({ error: "La sección alcanzó su tope" }, { status: 409 });
       }
+      if (msg.includes("SECCION_NO_ADMITE_MATRICULAS")) {
+        return NextResponse.json({ error: "La sección no admite matrículas" }, { status: 400 });
+      }
+      if (msg.includes("MATRICULA_DUPLICADA")) {
+        return NextResponse.json({ error: "La alumna ya está matriculada en ese ciclo" }, { status: 409 });
+      }
+      if (msg.includes("APERTURA_NO_ENCONTRADA")) {
+        return NextResponse.json({ error: "Apertura no encontrada" }, { status: 404 });
+      }
+      return NextResponse.json({ error: `Error en la matrícula: ${msg}` }, { status: 500 });
     }
 
     // Crear/actualizar historial de ciclo
@@ -109,9 +121,11 @@ export async function POST(req: NextRequest) {
         nombre_completo: profile.nombre_completo,
         carrera_id,
         ciclo,
+        cycle_opening_id,
         fecha_inicio: fechaInicio,
         cursos_generados: creados,
         actualizado: !!existente,
+        enroll: enrollData,
       },
     });
 
@@ -122,6 +136,7 @@ export async function POST(req: NextRequest) {
         : `Inscripción ${existente ? "actualizada" : "creada"} para ${profile.nombre_completo}. ${creados} cursos generados.`,
       cursos_generados: creados,
       cursos_error: cursosErr ?? null,
+      enroll: enrollData,
     });
 
   } catch (err) {

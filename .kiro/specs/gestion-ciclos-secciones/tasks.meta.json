@@ -1,0 +1,347 @@
+{
+  "pbtResults": {},
+  "executionHistory": {
+    "1.1 Verificar y finalizar `src/db/gestion-ciclos-secciones-schema.sql`": [
+      {
+        "executionId": "a17cc165-4d19-4d76-ba5c-304b1293e2d8",
+        "chatSessionId": "0c265071-4271-45b5-b1a2-9757e5d074e0",
+        "timestamp": 1789322436387
+      },
+      {
+        "executionId": "a17cc165-4d19-4d76-ba5c-304b1293e2d8",
+        "chatSessionId": "0c265071-4271-45b5-b1a2-9757e5d074e0",
+        "timestamp": 1789322444174
+      },
+      {
+        "executionId": "a17cc165-4d19-4d76-ba5c-304b1293e2d8",
+        "chatSessionId": "0c265071-4271-45b5-b1a2-9757e5d074e0",
+        "timestamp": 1789322521602
+      }
+    ],
+    "1.2 Añadir/actualizar las formas TypeScript del módulo": [
+      {
+        "executionId": "a17cc165-4d19-4d76-ba5c-304b1293e2d8",
+        "chatSessionId": "0c265071-4271-45b5-b1a2-9757e5d074e0",
+        "timestamp": 1789322436469
+      },
+      {
+        "executionId": "a17cc165-4d19-4d76-ba5c-304b1293e2d8",
+        "chatSessionId": "0c265071-4271-45b5-b1a2-9757e5d074e0",
+        "timestamp": 1789322526352
+      },
+      {
+        "executionId": "a17cc165-4d19-4d76-ba5c-304b1293e2d8",
+        "chatSessionId": "0c265071-4271-45b5-b1a2-9757e5d074e0",
+        "timestamp": 1789322587576
+      }
+    ],
+    "2.1 Actualizar `POST` en `src/app/api/admin/cycle-openings/route.ts`": [
+      {
+        "executionId": "a17cc165-4d19-4d76-ba5c-304b1293e2d8",
+        "chatSessionId": "0c265071-4271-45b5-b1a2-9757e5d074e0",
+        "timestamp": 1789322436553
+      },
+      {
+        "executionId": "a17cc165-4d19-4d76-ba5c-304b1293e2d8",
+        "chatSessionId": "0c265071-4271-45b5-b1a2-9757e5d074e0",
+        "timestamp": 1789322592932
+      },
+      {
+        "executionId": "a17cc165-4d19-4d76-ba5c-304b1293e2d8",
+        "chatSessionId": "0c265071-4271-45b5-b1a2-9757e5d074e0",
+        "timestamp": 1789322692280
+      }
+    ],
+    "3.1 Crear `GET` en `src/app/api/admin/cycle-openings/available/route.ts`": [
+      {
+        "executionId": "a17cc165-4d19-4d76-ba5c-304b1293e2d8",
+        "chatSessionId": "0c265071-4271-45b5-b1a2-9757e5d074e0",
+        "timestamp": 1789322436608
+      },
+      {
+        "executionId": "a17cc165-4d19-4d76-ba5c-304b1293e2d8",
+        "chatSessionId": "0c265071-4271-45b5-b1a2-9757e5d074e0",
+        "timestamp": 1789322594362
+      },
+      {
+        "executionId": "a17cc165-4d19-4d76-ba5c-304b1293e2d8",
+        "chatSessionId": "0c265071-4271-45b5-b1a2-9757e5d074e0",
+        "timestamp": 1789322693712
+      }
+    ],
+    "4.1 Actualizar `POST` en `src/app/api/admin/enroll-user/route.ts` para usar la RPC `enroll_into_opening`": [
+      {
+        "executionId": "a17cc165-4d19-4d76-ba5c-304b1293e2d8",
+        "chatSessionId": "0c265071-4271-45b5-b1a2-9757e5d074e0",
+        "timestamp": 1789322436667
+      },
+      {
+        "executionId": "a17cc165-4d19-4d76-ba5c-304b1293e2d8",
+        "chatSessionId": "0c265071-4271-45b5-b1a2-9757e5d074e0",
+        "timestamp": 1789322595792
+      },
+      {
+        "executionId": "a17cc165-4d19-4d76-ba5c-304b1293e2d8",
+        "chatSessionId": "0c265071-4271-45b5-b1a2-9757e5d074e0",
+        "timestamp": 1789322695125
+      }
+    ],
+    "5. Checkpoint — Verificar migración, apertura y matrícula": [
+      {
+        "executionId": "a17cc165-4d19-4d76-ba5c-304b1293e2d8",
+        "chatSessionId": "0c265071-4271-45b5-b1a2-9757e5d074e0",
+        "timestamp": 1789322436741
+      },
+      {
+        "executionId": "a17cc165-4d19-4d76-ba5c-304b1293e2d8",
+        "chatSessionId": "0c265071-4271-45b5-b1a2-9757e5d074e0",
+        "timestamp": 1789322970231
+      }
+    ],
+    "6.1 Crear el servicio de promoción en `src/lib/gestion-ciclos-secciones/promocion-grupal.ts`": [
+      {
+        "executionId": "a17cc165-4d19-4d76-ba5c-304b1293e2d8",
+        "chatSessionId": "0c265071-4271-45b5-b1a2-9757e5d074e0",
+        "timestamp": 1789322436801
+      },
+      {
+        "executionId": "a17cc165-4d19-4d76-ba5c-304b1293e2d8",
+        "chatSessionId": "0c265071-4271-45b5-b1a2-9757e5d074e0",
+        "timestamp": 1789322597054
+      },
+      {
+        "executionId": "a17cc165-4d19-4d76-ba5c-304b1293e2d8",
+        "chatSessionId": "0c265071-4271-45b5-b1a2-9757e5d074e0",
+        "timestamp": 1789322696467
+      }
+    ],
+    "7.1 Crear `POST` en `src/app/api/admin/cycle-openings/close/route.ts` (alias `promover-seccion`)": [
+      {
+        "executionId": "a17cc165-4d19-4d76-ba5c-304b1293e2d8",
+        "chatSessionId": "0c265071-4271-45b5-b1a2-9757e5d074e0",
+        "timestamp": 1789322436855
+      },
+      {
+        "executionId": "9a4bb27a-0e1a-4ece-a510-2f7b56492f3c",
+        "chatSessionId": "0c265071-4271-45b5-b1a2-9757e5d074e0",
+        "timestamp": 1789323395886
+      },
+      {
+        "executionId": "9a4bb27a-0e1a-4ece-a510-2f7b56492f3c",
+        "chatSessionId": "0c265071-4271-45b5-b1a2-9757e5d074e0",
+        "timestamp": 1789323594673
+      }
+    ],
+    "8. Checkpoint — Verificar promoción grupal": [
+      {
+        "executionId": "a17cc165-4d19-4d76-ba5c-304b1293e2d8",
+        "chatSessionId": "0c265071-4271-45b5-b1a2-9757e5d074e0",
+        "timestamp": 1789322436920
+      }
+    ],
+    "9.1 Agregar campo `tope` y estado de sección en `src/app/dashboard/ciclos/page.tsx`": [
+      {
+        "executionId": "a17cc165-4d19-4d76-ba5c-304b1293e2d8",
+        "chatSessionId": "0c265071-4271-45b5-b1a2-9757e5d074e0",
+        "timestamp": 1789322436984
+      },
+      {
+        "executionId": "9a4bb27a-0e1a-4ece-a510-2f7b56492f3c",
+        "chatSessionId": "0c265071-4271-45b5-b1a2-9757e5d074e0",
+        "timestamp": 1789323606012
+      },
+      {
+        "executionId": "9a4bb27a-0e1a-4ece-a510-2f7b56492f3c",
+        "chatSessionId": "0c265071-4271-45b5-b1a2-9757e5d074e0",
+        "timestamp": 1789323731255
+      }
+    ],
+    "9.2 Implementar modal \"Cerrar ciclo y promover\"": [
+      {
+        "executionId": "a17cc165-4d19-4d76-ba5c-304b1293e2d8",
+        "chatSessionId": "0c265071-4271-45b5-b1a2-9757e5d074e0",
+        "timestamp": 1789322437046
+      },
+      {
+        "executionId": "9a4bb27a-0e1a-4ece-a510-2f7b56492f3c",
+        "chatSessionId": "0c265071-4271-45b5-b1a2-9757e5d074e0",
+        "timestamp": 1789323751532
+      },
+      {
+        "executionId": "9a4bb27a-0e1a-4ece-a510-2f7b56492f3c",
+        "chatSessionId": "0c265071-4271-45b5-b1a2-9757e5d074e0",
+        "timestamp": 1789323896158
+      }
+    ],
+    "10.1 Reemplazar el input de ciclo por desplegable de secciones en `src/app/dashboard/usuarios/page.tsx`": [
+      {
+        "executionId": "a17cc165-4d19-4d76-ba5c-304b1293e2d8",
+        "chatSessionId": "0c265071-4271-45b5-b1a2-9757e5d074e0",
+        "timestamp": 1789322437102
+      },
+      {
+        "executionId": "9a4bb27a-0e1a-4ece-a510-2f7b56492f3c",
+        "chatSessionId": "0c265071-4271-45b5-b1a2-9757e5d074e0",
+        "timestamp": 1789323606433
+      },
+      {
+        "executionId": "9a4bb27a-0e1a-4ece-a510-2f7b56492f3c",
+        "chatSessionId": "0c265071-4271-45b5-b1a2-9757e5d074e0",
+        "timestamp": 1789323732569
+      }
+    ],
+    "13. Checkpoint final — Verificar integración de extremo a extremo": [
+      {
+        "executionId": "a17cc165-4d19-4d76-ba5c-304b1293e2d8",
+        "chatSessionId": "0c265071-4271-45b5-b1a2-9757e5d074e0",
+        "timestamp": 1789322437160
+      }
+    ],
+    "1. Finalizar y verificar la migración de base de datos": [
+      {
+        "executionId": "a17cc165-4d19-4d76-ba5c-304b1293e2d8",
+        "chatSessionId": "0c265071-4271-45b5-b1a2-9757e5d074e0",
+        "timestamp": 1789322587637
+      }
+    ],
+    "2. Actualizar apertura de sección con carrera y tope obligatorios": [
+      {
+        "executionId": "a17cc165-4d19-4d76-ba5c-304b1293e2d8",
+        "chatSessionId": "0c265071-4271-45b5-b1a2-9757e5d074e0",
+        "timestamp": 1789322692358
+      }
+    ],
+    "3. Endpoint de secciones disponibles para el desplegable de matrícula": [
+      {
+        "executionId": "a17cc165-4d19-4d76-ba5c-304b1293e2d8",
+        "chatSessionId": "0c265071-4271-45b5-b1a2-9757e5d074e0",
+        "timestamp": 1789322693768
+      }
+    ],
+    "4. Matrícula por sección con control de cupo, duplicados y ciclo de vida": [
+      {
+        "executionId": "a17cc165-4d19-4d76-ba5c-304b1293e2d8",
+        "chatSessionId": "0c265071-4271-45b5-b1a2-9757e5d074e0",
+        "timestamp": 1789322695184
+      }
+    ],
+    "6. Servicio de promoción grupal (lógica de decisión y orquestación)": [
+      {
+        "executionId": "a17cc165-4d19-4d76-ba5c-304b1293e2d8",
+        "chatSessionId": "0c265071-4271-45b5-b1a2-9757e5d074e0",
+        "timestamp": 1789322696544
+      }
+    ],
+    "4.2 Escribir property test para el control de cupo (lógica pura)": [
+      {
+        "executionId": "a17cc165-4d19-4d76-ba5c-304b1293e2d8",
+        "chatSessionId": "0c265071-4271-45b5-b1a2-9757e5d074e0",
+        "timestamp": 1789322702661
+      },
+      {
+        "executionId": "a17cc165-4d19-4d76-ba5c-304b1293e2d8",
+        "chatSessionId": "0c265071-4271-45b5-b1a2-9757e5d074e0",
+        "timestamp": 1789322840824
+      }
+    ],
+    "6.2 Escribir property test para decisión de promoción vs. egreso": [
+      {
+        "executionId": "a17cc165-4d19-4d76-ba5c-304b1293e2d8",
+        "chatSessionId": "0c265071-4271-45b5-b1a2-9757e5d074e0",
+        "timestamp": 1789322704114
+      },
+      {
+        "executionId": "a17cc165-4d19-4d76-ba5c-304b1293e2d8",
+        "chatSessionId": "0c265071-4271-45b5-b1a2-9757e5d074e0",
+        "timestamp": 1789322845964
+      }
+    ],
+    "4.3 Escribir property test para sin matrícula activa duplicada": [
+      {
+        "executionId": "a17cc165-4d19-4d76-ba5c-304b1293e2d8",
+        "chatSessionId": "0c265071-4271-45b5-b1a2-9757e5d074e0",
+        "timestamp": 1789322842227
+      }
+    ],
+    "4.4 Escribir property test para rechazo en secciones no disponibles": [
+      {
+        "executionId": "a17cc165-4d19-4d76-ba5c-304b1293e2d8",
+        "chatSessionId": "0c265071-4271-45b5-b1a2-9757e5d074e0",
+        "timestamp": 1789322843167
+      }
+    ],
+    "4.5 Escribir property test para transición a \"llena\"": [
+      {
+        "executionId": "a17cc165-4d19-4d76-ba5c-304b1293e2d8",
+        "chatSessionId": "0c265071-4271-45b5-b1a2-9757e5d074e0",
+        "timestamp": 1789322844561
+      }
+    ],
+    "6.3 Escribir property test para continuidad de montos y beneficios": [
+      {
+        "executionId": "a17cc165-4d19-4d76-ba5c-304b1293e2d8",
+        "chatSessionId": "0c265071-4271-45b5-b1a2-9757e5d074e0",
+        "timestamp": 1789322846924
+      }
+    ],
+    "6.4 Escribir property test para fechas de vencimiento del plan": [
+      {
+        "executionId": "a17cc165-4d19-4d76-ba5c-304b1293e2d8",
+        "chatSessionId": "0c265071-4271-45b5-b1a2-9757e5d074e0",
+        "timestamp": 1789322848350
+      }
+    ],
+    "6.5 Escribir property test para exoneración con monto cero": [
+      {
+        "executionId": "a17cc165-4d19-4d76-ba5c-304b1293e2d8",
+        "chatSessionId": "0c265071-4271-45b5-b1a2-9757e5d074e0",
+        "timestamp": 1789322849383
+      }
+    ],
+    "2.2 Escribir test unitario de validación de apertura": [
+      {
+        "executionId": "a17cc165-4d19-4d76-ba5c-304b1293e2d8",
+        "chatSessionId": "0c265071-4271-45b5-b1a2-9757e5d074e0",
+        "timestamp": 1789322855107
+      },
+      {
+        "executionId": "a17cc165-4d19-4d76-ba5c-304b1293e2d8",
+        "chatSessionId": "0c265071-4271-45b5-b1a2-9757e5d074e0",
+        "timestamp": 1789322967517
+      }
+    ],
+    "3.2 Escribir test unitario del endpoint available": [
+      {
+        "executionId": "a17cc165-4d19-4d76-ba5c-304b1293e2d8",
+        "chatSessionId": "0c265071-4271-45b5-b1a2-9757e5d074e0",
+        "timestamp": 1789322856513
+      },
+      {
+        "executionId": "a17cc165-4d19-4d76-ba5c-304b1293e2d8",
+        "chatSessionId": "0c265071-4271-45b5-b1a2-9757e5d074e0",
+        "timestamp": 1789322970067
+      }
+    ],
+    "7. Endpoint de cierre y promoción grupal": [
+      {
+        "executionId": "9a4bb27a-0e1a-4ece-a510-2f7b56492f3c",
+        "chatSessionId": "0c265071-4271-45b5-b1a2-9757e5d074e0",
+        "timestamp": 1789323594740
+      }
+    ],
+    "10. UI: matrícula con desplegable de sección": [
+      {
+        "executionId": "9a4bb27a-0e1a-4ece-a510-2f7b56492f3c",
+        "chatSessionId": "0c265071-4271-45b5-b1a2-9757e5d074e0",
+        "timestamp": 1789323732643
+      }
+    ],
+    "9. UI: página de ciclos (tope, estado y promoción)": [
+      {
+        "executionId": "9a4bb27a-0e1a-4ece-a510-2f7b56492f3c",
+        "chatSessionId": "0c265071-4271-45b5-b1a2-9757e5d074e0",
+        "timestamp": 1789323896238
+      }
+    ]
+  }
+}

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { supabase } from "@/lib/supabase";
+import { validarApertura } from "@/lib/gestion-ciclos-secciones/apertura-validation";
 
 const ALLOWED_ROLES = ["super_admin", "cycle_manager"];
 
@@ -38,7 +39,7 @@ export async function GET(req: NextRequest) {
 
 /**
  * POST /api/admin/cycle-openings
- * Body: { cycle_number, start_date }
+ * Body: { cycle_number, start_date, carrera_id, tope, fecha_fin? }
  */
 export async function POST(req: NextRequest) {
   const admin = await verifyAccess(req);
@@ -47,14 +48,11 @@ export async function POST(req: NextRequest) {
   // Auto-generate section number based on program type
   // Carreras técnicas: from 410
   // To allow custom sections, check if a custom seccion was provided
-  const { cycle_number, start_date, fecha_fin, carrera_id } = await req.json();
+  const { cycle_number, start_date, fecha_fin, carrera_id, tope } = await req.json();
 
-  if (!cycle_number || !start_date) {
-    return NextResponse.json({ error: "cycle_number y start_date son requeridos" }, { status: 400 });
-  }
-
-  if (!Number.isInteger(cycle_number) || cycle_number <= 0) {
-    return NextResponse.json({ error: "cycle_number debe ser un entero positivo" }, { status: 400 });
+  const validationError = validarApertura({ carrera_id, cycle_number, start_date, tope });
+  if (validationError) {
+    return NextResponse.json({ error: validationError.message }, { status: 400 });
   }
 
   // No restriction — multiple active openings of the same cycle can coexist
@@ -91,7 +89,7 @@ export async function POST(req: NextRequest) {
 
   const { data, error } = await supabaseAdmin
     .from("cycle_openings")
-    .insert({ cycle_number, start_date, fecha_fin: fecha_fin || null, status: "activo", seccion: nextSeccion, carrera_id: carrera_id || null, created_by: admin.id })
+    .insert({ cycle_number, start_date, fecha_fin: fecha_fin || null, status: "activo", seccion: nextSeccion, tope, carrera_id, created_by: admin.id })
     .select()
     .single();
 
@@ -100,7 +98,7 @@ export async function POST(req: NextRequest) {
   await supabaseAdmin.from("historial_auditoria").insert({
     accion: "aperturar_ciclo",
     admin_id: admin.id, admin_email: admin.email,
-    detalle: { cycle_number, start_date },
+    detalle: { cycle_number, start_date, carrera_id, tope, seccion: nextSeccion },
   });
 
   return NextResponse.json({ success: true, opening: data }, { status: 201 });

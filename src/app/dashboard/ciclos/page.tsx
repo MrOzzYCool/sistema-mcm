@@ -6,13 +6,14 @@ import { useAuth } from "@/lib/auth-context";
 import RouteGuard from "@/components/RouteGuard";
 import {
   Loader2, Plus, Calendar, Clock, X, RefreshCw, CheckCircle,
-  AlertCircle, Trash2, Save, Pencil, Ban,
+  AlertCircle, Trash2, Save, Pencil, Ban, GraduationCap,
 } from "lucide-react";
+import type { PromocionGrupalResult } from "@/lib/gestion-ciclos-secciones/types";
 import clsx from "clsx";
 import ClockTimePicker from "@/components/ClockTimePicker";
 
 interface CycleOpening {
-  id: string; cycle_number: number; start_date: string; fecha_fin: string | null; status: string; seccion: number | null; carrera_id: string | null; created_at: string;
+  id: string; cycle_number: number; start_date: string; fecha_fin: string | null; status: string; seccion: number | null; carrera_id: string | null; tope: number | null; created_at: string;
 }
 interface Schedule {
   id: string; professor_id: string; course_id: string; cycle_number: number;
@@ -96,6 +97,7 @@ function ProfesorCombobox({
 function CiclosContent() {
   const { user } = useAuth();
   const canDelete = user?.role && ["super_admin"].includes(user.role);
+  const canManage = user?.role && ["super_admin", "cycle_manager"].includes(user.role);
 
   const [tab, setTab] = useState<"aperturas" | "horarios">("aperturas");
   const [openings, setOpenings] = useState<CycleOpening[]>([]);
@@ -113,6 +115,8 @@ function CiclosContent() {
   const [editOpeningModal, setEditOpeningModal] = useState<{ show: boolean; target: CycleOpening | null }>({ show: false, target: null });
   const [editOpeningForm, setEditOpeningForm] = useState({ cycle_number: "1", start_date: "", fecha_fin: "" });
   const [editScheduleModal, setEditScheduleModal] = useState<{ show: boolean; target: Schedule | null }>({ show: false, target: null });
+  const [promoteModal, setPromoteModal] = useState<{ show: boolean; target: CycleOpening | null }>({ show: false, target: null });
+  const [promoteResult, setPromoteResult] = useState<PromocionGrupalResult | null>(null);
   const [editScheduleForm, setEditScheduleForm] = useState({
     profesor_id: "", carrera_id: "", curso_id: "", ciclo: "1",
     dia_semana: "lunes", hora_inicio: "18:00", hora_fin: "20:00", aula: "",
@@ -120,7 +124,8 @@ function CiclosContent() {
   const [saving, setSaving] = useState(false);
 
   // Forms
-  const [openingForm, setOpeningForm] = useState({ cycle_number: "1", start_date: "", fecha_fin: "", carrera_id: "" });
+  const [openingForm, setOpeningForm] = useState({ cycle_number: "1", start_date: "", fecha_fin: "", carrera_id: "", tope: "" });
+  const [topeError, setTopeError] = useState("");
   const [scheduleForm, setScheduleForm] = useState({
     profesor_id: "", carrera_id: "", curso_id: "", ciclo: "1", apertura_id: "",
     dias_semana: [] as string[], fechas_especificas: [] as string[],
@@ -162,8 +167,30 @@ function CiclosContent() {
 
   useEffect(() => { cargar(); }, [cargar]);
 
+  // Valida que el tope sea un entero >= 1. Devuelve el número válido o null.
+  function validateTope(value: string): number | null {
+    const trimmed = value.trim();
+    if (!/^\d+$/.test(trimmed)) return null;
+    const n = parseInt(trimmed, 10);
+    return Number.isInteger(n) && n >= 1 ? n : null;
+  }
+
   async function handleCreateOpening() {
-    setSaving(true); setError(""); setSuccess("");
+    setError(""); setSuccess(""); setTopeError("");
+
+    if (!openingForm.carrera_id) {
+      setTopeError("");
+      setError("La carrera es obligatoria.");
+      return;
+    }
+
+    const topeValido = validateTope(openingForm.tope);
+    if (topeValido === null) {
+      setTopeError("El tope debe ser un número entero mayor o igual a 1.");
+      return;
+    }
+
+    setSaving(true);
     try {
       const res = await fetch("/api/admin/cycle-openings", {
         method: "POST",
@@ -172,13 +199,15 @@ function CiclosContent() {
           cycle_number: parseInt(openingForm.cycle_number),
           start_date: openingForm.start_date,
           fecha_fin: openingForm.fecha_fin || null,
-          carrera_id: openingForm.carrera_id || undefined,
+          carrera_id: openingForm.carrera_id,
+          tope: topeValido,
         }),
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error);
       setSuccess(`Ciclo ${openingForm.cycle_number} aperturado.`);
       setShowOpeningModal(false);
+      setOpeningForm({ cycle_number: "1", start_date: "", fecha_fin: "", carrera_id: "", tope: "" });
       cargar();
     } catch (err) { setError(err instanceof Error ? err.message : "Error"); }
     finally { setSaving(false); }
@@ -501,6 +530,51 @@ function CiclosContent() {
     finally { setSaving(false); }
   }
 
+  function openPromoteModal(o: CycleOpening) {
+    setError(""); setSuccess("");
+    setPromoteResult(null);
+    setPromoteModal({ show: true, target: o });
+  }
+
+  function closePromoteModal() {
+    setPromoteModal({ show: false, target: null });
+    setPromoteResult(null);
+  }
+
+  async function handleCloseAndPromote() {
+    if (!promoteModal.target) return;
+    const target = promoteModal.target;
+    setSaving(true); setError(""); setSuccess("");
+    try {
+      const res = await fetch("/api/admin/cycle-openings/close", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${await getToken()}` },
+        body: JSON.stringify({ opening_id: target.id, confirmar: true }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error ?? "No se pudo cerrar el ciclo");
+
+      const result = json.result as PromocionGrupalResult | undefined;
+      if (result) {
+        setPromoteResult(result);
+        setSuccess(
+          `Sección concluida. Promovidas: ${result.promovidas.length}, ` +
+          `egresadas: ${result.egresadas.length}, omitidas: ${result.omitidas.length}` +
+          (result.advertencias_deuda.length ? `, con deuda: ${result.advertencias_deuda.length}` : "") +
+          (result.errores.length ? `, errores: ${result.errores.length}` : "") + "."
+        );
+      } else {
+        setSuccess(json.mensaje ?? "Sección concluida.");
+        closePromoteModal();
+      }
+      cargar();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Error");
+      closePromoteModal();
+    }
+    finally { setSaving(false); }
+  }
+
   const DAYS = ["lunes", "martes", "miercoles", "jueves", "viernes"];
   const DAY_LABELS: Record<string, string> = { lunes: "Lun", martes: "Mar", miercoles: "Mié", jueves: "Jue", viernes: "Vie" };
 
@@ -567,7 +641,7 @@ function CiclosContent() {
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="bg-slate-50">
-                <tr>{["Ciclo", "Fecha de Inicio", "Fecha de Culminación", "Estado", "Creado", ...(canDelete ? ["Acciones"] : [])].map(h => (
+                <tr>{["Ciclo", "Fecha de Inicio", "Fecha de Culminación", "Tope", "Estado", "Creado", ...(canManage ? ["Acciones"] : [])].map(h => (
                   <th key={h} className="text-left py-3 px-4 text-mcm-muted font-medium text-xs uppercase tracking-wide">{h}</th>
                 ))}</tr>
               </thead>
@@ -593,25 +667,41 @@ function CiclosContent() {
                     </td>
                     <td className="py-3 px-4">{new Date(o.start_date + "T00:00:00").toLocaleDateString("es-PE", { day: "2-digit", month: "long", year: "numeric" })}</td>
                     <td className="py-3 px-4">{o.fecha_fin ? new Date(o.fecha_fin + "T00:00:00").toLocaleDateString("es-PE", { day: "2-digit", month: "long", year: "numeric" }) : "—"}</td>
-                    <td className="py-3 px-4"><span className={o.status === "activo" ? "badge-green" : o.status === "suspendido" ? "badge-yellow" : "badge-gray"}>{o.status}</span></td>
+                    <td className="py-3 px-4 text-mcm-text">{o.tope ?? "—"}</td>
+                    <td className="py-3 px-4">
+                      <span className={
+                        o.status === "activo" ? "badge-green"
+                        : o.status === "llena" ? "badge-blue"
+                        : o.status === "suspendido" ? "badge-yellow"
+                        : "badge-gray"
+                      }>{o.status}</span>
+                    </td>
                     <td className="py-3 px-4 text-mcm-muted text-xs">{new Date(o.created_at).toLocaleDateString("es-PE", { day: "2-digit", month: "short" })}</td>
-                    {canDelete && (
+                    {canManage && (
                       <td className="py-3 px-4">
                         <div className="flex gap-2">
-                          <button onClick={() => openEditOpening(o)} title="Editar apertura"
-                            className="text-mcm-muted hover:text-[#C62828]"><Pencil size={14} /></button>
-                          {o.status === "activo" && (
-                            <button onClick={() => handleSuspendOpening(o)} title="Suspender ciclo (cancela cuotas y desactiva alumnos)"
-                              className="text-mcm-muted hover:text-orange-600"><Ban size={14} /></button>
+                          {(o.status === "activo" || o.status === "llena") && (
+                            <button onClick={() => openPromoteModal(o)} title="Cerrar ciclo y promover a las alumnas al siguiente ciclo"
+                              className="text-mcm-muted hover:text-green-600"><GraduationCap size={14} /></button>
                           )}
-                          <button onClick={() => handleDeleteOpening(o.id, o.cycle_number)} title="Eliminar apertura"
-                            className="text-mcm-muted hover:text-red-600"><Trash2 size={14} /></button>
+                          {canDelete && (
+                            <>
+                              <button onClick={() => openEditOpening(o)} title="Editar apertura"
+                                className="text-mcm-muted hover:text-[#C62828]"><Pencil size={14} /></button>
+                              {o.status === "activo" && (
+                                <button onClick={() => handleSuspendOpening(o)} title="Suspender ciclo (cancela cuotas y desactiva alumnos)"
+                                  className="text-mcm-muted hover:text-orange-600"><Ban size={14} /></button>
+                              )}
+                              <button onClick={() => handleDeleteOpening(o.id, o.cycle_number)} title="Eliminar apertura"
+                                className="text-mcm-muted hover:text-red-600"><Trash2 size={14} /></button>
+                            </>
+                          )}
                         </div>
                       </td>
                     )}
                   </tr>
                 ))}
-                {!openings.length && <tr><td colSpan={canDelete ? 6 : 5} className="py-12 text-center text-mcm-muted text-sm">No hay aperturas de ciclo</td></tr>}
+                {!openings.length && <tr><td colSpan={canManage ? 7 : 6} className="py-12 text-center text-mcm-muted text-sm">No hay aperturas de ciclo</td></tr>}
               </tbody>
             </table>
           </div>
@@ -826,7 +916,7 @@ function CiclosContent() {
                 <label className="block text-sm font-medium text-mcm-text mb-1">Carrera/Programa</label>
                 <select value={openingForm.carrera_id} onChange={e => setOpeningForm({...openingForm, carrera_id: e.target.value})}
                   className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#C62828]">
-                  <option value="">General (sin carrera)</option>
+                  <option value="">Selecciona una carrera...</option>
                   {carreras.map(c => <option key={c.id} value={c.id}>{c.nombre_carrera}</option>)}
                 </select>
               </div>
@@ -847,10 +937,25 @@ function CiclosContent() {
                 <input type="date" value={openingForm.fecha_fin} onChange={e => setOpeningForm({...openingForm, fecha_fin: e.target.value})}
                   className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#C62828]" />
               </div>
+              <div>
+                <label className="block text-sm font-medium text-mcm-text mb-1">Tope (cupo máximo)</label>
+                <input
+                  type="number"
+                  min={1}
+                  step={1}
+                  value={openingForm.tope}
+                  onChange={e => { setOpeningForm({...openingForm, tope: e.target.value}); if (topeError) setTopeError(""); }}
+                  placeholder="Ej. 30"
+                  className={clsx(
+                    "w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#C62828] focus:outline-none",
+                    topeError ? "border-red-400" : "border-mcm-border"
+                  )} />
+                {topeError && <p className="mt-1 text-xs text-red-600">{topeError}</p>}
+              </div>
             </div>
             <div className="flex gap-3 mt-5">
               <button onClick={() => setShowOpeningModal(false)} className="btn-secondary flex-1 text-sm">Cancelar</button>
-              <button onClick={handleCreateOpening} disabled={saving || !openingForm.start_date}
+              <button onClick={handleCreateOpening} disabled={saving || !openingForm.start_date || !openingForm.carrera_id || !openingForm.tope.trim()}
                 className="btn-primary flex-1 text-sm disabled:opacity-50 flex items-center justify-center gap-2">
                 {saving && <Loader2 size={14} className="animate-spin" />}
                 {saving ? "Creando..." : "Aperturar"}
@@ -1166,6 +1271,104 @@ function CiclosContent() {
           </div>
         </div>
       )}
+
+      {/* Modal cerrar ciclo y promover */}
+      {promoteModal.show && promoteModal.target && (() => {
+        const o = promoteModal.target;
+        const carrera = carreras.find(c => c.id === o.carrera_id);
+        const label = carrera ? `${carrera.nombre_carrera} · Sección ${o.seccion ?? "—"}` : `Ciclo ${o.cycle_number} · Sección ${o.seccion ?? "—"}`;
+        return (
+          <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+            <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="font-bold text-mcm-text text-lg flex items-center gap-2">
+                  <GraduationCap size={20} className="text-green-600" /> Cerrar ciclo y promover
+                </h3>
+                <button onClick={closePromoteModal}><X size={20} className="text-mcm-muted" /></button>
+              </div>
+
+              {!promoteResult ? (
+                <div className="space-y-4">
+                  <p className="text-sm text-mcm-text">
+                    Vas a cerrar <strong>{label}</strong> (Ciclo {o.cycle_number}) y promover en bloque a todas sus alumnas activas al siguiente ciclo.
+                    Las alumnas que estén en el último ciclo de su carrera se marcarán como egresadas.
+                  </p>
+
+                  {/* Advertencia genérica de deuda (Req 10.2 / política OPCIÓN B) */}
+                  <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-3 text-sm text-yellow-800 flex items-start gap-2">
+                    <AlertCircle size={16} className="mt-0.5 flex-shrink-0" />
+                    <span>
+                      Las alumnas con <strong>deuda pendiente</strong> serán promovidas de todos modos, conservando sus cuotas impagas del ciclo anterior.
+                      El resultado de la operación detallará qué alumnas fueron promovidas con advertencia de deuda.
+                    </span>
+                  </div>
+
+                  <div className="bg-red-50 border border-red-200 rounded-xl p-3 text-sm text-red-700 flex items-start gap-2">
+                    <AlertCircle size={16} className="mt-0.5 flex-shrink-0" />
+                    <span>Esta acción concluye la sección de forma definitiva y no se puede deshacer.</span>
+                  </div>
+
+                  <div className="flex gap-3 mt-2">
+                    <button onClick={closePromoteModal} className="btn-secondary flex-1 text-sm">Cancelar</button>
+                    <button onClick={handleCloseAndPromote} disabled={saving}
+                      className="btn-primary flex-1 text-sm disabled:opacity-50 flex items-center justify-center gap-2">
+                      {saving && <Loader2 size={14} className="animate-spin" />}
+                      {saving ? "Procesando..." : "Cerrar y promover"}
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div className="bg-green-50 border border-green-200 rounded-xl p-3 text-sm text-green-800 flex items-center gap-2">
+                    <CheckCircle size={16} /> Sección concluida. Se procesaron {promoteResult.total_activas} alumnas activas.
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3 text-sm">
+                    <div className="rounded-xl border border-mcm-border p-3">
+                      <p className="text-mcm-muted text-xs uppercase tracking-wide">Promovidas</p>
+                      <p className="text-2xl font-bold text-green-700">{promoteResult.promovidas.length}</p>
+                    </div>
+                    <div className="rounded-xl border border-mcm-border p-3">
+                      <p className="text-mcm-muted text-xs uppercase tracking-wide">Egresadas</p>
+                      <p className="text-2xl font-bold text-blue-700">{promoteResult.egresadas.length}</p>
+                    </div>
+                    <div className="rounded-xl border border-mcm-border p-3">
+                      <p className="text-mcm-muted text-xs uppercase tracking-wide">Omitidas</p>
+                      <p className="text-2xl font-bold text-mcm-muted">{promoteResult.omitidas.length}</p>
+                    </div>
+                    <div className="rounded-xl border border-mcm-border p-3">
+                      <p className="text-mcm-muted text-xs uppercase tracking-wide">Con deuda</p>
+                      <p className="text-2xl font-bold text-yellow-600">{promoteResult.advertencias_deuda.length}</p>
+                    </div>
+                  </div>
+
+                  {promoteResult.advertencias_deuda.length > 0 && (
+                    <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-3 text-sm text-yellow-800">
+                      <p className="font-semibold flex items-center gap-2 mb-1"><AlertCircle size={16} /> Alumnas promovidas con deuda pendiente</p>
+                      <p className="text-xs">Se conservaron sus cuotas impagas. IDs: {promoteResult.advertencias_deuda.join(", ")}</p>
+                    </div>
+                  )}
+
+                  {promoteResult.errores.length > 0 && (
+                    <div className="bg-red-50 border border-red-200 rounded-xl p-3 text-sm text-red-700">
+                      <p className="font-semibold flex items-center gap-2 mb-1"><AlertCircle size={16} /> Errores ({promoteResult.errores.length})</p>
+                      <ul className="text-xs list-disc pl-4 space-y-0.5">
+                        {promoteResult.errores.map((e, i) => (
+                          <li key={i}>{e.alumno_id}: {e.error}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  <div className="flex justify-end mt-2">
+                    <button onClick={closePromoteModal} className="btn-primary text-sm">Cerrar</button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }
