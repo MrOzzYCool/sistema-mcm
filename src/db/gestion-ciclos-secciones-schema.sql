@@ -29,6 +29,13 @@ ALTER TABLE cycle_openings DROP CONSTRAINT IF EXISTS chk_cycle_openings_tope;
 ALTER TABLE cycle_openings ADD CONSTRAINT chk_cycle_openings_tope
   CHECK (tope >= 1);
 
+-- Limpieza del CHECK constraint legado autogenerado (cycle_openings_status_check).
+-- Ese constraint viejo solo permitía ('activo','cerrado') y rechaza los nuevos
+-- estados, provocando el error de violación al promover/cerrar una sección.
+-- Primero migramos los datos legados y luego eliminamos el constraint viejo.
+UPDATE cycle_openings SET status = 'concluido' WHERE status = 'cerrado';
+ALTER TABLE cycle_openings DROP CONSTRAINT IF EXISTS cycle_openings_status_check;
+
 -- Estados válidos del ciclo de vida de la sección (Req 5).
 -- 'suspendido' se conserva porque la UI actual lo usa al pausar aperturas.
 ALTER TABLE cycle_openings DROP CONSTRAINT IF EXISTS chk_cycle_openings_status;
