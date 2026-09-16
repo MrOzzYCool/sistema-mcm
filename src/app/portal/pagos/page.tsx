@@ -19,6 +19,7 @@ interface Plan {
 
 export default function PagosAlumnoPage() {
   const [plans, setPlans] = useState<Plan[]>([]);
+  const [selectedPlanId, setSelectedPlanId] = useState<string>("");
   const [firstLoad, setFirstLoad] = useState(true);
   const mountedRef = useRef(true);
   const fetchingRef = useRef(false);
@@ -40,6 +41,20 @@ export default function PagosAlumnoPage() {
 
   useEffect(() => { mountedRef.current = true; fetchPagos(); return () => { mountedRef.current = false; }; }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Ciclos ordenados del más reciente al más antiguo (mayor year/ciclo primero)
+  const sortedPlans = [...plans].sort((a, b) => (b.year - a.year) || (b.ciclo - a.ciclo));
+
+  // Inicializar/mantener la selección al plan más reciente cuando lleguen los datos,
+  // sin pisar la selección del usuario si el plan elegido sigue existiendo.
+  useEffect(() => {
+    if (sortedPlans.length === 0) {
+      if (selectedPlanId !== "") setSelectedPlanId("");
+      return;
+    }
+    const stillExists = sortedPlans.some(p => p.id === selectedPlanId);
+    if (!stillExists) setSelectedPlanId(sortedPlans[0].id);
+  }, [plans]); // eslint-disable-line react-hooks/exhaustive-deps
+
   if (firstLoad) {
     return <div className="p-6 flex items-center justify-center min-h-[50vh] gap-3 text-mcm-muted"><Loader2 size={20} className="animate-spin" /> <span className="text-sm">Cargando pagos...</span></div>;
   }
@@ -47,7 +62,9 @@ export default function PagosAlumnoPage() {
   const CONCEPTO_ORDER: Record<string, number> = {
     "MATRÍCULA": 1, "CUOTAS 01": 2, "CUOTAS 02": 3, "CUOTAS 03": 4, "CUOTAS 04": 5,
   };
-  const all = plans.flatMap(p => p.installments).sort((a, b) =>
+  // Plan (ciclo) seleccionado: usa el elegido, o el más reciente como respaldo.
+  const selectedPlan = sortedPlans.find(p => p.id === selectedPlanId) ?? sortedPlans[0] ?? null;
+  const all = (selectedPlan?.installments ?? []).slice().sort((a, b) =>
     (CONCEPTO_ORDER[a.concepto] ?? 99) - (CONCEPTO_ORDER[b.concepto] ?? 99)
   );
   const totalDeuda = all.filter(i => i.status !== "paid" && i.status !== "exonerado").reduce((s, i) => s + Number(i.amount), 0);
@@ -60,6 +77,22 @@ export default function PagosAlumnoPage() {
         <h1 className="text-2xl font-bold text-mcm-text">Estado de Cuenta</h1>
         <p className="text-mcm-muted text-sm mt-0.5">Historial y estado de tus cuotas</p>
       </div>
+
+      {sortedPlans.length > 0 && (
+        <div>
+          <label htmlFor="ciclo-selector" className="block text-xs font-medium text-mcm-muted mb-1.5">Período (Ciclo)</label>
+          <select
+            id="ciclo-selector"
+            value={selectedPlan?.id ?? ""}
+            onChange={e => setSelectedPlanId(e.target.value)}
+            className="border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#C62828] w-full sm:w-auto sm:min-w-[220px]"
+          >
+            {sortedPlans.map(p => (
+              <option key={p.id} value={p.id}>Ciclo {p.ciclo} — {p.year}</option>
+            ))}
+          </select>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <SummaryCard label="Deuda Pendiente" value={`S/ ${totalDeuda.toFixed(2)}`} color="red" />
