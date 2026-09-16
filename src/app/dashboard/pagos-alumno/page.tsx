@@ -6,7 +6,7 @@ import { supabase } from "@/lib/supabase";
 import RouteGuard from "@/components/RouteGuard";
 import {
   Loader2, ArrowLeft, CreditCard, CheckCircle, Pencil, Plus,
-  AlertCircle, X, Save, Paperclip,
+  AlertCircle, X, Save, Paperclip, ChevronDown,
 } from "lucide-react";
 import clsx from "clsx";
 
@@ -28,6 +28,7 @@ function PagosAlumnoContent() {
   const alumnoNombre = searchParams.get("nombre") ?? "Alumno";
 
   const [plans, setPlans] = useState<Plan[]>([]);
+  const [openPlans, setOpenPlans] = useState<Record<string, boolean>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
@@ -72,6 +73,23 @@ function PagosAlumnoContent() {
   }
 
   useEffect(() => { loadPlans(); loadBenefits(); }, [alumnoId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Sort plans most-recent first (year desc, then ciclo desc)
+  const sortedPlans = [...plans].sort((a, b) => (b.year - a.year) || (b.ciclo - a.ciclo));
+
+  function togglePlan(id: string) {
+    setOpenPlans(prev => ({ ...prev, [id]: !prev[id] }));
+  }
+
+  // Open the most recent plan by default without clobbering manual changes on reload.
+  const planIdsKey = sortedPlans.map(p => p.id).join(",");
+  useEffect(() => {
+    if (sortedPlans.length === 0) return;
+    const hasAnyCurrentOpen = sortedPlans.some(p => openPlans[p.id]);
+    if (!hasAnyCurrentOpen) {
+      setOpenPlans({ [sortedPlans[0].id]: true });
+    }
+  }, [planIdsKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function loadBenefits() {
     if (!alumnoId) return;
@@ -288,10 +306,23 @@ function PagosAlumnoContent() {
       ) : plans.length === 0 ? (
         <div className="card text-center py-12"><CreditCard size={40} className="mx-auto text-mcm-muted mb-3" /><h2 className="font-bold text-mcm-text text-lg mb-1">Sin planes de pago</h2><p className="text-mcm-muted text-sm">Genera un plan para este alumno.</p></div>
       ) : (
-        plans.map(plan => (
+        sortedPlans.map(plan => {
+          const isOpen = !!openPlans[plan.id];
+          return (
           <div key={plan.id} className="card overflow-hidden p-0">
-            <div className="px-6 py-4 border-b border-mcm-border flex items-center justify-between">
+            <div
+              role="button"
+              tabIndex={0}
+              aria-expanded={isOpen}
+              onClick={() => togglePlan(plan.id)}
+              onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); togglePlan(plan.id); } }}
+              className="px-6 py-4 border-b border-mcm-border flex items-center justify-between cursor-pointer hover:bg-slate-50 select-none"
+            >
               <div className="flex items-center gap-2">
+                <ChevronDown
+                  size={16}
+                  className={clsx("text-mcm-muted transition-transform", isOpen ? "rotate-0" : "-rotate-90")}
+                />
                 <CreditCard size={16} className="text-mcm-muted" />
                 <h2 className="font-semibold text-mcm-text">Ciclo {plan.ciclo} — {plan.year}</h2>
                 <span className={plan.status === "activo" ? "badge-blue" : "badge-green"}>{plan.status}</span>
@@ -300,12 +331,13 @@ function PagosAlumnoContent() {
                 <span className="text-xs text-mcm-muted">
                   Total: S/ {plan.installments.reduce((s, i) => s + Number(i.amount), 0).toFixed(2)}
                 </span>
-                <button onClick={() => handleDeletePlan(plan.id, plan.ciclo)}
+                <button onClick={(e) => { e.stopPropagation(); handleDeletePlan(plan.id, plan.ciclo); }}
                   className="text-xs text-red-500 hover:text-red-700 font-medium">
                   Eliminar plan
                 </button>
               </div>
             </div>
+            {isOpen && (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead className="bg-slate-50">
@@ -368,8 +400,10 @@ function PagosAlumnoContent() {
                 </tbody>
               </table>
             </div>
+            )}
           </div>
-        ))
+          );
+        })
       )}
 
       {/* Beneficios Académicos */}
