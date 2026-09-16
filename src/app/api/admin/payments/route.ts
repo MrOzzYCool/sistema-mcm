@@ -187,15 +187,20 @@ export async function POST(req: NextRequest) {
   }
 
   if (action === "manual-comprobante") {
-    const { installment_id, comprobante_url, comprobante_serie, comprobante_numero, tipo_comprobante, fecha_pago } = body;
+    const { installment_id, comprobante_url, comprobante_serie, comprobante_numero, tipo_comprobante, fecha_pago, voucher_url } = body;
     if (!installment_id || !comprobante_url || !comprobante_serie || !comprobante_numero) {
       return NextResponse.json({ error: "installment_id, comprobante_url, comprobante_serie y comprobante_numero son requeridos" }, { status: 400 });
     }
+    if (!voucher_url) {
+      return NextResponse.json({ error: "El voucher es obligatorio" }, { status: 400 });
+    }
+
+    const reviewedAt = new Date().toISOString();
 
     // Update installment to paid with comprobante info
     const { error: instErr } = await supabaseAdmin.from("installments").update({
       status: "paid",
-      fecha_pago: fecha_pago ?? new Date().toISOString(),
+      fecha_pago: fecha_pago ?? reviewedAt,
       tipo_comprobante: tipo_comprobante ?? "boleta",
       comprobante_serie,
       comprobante_numero: String(comprobante_numero),
@@ -204,18 +209,47 @@ export async function POST(req: NextRequest) {
 
     if (instErr) return NextResponse.json({ error: instErr.message }, { status: 500 });
 
-    // Also approve any pending voucher for this installment
-    await supabaseAdmin.from("payment_vouchers").update({
-      status: "approved", reviewed_by: admin.id, reviewed_at: new Date().toISOString(),
-    }).eq("installment_id", installment_id).eq("status", "pending_review");
+    // Resolve alumno_id of the installment (needed if we must insert a new voucher)
+    const { data: instRow } = await supabaseAdmin
+      .from("installments")
+      .select("id, plan_id, payment_plans!inner(alumno_id)")
+      .eq("id", installment_id)
+      .single();
+    const alumnoId = (instRow?.payment_plans as unknown as { alumno_id: string } | null)?.alumno_id ?? null;
+
+    // Manage the voucher: reuse a pending one if present, otherwise insert a new approved voucher
+    const { data: existingVouchers } = await supabaseAdmin
+      .from("payment_vouchers")
+      .select("id")
+      .eq("installment_id", installment_id)
+      .eq("status", "pending_review");
+
+    if (existingVouchers && existingVouchers.length > 0) {
+      await supabaseAdmin.from("payment_vouchers").update({
+        status: "approved",
+        voucher_url,
+        reviewed_by: admin.id,
+        reviewed_at: reviewedAt,
+      }).eq("installment_id", installment_id).eq("status", "pending_review");
+    } else if (alumnoId) {
+      await supabaseAdmin.from("payment_vouchers").insert({
+        installment_id,
+        alumno_id: alumnoId,
+        voucher_url,
+        status: "approved",
+        tipo_comprobante: tipo_comprobante ?? "boleta",
+        reviewed_by: admin.id,
+        reviewed_at: reviewedAt,
+      });
+    }
 
     await supabaseAdmin.from("historial_auditoria").insert({
       accion: "comprobante_manual",
       admin_id: admin.id, admin_email: admin.email,
-      detalle: { installment_id, comprobante_serie, comprobante_numero, tipo_comprobante },
+      detalle: { installment_id, comprobante_serie, comprobante_numero, tipo_comprobante, voucher_registrado: true },
     });
 
-    return NextResponse.json({ success: true, message: `Comprobante ${comprobante_serie}-${comprobante_numero} adjuntado. Cuota marcada como pagada.` });
+    return NextResponse.json({ success: true, message: `Comprobante ${comprobante_serie}-${comprobante_numero} adjuntado con voucher. Cuota marcada como pagada.` });
   }
 
   if (action === "cancel-by-opening") {

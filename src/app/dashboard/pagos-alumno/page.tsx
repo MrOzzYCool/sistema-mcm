@@ -49,8 +49,10 @@ function PagosAlumnoContent() {
   const [manualModal, setManualModal] = useState<{ show: boolean; installmentId: string; concepto: string }>({ show: false, installmentId: "", concepto: "" });
   const [manualForm, setManualForm] = useState({ serie: "BBB2", numero: "", tipo: "boleta", url: "" });
   const [manualFile, setManualFile] = useState<File | null>(null);
+  const [voucherFiles, setVoucherFiles] = useState<File[]>([]);
   const [manualSaving, setManualSaving] = useState(false);
   const manualFileRef = useRef<HTMLInputElement>(null);
+  const voucherFileRef = useRef<HTMLInputElement>(null);
 
   async function getToken() {
     const { data } = await supabase.auth.getSession();
@@ -195,6 +197,17 @@ function PagosAlumnoContent() {
     setManualModal({ show: true, installmentId: inst.id, concepto: inst.concepto });
     setManualForm({ serie: "BBB2", numero: "", tipo: "boleta", url: "" });
     setManualFile(null);
+    setVoucherFiles([]);
+  }
+
+  function handleVoucherSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    const selected = Array.from(e.target.files ?? []);
+    if (selected.length > 0) setVoucherFiles(prev => [...prev, ...selected]);
+    if (voucherFileRef.current) voucherFileRef.current.value = "";
+  }
+
+  function removeVoucherFile(index: number) {
+    setVoucherFiles(prev => prev.filter((_, i) => i !== index));
   }
 
   async function handleManualComprobante() {
@@ -215,6 +228,20 @@ function PagosAlumnoContent() {
 
       if (!comprobanteUrl) throw new Error("Debes subir un archivo o ingresar una URL");
 
+      // Upload voucher(s) — mandatory
+      if (voucherFiles.length === 0) throw new Error("Debes subir al menos un voucher");
+      const voucherUrls: string[] = [];
+      for (let index = 0; index < voucherFiles.length; index++) {
+        const file = voucherFiles[index];
+        const ext = file.name.split(".").pop() ?? "jpg";
+        const vPath = `vouchers-manual/${manualModal.installmentId}_${Date.now()}_${index}.${ext}`;
+        const { error: vUpErr } = await supabase.storage.from("vouchers").upload(vPath, file);
+        if (vUpErr) throw new Error(vUpErr.message);
+        const { data: vUrlData } = supabase.storage.from("vouchers").getPublicUrl(vPath);
+        voucherUrls.push(vUrlData.publicUrl);
+      }
+      const voucherUrl = voucherUrls.join(",");
+
       const res = await fetch("/api/admin/payments", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${await getToken()}` },
@@ -225,12 +252,14 @@ function PagosAlumnoContent() {
           comprobante_serie: manualForm.serie,
           comprobante_numero: manualForm.numero,
           tipo_comprobante: manualForm.tipo,
+          voucher_url: voucherUrl,
         }),
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error);
       setSuccess(json.message ?? "Comprobante adjuntado.");
       setManualModal({ show: false, installmentId: "", concepto: "" });
+      setVoucherFiles([]);
       loadPlans();
     } catch (err) { setError(err instanceof Error ? err.message : "Error"); }
     finally { setManualSaving(false); }
@@ -543,11 +572,48 @@ function PagosAlumnoContent() {
                 <input value={manualForm.url} onChange={e => setManualForm({...manualForm, url: e.target.value})}
                   placeholder="https://..." className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#C62828]" />
               </div>
+
+              {/* Voucher(s) del pago */}
+              <div className="border-t border-mcm-border pt-3">
+                <label className="block text-sm font-medium text-mcm-text mb-1">Voucher(s) del pago (obligatorio)</label>
+                {voucherFiles.length === 0 ? (
+                  <button type="button" onClick={() => voucherFileRef.current?.click()}
+                    className="btn-secondary text-xs flex items-center gap-1">
+                    <Paperclip size={12} /> Seleccionar voucher(s)
+                  </button>
+                ) : (
+                  <div className="space-y-2">
+                    {voucherFiles.map((file, index) => {
+                      const isImage = file.type.startsWith("image/");
+                      return (
+                        <div key={`${file.name}-${index}`} className="flex items-center gap-2 bg-slate-50 border border-mcm-border rounded-lg p-2">
+                          {isImage ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img src={URL.createObjectURL(file)} alt="Preview" className="w-10 h-10 object-cover rounded" />
+                          ) : (
+                            <div className="w-10 h-10 bg-red-50 rounded flex items-center justify-center text-red-600 text-xs font-bold">PDF</div>
+                          )}
+                          <span className="text-xs text-mcm-text truncate flex-1">{file.name}</span>
+                          <button type="button" onClick={() => removeVoucherFile(index)} className="text-mcm-muted hover:text-red-600 shrink-0" title="Quitar">
+                            <X size={14} />
+                          </button>
+                        </div>
+                      );
+                    })}
+                    <button type="button" onClick={() => voucherFileRef.current?.click()}
+                      className="flex items-center gap-1 text-xs font-medium text-[#C62828] hover:text-[#8E0000]">
+                      <Plus size={12} /> Agregar más
+                    </button>
+                  </div>
+                )}
+                <input ref={voucherFileRef} type="file" accept="image/*,.pdf" multiple className="hidden" onChange={handleVoucherSelect} />
+                <p className="text-xs text-mcm-muted mt-2">Puedes subir varios vouchers si el pago se hizo en partes.</p>
+              </div>
             </div>
             <div className="flex gap-3 mt-5">
               <button onClick={() => setManualModal({ show: false, installmentId: "", concepto: "" })} className="btn-secondary flex-1 text-sm">Cancelar</button>
               <button onClick={handleManualComprobante}
-                disabled={manualSaving || !manualForm.serie || !manualForm.numero || (!manualFile && !manualForm.url)}
+                disabled={manualSaving || !manualForm.serie || !manualForm.numero || (!manualFile && !manualForm.url) || voucherFiles.length === 0}
                 className="btn-primary flex-1 text-sm disabled:opacity-50 flex items-center justify-center gap-2">
                 {manualSaving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
                 {manualSaving ? "Guardando..." : "Adjuntar y marcar pagado"}
