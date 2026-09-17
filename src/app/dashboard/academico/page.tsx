@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect, useCallback, useRef, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import Link from "next/link";
 import RouteGuard from "@/components/RouteGuard";
 import { supabase } from "@/lib/supabase";
 import { Plus, RefreshCw, Loader2, X, BookOpen, GraduationCap, Link2, Pencil, Upload, Download, Trash2, Search, Settings } from "lucide-react";
@@ -15,7 +16,8 @@ type ModalType = "carrera" | "curso" | "editCurso" | "importCSV" | null;
 
 function AcademicoContent() {
   const router = useRouter();
-  const [tab, setTab]             = useState<Tab>("carreras");
+  const searchParams = useSearchParams();
+  const [tab, setTab]             = useState<Tab>(() => (searchParams.get("tab") === "cursos" ? "cursos" : "carreras"));
   const [carreras, setCarreras]   = useState<Carrera[]>([]);
   const [cursos, setCursos]       = useState<Curso[]>([]);
   const [loading, setLoading]     = useState(true);
@@ -31,9 +33,9 @@ function AcademicoContent() {
   const [deleteTarget, setDeleteTarget] = useState<{ tipo: "carrera" | "curso"; id: string; nombre: string } | null>(null);
   const [deleting, setDeleting]         = useState(false);
   // Filtros de cursos
-  const [busqueda, setBusqueda]         = useState("");
-  const [filtroCarrera, setFiltroCarrera] = useState("todos");
-  const [filtroCiclo, setFiltroCiclo]   = useState("todos");
+  const [busqueda, setBusqueda]         = useState(() => searchParams.get("q") ?? "");
+  const [filtroCarrera, setFiltroCarrera] = useState(() => searchParams.get("carrera") ?? "todos");
+  const [filtroCiclo, setFiltroCiclo]   = useState(() => searchParams.get("ciclo") ?? "todos");
 
   async function getToken() {
     const { data } = await supabase.auth.getSession();
@@ -55,6 +57,17 @@ function AcademicoContent() {
   }, []);
 
   useEffect(() => { cargar(); }, [cargar]);
+
+  // Persistir filtros/tab en la URL
+  useEffect(() => {
+    const params = new URLSearchParams();
+    if (tab !== "carreras") params.set("tab", tab);
+    if (busqueda) params.set("q", busqueda);
+    if (filtroCarrera !== "todos") params.set("carrera", filtroCarrera);
+    if (filtroCiclo !== "todos") params.set("ciclo", filtroCiclo);
+    const qs = params.toString();
+    router.replace(qs ? `/dashboard/academico?${qs}` : "/dashboard/academico", { scroll: false });
+  }, [tab, busqueda, filtroCarrera, filtroCiclo, router]);
 
   async function apiCall(method: string, body: Record<string, unknown>) {
     const token = await getToken();
@@ -331,8 +344,13 @@ function AcademicoContent() {
                           <td className="py-3 px-4">
                             <div className="flex gap-2">
                               <button onClick={() => openEdit(c)} title="Editar curso" className="text-mcm-muted hover:text-[#C62828]"><Pencil size={14} /></button>
-                              <button onClick={() => router.push(`/dashboard/academico/evaluaciones?curso_id=${c.id}&nombre=${encodeURIComponent(c.nombre_curso)}`)}
-                                title="Configurar evaluaciones" className="text-mcm-muted hover:text-blue-600"><Settings size={14} /></button>
+                              <Link
+                                href={`/dashboard/academico/evaluaciones?curso_id=${c.id}&nombre=${encodeURIComponent(c.nombre_curso)}`}
+                                title="Configurar evaluaciones"
+                                className="text-mcm-muted hover:text-blue-600 inline-flex items-center"
+                              >
+                                <Settings size={14} />
+                              </Link>
                               <button onClick={() => setDeleteTarget({ tipo: "curso", id: c.id, nombre: c.nombre_curso })}
                                 title="Eliminar curso" className="text-mcm-muted hover:text-red-600 transition-colors"><Trash2 size={14} /></button>
                             </div>
@@ -516,5 +534,11 @@ function Input({ label, value, onChange, type, upper }: {
 }
 
 export default function AcademicoPage() {
-  return <RouteGuard allowedRoles={["super_admin"]}><AcademicoContent /></RouteGuard>;
+  return (
+    <RouteGuard allowedRoles={["super_admin"]}>
+      <Suspense fallback={<div className="p-6 text-mcm-muted text-sm">Cargando...</div>}>
+        <AcademicoContent />
+      </Suspense>
+    </RouteGuard>
+  );
 }
