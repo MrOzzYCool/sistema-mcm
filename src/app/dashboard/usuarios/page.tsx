@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, Suspense } from "react";
 import { useAuth } from "@/lib/auth-context";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
+import Link from "next/link";
 import RouteGuard from "@/components/RouteGuard";
 import { supabase } from "@/lib/supabase";
 import {
@@ -22,13 +23,14 @@ interface Profile {
 function UsuariosContent() {
   const { user } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [profiles, setProfiles]   = useState<Profile[]>([]);
   const [loading, setLoading]     = useState(true);
   const [error, setError]         = useState("");
-  const [search, setSearch]       = useState("");
-  const [filtroRol, setFiltroRol] = useState("todos");
-  const [filtroEstado, setFiltroEstado] = useState("todos");
-  const [filtroCiclo, setFiltroCiclo] = useState("todos");
+  const [search, setSearch]       = useState(() => searchParams.get("q") ?? "");
+  const [filtroRol, setFiltroRol] = useState(() => searchParams.get("rol") ?? "todos");
+  const [filtroEstado, setFiltroEstado] = useState(() => searchParams.get("estado") ?? "todos");
+  const [filtroCiclo, setFiltroCiclo] = useState(() => searchParams.get("ciclo") ?? "todos");
   const [inscripciones, setInscripciones] = useState<{ alumno_id: string; ciclo_actual: number }[]>([]);
   const [showModal, setShowModal] = useState(false);
   const [saving, setSaving]       = useState(false);
@@ -84,6 +86,18 @@ function UsuariosContent() {
   }, []);
 
   useEffect(() => { cargar(); }, [cargar]);
+
+  // Sincronizar filtros con la URL (query params) sin recargar ni llenar el historial.
+  // El efecto solo ESCRIBE la URL a partir del estado; no vuelve a leer/re-setear estado.
+  useEffect(() => {
+    const params = new URLSearchParams();
+    if (search) params.set("q", search);
+    if (filtroRol !== "todos") params.set("rol", filtroRol);
+    if (filtroEstado !== "todos") params.set("estado", filtroEstado);
+    if (filtroCiclo !== "todos") params.set("ciclo", filtroCiclo);
+    const qs = params.toString();
+    router.replace(qs ? `/dashboard/usuarios?${qs}` : "/dashboard/usuarios", { scroll: false });
+  }, [search, filtroRol, filtroEstado, filtroCiclo, router]);
 
   // Cargar carreras para el selector
   useEffect(() => {
@@ -476,8 +490,13 @@ function UsuariosContent() {
                           </button>
                         )}
                         {p.rol === "alumno" && (
-                          <button onClick={() => router.push(`/dashboard/pagos-alumno?alumno_id=${p.id}&nombre=${encodeURIComponent(p.nombre_completo)}`)}
-                            title="Gestionar pagos" className="text-mcm-muted hover:text-green-600"><CreditCard size={14} /></button>
+                          <Link
+                            href={`/dashboard/pagos-alumno?alumno_id=${p.id}&nombre=${encodeURIComponent(p.nombre_completo)}`}
+                            title="Gestionar pagos"
+                            className="text-mcm-muted hover:text-green-600 inline-flex items-center"
+                          >
+                            <CreditCard size={14} />
+                          </Link>
                         )}
                         {p.estado !== "eliminado" && p.id !== user?.id && (
                           <button onClick={() => setDeleteModal({ show: true, targetUser: p, confirmText: "", deleting: false })} title="Eliminar usuario"
@@ -848,7 +867,9 @@ function UsuariosContent() {
 export default function UsuariosPage() {
   return (
     <RouteGuard allowedRoles={["super_admin", "staff_tramites", "gestor"]}>
-      <UsuariosContent />
+      <Suspense fallback={<div className="p-6 text-mcm-muted text-sm">Cargando...</div>}>
+        <UsuariosContent />
+      </Suspense>
     </RouteGuard>
   );
 }
