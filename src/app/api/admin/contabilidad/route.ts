@@ -75,7 +75,7 @@ export async function GET(req: NextRequest) {
     const { data: cuotas } = await supabaseAdmin
       .from("installments")
       .select(`
-        id, amount, due_date, fecha_pago, concepto, status,
+        id, amount, due_date, fecha_pago, concepto, status, nota_contabilidad,
         comprobante_url, comprobante_serie, comprobante_numero, tipo_comprobante,
         plan_id, payment_plans!inner(alumno_id)
       `)
@@ -143,6 +143,7 @@ export async function GET(req: NextRequest) {
         comprobante_tipo: c.tipo_comprobante ?? "boleta",
         comprobante_serie: c.comprobante_serie ?? null,
         comprobante_numero: c.comprobante_numero ?? null,
+        nota: c.nota_contabilidad ?? null,
       };
     });
 
@@ -171,6 +172,7 @@ export async function GET(req: NextRequest) {
       comprobante_tipo: s.tipo_comprobante ?? "boleta",
       comprobante_serie: null,
       comprobante_numero: null,
+      nota: null as string | null,
     }));
 
     // ── 3. Trámites externos aprobados ────────────────────────────────────────
@@ -198,6 +200,7 @@ export async function GET(req: NextRequest) {
       comprobante_tipo: s.tipo_comprobante ?? "boleta",
       comprobante_serie: null,
       comprobante_numero: null,
+      nota: null as string | null,
     }));
 
     // ── 4. Combinar y calcular resumen ────────────────────────────────────────

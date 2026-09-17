@@ -27,6 +27,7 @@ interface Ingreso {
   banco: string | null;
   operation_number: string | null;
   ocr_status: string | null;
+  nota?: string | null;
 }
 
 interface Resumen {
@@ -128,7 +129,7 @@ function ContabilidadContent() {
 
   // Exportar a CSV
   function exportarCSV() {
-    const headers = ["Fecha", "Tipo", "Nombre", "Concepto", "Monto", "Banco", "N° Operación", "Comprobante", "Serie-Número"];
+    const headers = ["Fecha", "Tipo", "Nombre", "Concepto", "Monto", "Banco", "N° Operación", "Comprobante", "Serie-Número", "Observación"];
     const rows = listaFiltrada.map((i) => [
       i.fecha,
       TIPO_LABEL[i.tipo] ?? i.tipo,
@@ -141,6 +142,7 @@ function ContabilidadContent() {
       i.comprobante_serie && i.comprobante_numero
         ? `${i.comprobante_serie}-${i.comprobante_numero}`
         : "—",
+      i.nota ?? "",
     ]);
     const csv = [headers, ...rows].map((r) => r.map(c => `"${c}"`).join(",")).join("\n");
     const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
@@ -285,7 +287,7 @@ function ContabilidadContent() {
             <table className="w-full text-sm">
               <thead className="bg-slate-50">
                 <tr>
-                  {["Fecha", "Tipo", "Nombre", "Concepto", "Monto", "Banco", "N° Operación", "Voucher", "Comprobante"].map((h) => (
+                  {["Fecha", "Tipo", "Nombre", "Concepto", "Monto", "Banco", "N° Operación", "Voucher", "Comprobante", "Observación"].map((h) => (
                     <th key={h} className="text-left py-3.5 px-4 text-mcm-muted font-medium text-xs uppercase tracking-wide whitespace-nowrap">{h}</th>
                   ))}
                 </tr>
@@ -399,11 +401,14 @@ function ContabilidadContent() {
                         <span className="text-xs text-mcm-muted">—</span>
                       )}
                     </td>
+                    <td className="py-3.5 px-4 text-xs text-mcm-text max-w-[200px] truncate" title={i.nota ?? ""}>
+                      {i.nota ? i.nota : <span className="text-mcm-muted">—</span>}
+                    </td>
                   </tr>
                 ))}
                 {listaFiltrada.length === 0 && !loading && (
                   <tr>
-                    <td colSpan={9} className="py-12 text-center text-mcm-muted text-sm">
+                    <td colSpan={10} className="py-12 text-center text-mcm-muted text-sm">
                       No hay registros para este mes.
                     </td>
                   </tr>

@@ -6,7 +6,7 @@ import { supabase } from "@/lib/supabase";
 import RouteGuard from "@/components/RouteGuard";
 import {
   Loader2, ArrowLeft, CreditCard, CheckCircle, Pencil, Plus,
-  AlertCircle, X, Save, Paperclip, ChevronDown,
+  AlertCircle, X, Save, Paperclip, ChevronDown, StickyNote,
 } from "lucide-react";
 import clsx from "clsx";
 
@@ -15,6 +15,7 @@ interface Installment {
   amount: number; amount_original: number;
   due_date: string; status: string; fecha_pago: string | null; observacion: string | null;
   comprobante_url?: string | null; comprobante_serie?: string | null; comprobante_numero?: string | null;
+  nota_contabilidad?: string | null;
 }
 interface Plan {
   id: string; ciclo: number; year: number; status: string;
@@ -67,6 +68,11 @@ function PagosAlumnoContent() {
   const [fechaModal, setFechaModal] = useState<{ show: boolean; installmentId: string; concepto: string }>({ show: false, installmentId: "", concepto: "" });
   const [fechaValue, setFechaValue] = useState("");
   const [fechaSaving, setFechaSaving] = useState(false);
+
+  // Nota de contabilidad modal
+  const [notaModal, setNotaModal] = useState<{ show: boolean; installmentId: string; concepto: string }>({ show: false, installmentId: "", concepto: "" });
+  const [notaValue, setNotaValue] = useState("");
+  const [notaSaving, setNotaSaving] = useState(false);
 
   async function getToken() {
     const { data } = await supabase.auth.getSession();
@@ -329,6 +335,29 @@ function PagosAlumnoContent() {
     finally { setFechaSaving(false); }
   }
 
+  function openNotaModal(inst: Installment) {
+    setNotaValue(inst.nota_contabilidad ?? "");
+    setNotaModal({ show: true, installmentId: inst.id, concepto: inst.concepto });
+  }
+
+  async function handleSaveNota() {
+    if (!notaModal.installmentId) return;
+    setNotaSaving(true); setError("");
+    try {
+      const res = await fetch("/api/admin/payments", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${await getToken()}` },
+        body: JSON.stringify({ action: "update-nota", installment_id: notaModal.installmentId, nota_contabilidad: notaValue.trim() || null }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error);
+      setSuccess(json.message ?? "Nota guardada.");
+      setNotaModal({ show: false, installmentId: "", concepto: "" });
+      loadPlans();
+    } catch (err) { setError(err instanceof Error ? err.message : "Error"); }
+    finally { setNotaSaving(false); }
+  }
+
   if (!alumnoId) {
     return <div className="p-6 card text-center py-12"><AlertCircle size={40} className="mx-auto text-red-400 mb-3" /><p className="text-mcm-text font-bold">Falta alumno_id</p><button onClick={() => router.back()} className="btn-secondary text-sm mt-4">Volver</button></div>;
   }
@@ -423,29 +452,38 @@ function PagosAlumnoContent() {
                         {inst.fecha_pago ? new Date(inst.fecha_pago).toLocaleDateString("es-PE", { day: "2-digit", month: "short" }) : "—"}
                       </td>
                       <td className="py-3 px-4">
-                        {inst.status !== "paid" && inst.status !== "exonerado" && (
-                          <div className="flex gap-2">
-                            <button onClick={() => handleMarkPaid(inst.id)} title="Marcar pagado" className="text-mcm-muted hover:text-green-600"><CheckCircle size={14} /></button>
-                            <button onClick={() => openEdit(inst)} title="Editar monto" className="text-mcm-muted hover:text-blue-600"><Pencil size={14} /></button>
-                            <button onClick={() => openManualComprobante(inst)} title="Adjuntar comprobante manual" className="text-mcm-muted hover:text-amber-600"><Paperclip size={14} /></button>
-                          </div>
-                        )}
-                        {inst.status === "paid" && inst.comprobante_url && (
-                          <div className="flex items-center gap-2">
-                            <a href={inst.comprobante_url} target="_blank" rel="noreferrer" className="text-xs text-green-600 hover:text-green-800 font-medium">
-                              Ver comprobante
-                            </a>
-                            <button onClick={() => openFechaModal(inst)} title="Editar fecha de emisión" className="text-mcm-muted hover:text-blue-600"><Pencil size={14} /></button>
-                          </div>
-                        )}
-                        {inst.status === "paid" && !inst.comprobante_url && (
-                          <div className="flex items-center gap-2">
-                            <button onClick={() => openManualComprobante(inst)} title="Adjuntar boleta" className="flex items-center gap-1 text-xs text-amber-600 hover:text-amber-800 font-medium">
-                              <Paperclip size={12} /> Adjuntar boleta
-                            </button>
-                            <button onClick={() => openFechaModal(inst)} title="Editar fecha de emisión" className="text-mcm-muted hover:text-blue-600"><Pencil size={14} /></button>
-                          </div>
-                        )}
+                        <div className="flex items-center gap-2">
+                          {inst.status !== "paid" && inst.status !== "exonerado" && (
+                            <>
+                              <button onClick={() => handleMarkPaid(inst.id)} title="Marcar pagado" className="text-mcm-muted hover:text-green-600"><CheckCircle size={14} /></button>
+                              <button onClick={() => openEdit(inst)} title="Editar monto" className="text-mcm-muted hover:text-blue-600"><Pencil size={14} /></button>
+                              <button onClick={() => openManualComprobante(inst)} title="Adjuntar comprobante manual" className="text-mcm-muted hover:text-amber-600"><Paperclip size={14} /></button>
+                            </>
+                          )}
+                          {inst.status === "paid" && inst.comprobante_url && (
+                            <>
+                              <a href={inst.comprobante_url} target="_blank" rel="noreferrer" className="text-xs text-green-600 hover:text-green-800 font-medium">
+                                Ver comprobante
+                              </a>
+                              <button onClick={() => openFechaModal(inst)} title="Editar fecha de emisión" className="text-mcm-muted hover:text-blue-600"><Pencil size={14} /></button>
+                            </>
+                          )}
+                          {inst.status === "paid" && !inst.comprobante_url && (
+                            <>
+                              <button onClick={() => openManualComprobante(inst)} title="Adjuntar boleta" className="flex items-center gap-1 text-xs text-amber-600 hover:text-amber-800 font-medium">
+                                <Paperclip size={12} /> Adjuntar boleta
+                              </button>
+                              <button onClick={() => openFechaModal(inst)} title="Editar fecha de emisión" className="text-mcm-muted hover:text-blue-600"><Pencil size={14} /></button>
+                            </>
+                          )}
+                          <button
+                            onClick={() => openNotaModal(inst)}
+                            title="Nota para contabilidad"
+                            className={clsx("hover:text-amber-700", inst.nota_contabilidad ? "text-amber-600" : "text-mcm-muted")}
+                          >
+                            <StickyNote size={14} />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -741,6 +779,43 @@ function PagosAlumnoContent() {
                 className="btn-primary flex-1 text-sm disabled:opacity-50 flex items-center justify-center gap-2">
                 {fechaSaving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
                 {fechaSaving ? "Guardando..." : "Guardar"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Nota para contabilidad modal */}
+      {notaModal.show && (
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-sm">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-bold text-mcm-text text-lg">Nota para Contabilidad</h3>
+              <button onClick={() => setNotaModal({ show: false, installmentId: "", concepto: "" })}><X size={20} className="text-mcm-muted" /></button>
+            </div>
+            <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 mb-4 text-sm text-blue-800">
+              Concepto: <strong>{notaModal.concepto}</strong>
+            </div>
+            <div className="space-y-3">
+              <div>
+                <label className="block text-sm font-medium text-mcm-text mb-1">Observación</label>
+                <textarea
+                  value={notaValue}
+                  onChange={e => setNotaValue(e.target.value)}
+                  rows={4}
+                  placeholder="Ej: Pagado en julio, corresponde a la matrícula de septiembre."
+                  className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#C62828]"
+                />
+                <p className="text-xs text-mcm-muted mt-1">Esta nota solo la ven contabilidad y administración.</p>
+              </div>
+            </div>
+            <div className="flex gap-3 mt-5">
+              <button onClick={() => setNotaModal({ show: false, installmentId: "", concepto: "" })} className="btn-secondary flex-1 text-sm">Cancelar</button>
+              <button onClick={handleSaveNota}
+                disabled={notaSaving}
+                className="btn-primary flex-1 text-sm disabled:opacity-50 flex items-center justify-center gap-2">
+                {notaSaving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+                {notaSaving ? "Guardando..." : "Guardar"}
               </button>
             </div>
           </div>

@@ -99,6 +99,25 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ success: true });
   }
 
+  if (action === "update-nota") {
+    const { installment_id, nota_contabilidad } = body;
+    if (!installment_id) {
+      return NextResponse.json({ error: "installment_id requerido" }, { status: 400 });
+    }
+    const { error } = await supabaseAdmin
+      .from("installments")
+      .update({ nota_contabilidad: nota_contabilidad ?? null })
+      .eq("id", installment_id);
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+    await supabaseAdmin.from("historial_auditoria").insert({
+      accion: "editar_nota_contabilidad",
+      admin_id: admin.id, admin_email: admin.email,
+      detalle: { installment_id },
+    });
+    return NextResponse.json({ success: true, message: "Nota guardada." });
+  }
+
   if (action === "update-amount") {
     const { installment_id, monto, observacion } = body;
     if (!installment_id || monto == null) {
