@@ -1,6 +1,24 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 
+// Códigos de producto Nubefact por concepto (igualdad exacta)
+const NUBEFACT_CODES: Record<string, number> = {
+  "MATRÍCULA": 16, "CUOTAS 01": 39, "CUOTAS 02": 40, "CUOTAS 03": 41, "CUOTAS 04": 42,
+};
+
+/**
+ * Resuelve el código de producto Nubefact para un concepto.
+ * Los conceptos de examen incluyen el nombre del curso (ej. "EXAMEN SUSTITUTORIO - MATEMATICA"),
+ * por lo que se resuelven por prefijo. Para el resto se usa la igualdad exacta y el fallback 16.
+ */
+function resolverCodigoNubefact(concepto: string | null | undefined): number {
+  const c = (concepto ?? "").trim();
+  if (c.startsWith("EXAMEN SUSTITUTORIO")) return 5;
+  if (c.startsWith("EXAMEN DE RECUPERACIÓN")) return 29;
+  if (c.startsWith("EXAMEN EXTRAORDINARIO")) return 30;
+  return NUBEFACT_CODES[c] ?? 16;
+}
+
 /**
  * POST /api/admin/cron/generate-monthly-vouchers
  *
@@ -105,10 +123,7 @@ export async function POST(req: NextRequest) {
       activeProfiles.map((p) => [p.id, { nombre: p.nombre_completo ?? "", dni: p.dni ?? "" }])
     );
 
-    // 5. Códigos de producto Nubefact
-    const NUBEFACT_CODES: Record<string, number> = {
-      "MATRÍCULA": 16, "CUOTAS 01": 39, "CUOTAS 02": 40, "CUOTAS 03": 41, "CUOTAS 04": 42,
-    };
+    // 5. Los códigos de producto Nubefact se resuelven con resolverCodigoNubefact (module scope)
 
     // 6. Generar boletas una por una
     const { generarBoleta } = await import("@/lib/nubefactService");
@@ -148,7 +163,7 @@ export async function POST(req: NextRequest) {
           dniCliente: alumnoData.dni,
           nombreCliente: alumnoData.nombre,
           cantidad: 1,
-          codigoProducto: NUBEFACT_CODES[inst.concepto] ?? 16,
+          codigoProducto: resolverCodigoNubefact(inst.concepto),
           descripcion: inst.concepto ?? "PAGO ACADÉMICO",
           precioUnitario: amountOriginal,
           tipoIgv: 9, // Inafecto - Operación Onerosa (mismo que el flujo manual)

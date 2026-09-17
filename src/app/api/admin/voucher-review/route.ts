@@ -4,6 +4,24 @@ import { supabase } from "@/lib/supabase";
 
 const ALLOWED_ROLES = ["super_admin", "administradora", "secretaria_academica"];
 
+// Códigos de producto Nubefact por concepto (igualdad exacta)
+const NUBEFACT_CODES: Record<string, number> = {
+  "MATRÍCULA": 16, "CUOTAS 01": 39, "CUOTAS 02": 40, "CUOTAS 03": 41, "CUOTAS 04": 42,
+};
+
+/**
+ * Resuelve el código de producto Nubefact para un concepto.
+ * Los conceptos de examen incluyen el nombre del curso (ej. "EXAMEN SUSTITUTORIO - MATEMATICA"),
+ * por lo que se resuelven por prefijo. Para el resto se usa la igualdad exacta y el fallback 16.
+ */
+function resolverCodigoNubefact(concepto: string | null | undefined): number {
+  const c = (concepto ?? "").trim();
+  if (c.startsWith("EXAMEN SUSTITUTORIO")) return 5;
+  if (c.startsWith("EXAMEN DE RECUPERACIÓN")) return 29;
+  if (c.startsWith("EXAMEN EXTRAORDINARIO")) return 30;
+  return NUBEFACT_CODES[c] ?? 16;
+}
+
 async function verifyStaff(req: NextRequest) {
   const token = (req.headers.get("authorization") ?? "").replace("Bearer ", "");
   if (!token) return null;
@@ -89,9 +107,10 @@ export async function POST(req: NextRequest) {
     if (inst?.boleta_pregenerada && inst?.comprobante_url) {
       console.log(`[VOUCHER APPROVE] Boleta pregenerada encontrada: ${inst.comprobante_serie}-${inst.comprobante_numero}. Reutilizando.`);
 
-      // Update voucher to approved
+      // Update voucher to approved + set OCR status to processing
       await supabaseAdmin.from("payment_vouchers").update({
         status: "approved", reviewed_by: admin.id, reviewed_at: new Date().toISOString(),
+        ocr_status: "processing",
       }).eq("id", voucher_id);
 
       // Update installment to paid (comprobante fields already set by cron)
@@ -99,6 +118,17 @@ export async function POST(req: NextRequest) {
         status: "paid",
         fecha_pago: new Date().toISOString(),
       }).eq("id", voucher.installment_id);
+
+      // Trigger OCR processing (fire-and-forget)
+      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.VERCEL_URL;
+      fetch(`${baseUrl}/api/internal/ocr-process`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-internal-key": process.env.INTERNAL_API_KEY || "",
+        },
+        body: JSON.stringify({ voucher_id }),
+      }).catch(() => {}); // fire-and-forget
 
       return NextResponse.json({
         success: true,
@@ -118,11 +148,8 @@ export async function POST(req: NextRequest) {
     const { data: { user: alumnoAuth } } = await supabaseAdmin.auth.admin.getUserById(voucher.alumno_id);
     const alumnoEmail = alumnoAuth?.email ?? "";
 
-    // Nubefact codes by concepto
-    const NUBEFACT_CODES: Record<string, number> = {
-      "MATRÍCULA": 16, "CUOTAS 01": 39, "CUOTAS 02": 40, "CUOTAS 03": 41, "CUOTAS 04": 42,
-    };
-    const codigoProducto = NUBEFACT_CODES[inst?.concepto ?? ""] ?? 16;
+    // Nubefact codes by concepto (con resolución por prefijo para exámenes)
+    const codigoProducto = resolverCodigoNubefact(inst?.concepto);
 
     // Generate comprobante via Nubefact
     let comprobanteUrl = "";
@@ -175,9 +202,10 @@ export async function POST(req: NextRequest) {
     console.log(`[VOUCHER APPROVE] Nubefact OK: serie=${comprobanteSerie}, numero=${comprobanteNumero}, url=${comprobanteUrl}`);
     console.log(`[VOUCHER APPROVE] Updating voucher ${voucher_id} to approved...`);
 
-    // Update voucher to approved
+    // Update voucher to approved + set OCR status to processing
     const { error: voucherUpdateErr } = await supabaseAdmin.from("payment_vouchers").update({
       status: "approved", reviewed_by: admin.id, reviewed_at: new Date().toISOString(),
+      ocr_status: "processing",
     }).eq("id", voucher_id);
 
     if (voucherUpdateErr) {
@@ -206,6 +234,17 @@ export async function POST(req: NextRequest) {
     }
 
     console.log("[VOUCHER APPROVE] ✅ Todo actualizado correctamente");
+
+    // Trigger OCR processing (fire-and-forget)
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.VERCEL_URL;
+    fetch(`${baseUrl}/api/internal/ocr-process`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-internal-key": process.env.INTERNAL_API_KEY || "",
+      },
+      body: JSON.stringify({ voucher_id }),
+    }).catch(() => {}); // fire-and-forget
 
     return NextResponse.json({
       success: true,

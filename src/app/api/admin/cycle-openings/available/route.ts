@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { supabase } from "@/lib/supabase";
 
-const ALLOWED_ROLES = ["super_admin", "cycle_manager"];
+const ALLOWED_ROLES = ["super_admin", "cycle_manager", "secretaria_atencion_academica"];
 
 async function verifyAccess(req: NextRequest) {
   const token = (req.headers.get("authorization") ?? "").replace("Bearer ", "");

@@ -3,7 +3,7 @@ import { supabaseAdmin } from "@/lib/supabase-admin";
 import { supabase } from "@/lib/supabase";
 
 const ADMIN_EMAIL = "admin@margaritacabrera.edu.pe";
-const ALLOWED_ROLES = ["super_admin", "cycle_manager"];
+const ALLOWED_ROLES = ["super_admin", "cycle_manager", "secretaria_atencion_academica"];
 
 // Mapeo: nombre del día (frontend) → número (BD: 1=Lunes ... 6=Sábado)
 const DAY_MAP: Record<string, number> = {

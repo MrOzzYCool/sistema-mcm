@@ -1374,5 +1374,5 @@ function CiclosContent() {
 }
 
 export default function CiclosPage() {
-  return <RouteGuard allowedRoles={["super_admin", "cycle_manager"]}><CiclosContent /></RouteGuard>;
+  return <RouteGuard allowedRoles={["super_admin", "cycle_manager", "secretaria_atencion_academica"]}><CiclosContent /></RouteGuard>;
 }

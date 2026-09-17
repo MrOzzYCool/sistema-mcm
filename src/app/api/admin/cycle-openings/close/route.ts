@@ -12,7 +12,7 @@ import { proximoLunes } from "@/lib/fecha-utils";
 import { cerrarCursosCiclo, generarCursosCiclo } from "@/lib/generar-cursos-ciclo";
 import { generateStudentPaymentPlan } from "@/lib/payment-service";
 
-const ALLOWED_ROLES = ["super_admin", "cycle_manager"];
+const ALLOWED_ROLES = ["super_admin", "cycle_manager", "secretaria_atencion_academica"];
 
 async function verifyAccess(req: NextRequest) {
   const token = (req.headers.get("authorization") ?? "").replace("Bearer ", "");

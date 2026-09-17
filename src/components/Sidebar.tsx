@@ -6,7 +6,7 @@ import { useAuth } from "@/lib/auth-context";
 import {
   LayoutDashboard, BookOpen, FileText, Calendar, Users, CreditCard,
   Settings, LogOut, ChevronRight, BarChart2, RefreshCw, UserCog, Moon, Sun,
-  PieChart, Calculator, Briefcase,
+  PieChart, Calculator, Briefcase, Wallet,
 } from "lucide-react";
 import clsx from "clsx";
 import { useTheme } from "@/lib/theme-context";
@@ -20,9 +20,10 @@ const NAV_ITEMS = [
   { href: "/dashboard/usuarios",          label: "Alumnos y Profesores",icon: UserCog,         roles: ["super_admin"] },
   { href: "/dashboard/staff",             label: "Gestión de Staff",    icon: Users,           roles: ["super_admin"] },
   { href: "/dashboard/academico",         label: "Académico",           icon: BookOpen,        roles: ["super_admin"] },
-  { href: "/dashboard/ciclos",            label: "Ciclos y Horarios",   icon: Calendar,        roles: ["super_admin", "cycle_manager"] },
+  { href: "/dashboard/ciclos",            label: "Ciclos y Horarios",   icon: Calendar,        roles: ["super_admin", "cycle_manager", "secretaria_atencion_academica"] },
   { href: "/dashboard/vouchers",          label: "Vouchers",            icon: CreditCard,      roles: ["super_admin", "administradora", "secretaria_academica"] },
   { href: "/dashboard/reportes",          label: "Reportes",            icon: BarChart2,       roles: ["super_admin", "gestor"] },
+  { href: "/dashboard/cobranza",          label: "Cobranza",            icon: Wallet,          roles: ["super_admin", "secretaria_atencion_academica"] },
   { href: "/dashboard/contabilidad",      label: "Contabilidad",        icon: Calculator,      roles: ["super_admin", "contabilidad"] },
   { href: "/dashboard/gerencia",          label: "Gerencia",            icon: PieChart,        roles: ["super_admin", "gerenta"] },
   { href: "/dashboard/bolsa-laboral",     label: "Bolsa Laboral",       icon: Briefcase,       roles: ["super_admin"] },
