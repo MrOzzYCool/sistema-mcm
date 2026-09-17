@@ -91,6 +91,7 @@ function ContabilidadContent() {
   const [filtroTipo, setFiltroTipo] = useState<string>("todos");
   const [filtroBanco, setFiltroBanco] = useState<string>("todos");
   const [lightbox, setLightbox] = useState<{ urls: string[]; titulo: string } | null>(null);
+  const [notaModal, setNotaModal] = useState<string | null>(null);
 
   // Manual OCR inline edit state
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -401,8 +402,18 @@ function ContabilidadContent() {
                         <span className="text-xs text-mcm-muted">—</span>
                       )}
                     </td>
-                    <td className="py-3.5 px-4 text-xs text-mcm-text max-w-[200px] truncate" title={i.nota ?? ""}>
-                      {i.nota ? i.nota : <span className="text-mcm-muted">—</span>}
+                    <td className="py-3.5 px-4 text-xs">
+                      {i.nota ? (
+                        <div className="flex items-center gap-1.5 max-w-[220px]">
+                          <span className="truncate" title={i.nota}>{i.nota}</span>
+                          <button onClick={() => setNotaModal(i.nota!)} title="Ver observación completa"
+                            className="flex items-center gap-0.5 text-[#C62828] hover:underline shrink-0">
+                            <Eye size={12} />
+                          </button>
+                        </div>
+                      ) : (
+                        <span className="text-mcm-muted">—</span>
+                      )}
                     </td>
                   </tr>
                 ))}
@@ -461,6 +472,21 @@ function ContabilidadContent() {
                   </div>
                 );
               })}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de observación */}
+      {notaModal !== null && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" onClick={() => setNotaModal(null)}>
+          <div className="relative max-w-lg w-full bg-white rounded-2xl shadow-xl" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-5 py-3 border-b border-mcm-border">
+              <p className="font-semibold text-mcm-text">Observación de contabilidad</p>
+              <button onClick={() => setNotaModal(null)} className="text-mcm-muted hover:text-mcm-text text-xl">✕</button>
+            </div>
+            <div className="p-5">
+              <p className="text-sm text-mcm-text whitespace-pre-wrap break-words">{notaModal}</p>
             </div>
           </div>
         </div>
