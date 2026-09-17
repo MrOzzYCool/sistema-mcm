@@ -21,6 +21,14 @@ interface Plan {
   installments: Installment[];
 }
 
+function hoyLocal() {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
 function PagosAlumnoContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -48,7 +56,7 @@ function PagosAlumnoContent() {
 
   // Manual comprobante modal
   const [manualModal, setManualModal] = useState<{ show: boolean; installmentId: string; concepto: string }>({ show: false, installmentId: "", concepto: "" });
-  const [manualForm, setManualForm] = useState({ serie: "BBB2", numero: "", tipo: "boleta", url: "" });
+  const [manualForm, setManualForm] = useState({ serie: "BBB2", numero: "", tipo: "boleta", url: "", fecha: hoyLocal() });
   const [manualFile, setManualFile] = useState<File | null>(null);
   const [voucherFiles, setVoucherFiles] = useState<File[]>([]);
   const [manualSaving, setManualSaving] = useState(false);
@@ -213,7 +221,7 @@ function PagosAlumnoContent() {
 
   function openManualComprobante(inst: Installment) {
     setManualModal({ show: true, installmentId: inst.id, concepto: inst.concepto });
-    setManualForm({ serie: "BBB2", numero: "", tipo: "boleta", url: "" });
+    setManualForm({ serie: "BBB2", numero: "", tipo: "boleta", url: "", fecha: hoyLocal() });
     setManualFile(null);
     setVoucherFiles([]);
   }
@@ -229,7 +237,7 @@ function PagosAlumnoContent() {
   }
 
   async function handleManualComprobante() {
-    if (!manualModal.installmentId || !manualForm.serie || !manualForm.numero) return;
+    if (!manualModal.installmentId || !manualForm.serie || !manualForm.numero || !manualForm.fecha) return;
     setManualSaving(true); setError("");
     try {
       let comprobanteUrl = manualForm.url;
@@ -271,6 +279,7 @@ function PagosAlumnoContent() {
           comprobante_numero: manualForm.numero,
           tipo_comprobante: manualForm.tipo,
           voucher_url: voucherUrl,
+          fecha_pago: manualForm.fecha ? new Date(`${manualForm.fecha}T12:00:00`).toISOString() : undefined,
         }),
       });
       const json = await res.json();
@@ -590,6 +599,12 @@ function PagosAlumnoContent() {
                 </select>
               </div>
               <div>
+                <label className="block text-sm font-medium text-mcm-text mb-1">Fecha de emisión de la boleta</label>
+                <input type="date" value={manualForm.fecha} onChange={e => setManualForm({...manualForm, fecha: e.target.value})}
+                  className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#C62828]" />
+                <p className="text-xs text-mcm-muted mt-1">Debe coincidir con la fecha real de emisión de la boleta (para el corte mensual de contabilidad).</p>
+              </div>
+              <div>
                 <label className="block text-sm font-medium text-mcm-text mb-1">Archivo PDF/Imagen del comprobante</label>
                 <div className="flex items-center gap-2">
                   <button type="button" onClick={() => manualFileRef.current?.click()}
@@ -647,7 +662,7 @@ function PagosAlumnoContent() {
             <div className="flex gap-3 mt-5">
               <button onClick={() => setManualModal({ show: false, installmentId: "", concepto: "" })} className="btn-secondary flex-1 text-sm">Cancelar</button>
               <button onClick={handleManualComprobante}
-                disabled={manualSaving || !manualForm.serie || !manualForm.numero || (!manualFile && !manualForm.url) || voucherFiles.length === 0}
+                disabled={manualSaving || !manualForm.serie || !manualForm.numero || !manualForm.fecha || (!manualFile && !manualForm.url) || voucherFiles.length === 0}
                 className="btn-primary flex-1 text-sm disabled:opacity-50 flex items-center justify-center gap-2">
                 {manualSaving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
                 {manualSaving ? "Guardando..." : "Adjuntar y marcar pagado"}
