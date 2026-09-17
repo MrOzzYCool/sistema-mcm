@@ -63,6 +63,11 @@ function PagosAlumnoContent() {
   const manualFileRef = useRef<HTMLInputElement>(null);
   const voucherFileRef = useRef<HTMLInputElement>(null);
 
+  // Editar fecha de emisión (fecha_pago) modal
+  const [fechaModal, setFechaModal] = useState<{ show: boolean; installmentId: string; concepto: string }>({ show: false, installmentId: "", concepto: "" });
+  const [fechaValue, setFechaValue] = useState("");
+  const [fechaSaving, setFechaSaving] = useState(false);
+
   async function getToken() {
     const { data } = await supabase.auth.getSession();
     return data.session?.access_token ?? "";
@@ -292,6 +297,38 @@ function PagosAlumnoContent() {
     finally { setManualSaving(false); }
   }
 
+  function openFechaModal(inst: Installment) {
+    let f = hoyLocal();
+    if (inst.fecha_pago) {
+      const d = new Date(inst.fecha_pago);
+      f = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+    }
+    setFechaValue(f);
+    setFechaModal({ show: true, installmentId: inst.id, concepto: inst.concepto });
+  }
+
+  async function handleSaveFecha() {
+    if (!fechaModal.installmentId || !fechaValue) return;
+    setFechaSaving(true); setError("");
+    try {
+      const res = await fetch("/api/admin/payments", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${await getToken()}` },
+        body: JSON.stringify({
+          action: "update-fecha-pago",
+          installment_id: fechaModal.installmentId,
+          fecha_pago: new Date(`${fechaValue}T12:00:00`).toISOString(),
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error);
+      setSuccess(json.message ?? "Fecha actualizada.");
+      setFechaModal({ show: false, installmentId: "", concepto: "" });
+      loadPlans();
+    } catch (err) { setError(err instanceof Error ? err.message : "Error"); }
+    finally { setFechaSaving(false); }
+  }
+
   if (!alumnoId) {
     return <div className="p-6 card text-center py-12"><AlertCircle size={40} className="mx-auto text-red-400 mb-3" /><p className="text-mcm-text font-bold">Falta alumno_id</p><button onClick={() => router.back()} className="btn-secondary text-sm mt-4">Volver</button></div>;
   }
@@ -394,14 +431,20 @@ function PagosAlumnoContent() {
                           </div>
                         )}
                         {inst.status === "paid" && inst.comprobante_url && (
-                          <a href={inst.comprobante_url} target="_blank" rel="noreferrer" className="text-xs text-green-600 hover:text-green-800 font-medium">
-                            Ver comprobante
-                          </a>
+                          <div className="flex items-center gap-2">
+                            <a href={inst.comprobante_url} target="_blank" rel="noreferrer" className="text-xs text-green-600 hover:text-green-800 font-medium">
+                              Ver comprobante
+                            </a>
+                            <button onClick={() => openFechaModal(inst)} title="Editar fecha de emisión" className="text-mcm-muted hover:text-blue-600"><Pencil size={14} /></button>
+                          </div>
                         )}
                         {inst.status === "paid" && !inst.comprobante_url && (
-                          <button onClick={() => openManualComprobante(inst)} title="Adjuntar boleta" className="flex items-center gap-1 text-xs text-amber-600 hover:text-amber-800 font-medium">
-                            <Paperclip size={12} /> Adjuntar boleta
-                          </button>
+                          <div className="flex items-center gap-2">
+                            <button onClick={() => openManualComprobante(inst)} title="Adjuntar boleta" className="flex items-center gap-1 text-xs text-amber-600 hover:text-amber-800 font-medium">
+                              <Paperclip size={12} /> Adjuntar boleta
+                            </button>
+                            <button onClick={() => openFechaModal(inst)} title="Editar fecha de emisión" className="text-mcm-muted hover:text-blue-600"><Pencil size={14} /></button>
+                          </div>
                         )}
                       </td>
                     </tr>
@@ -666,6 +709,38 @@ function PagosAlumnoContent() {
                 className="btn-primary flex-1 text-sm disabled:opacity-50 flex items-center justify-center gap-2">
                 {manualSaving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
                 {manualSaving ? "Guardando..." : "Adjuntar y marcar pagado"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Editar fecha de emisión modal */}
+      {fechaModal.show && (
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-sm">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-bold text-mcm-text text-lg">Editar Fecha de Emisión</h3>
+              <button onClick={() => setFechaModal({ show: false, installmentId: "", concepto: "" })}><X size={20} className="text-mcm-muted" /></button>
+            </div>
+            <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 mb-4 text-sm text-blue-800">
+              Concepto: <strong>{fechaModal.concepto}</strong>
+            </div>
+            <div className="space-y-3">
+              <div>
+                <label className="block text-sm font-medium text-mcm-text mb-1">Fecha de emisión</label>
+                <input type="date" value={fechaValue} onChange={e => setFechaValue(e.target.value)}
+                  className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#C62828]" />
+                <p className="text-xs text-mcm-muted mt-1">Fecha usada por contabilidad para el corte mensual.</p>
+              </div>
+            </div>
+            <div className="flex gap-3 mt-5">
+              <button onClick={() => setFechaModal({ show: false, installmentId: "", concepto: "" })} className="btn-secondary flex-1 text-sm">Cancelar</button>
+              <button onClick={handleSaveFecha}
+                disabled={fechaSaving || !fechaValue}
+                className="btn-primary flex-1 text-sm disabled:opacity-50 flex items-center justify-center gap-2">
+                {fechaSaving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+                {fechaSaving ? "Guardando..." : "Guardar"}
               </button>
             </div>
           </div>

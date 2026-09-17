@@ -252,6 +252,26 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ success: true, message: `Comprobante ${comprobante_serie}-${comprobante_numero} adjuntado con voucher. Cuota marcada como pagada.` });
   }
 
+  if (action === "update-fecha-pago") {
+    const { installment_id, fecha_pago } = body;
+    if (!installment_id || !fecha_pago) {
+      return NextResponse.json({ error: "installment_id y fecha_pago son requeridos" }, { status: 400 });
+    }
+    const { error } = await supabaseAdmin
+      .from("installments")
+      .update({ fecha_pago })
+      .eq("id", installment_id);
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+    await supabaseAdmin.from("historial_auditoria").insert({
+      accion: "editar_fecha_pago",
+      admin_id: admin.id, admin_email: admin.email,
+      detalle: { installment_id, fecha_pago },
+    });
+
+    return NextResponse.json({ success: true, message: "Fecha de emisión actualizada." });
+  }
+
   if (action === "cancel-by-opening") {
     // Cancelar todas las cuotas pendientes de alumnos de un ciclo/apertura específica
     const { cycle_number, carrera_id } = body;
