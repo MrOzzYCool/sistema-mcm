@@ -86,13 +86,15 @@ export async function POST(req: NextRequest) {
 
     const { data: profiles } = await supabaseAdmin
       .from("profiles")
-      .select("id, nombre_completo, dni, is_active")
+      .select("id, nombre_completo, dni, estado")
       .in("id", alumnoIds);
 
-    // Filtrar: solo alumnos activos participan en facturación
-    const activeProfiles = (profiles ?? []).filter(p => p.is_active !== false);
+    // Filtrar: solo alumnos activos participan en facturación.
+    // La columna real es `estado` ('activo' | 'inactivo'). Se considera inactivo
+    // únicamente si estado === 'inactivo'; cualquier otro valor cuenta como activo.
+    const activeProfiles = (profiles ?? []).filter(p => p.estado !== "inactivo");
     const inactiveIds = new Set(
-      (profiles ?? []).filter(p => p.is_active === false).map(p => p.id)
+      (profiles ?? []).filter(p => p.estado === "inactivo").map(p => p.id)
     );
 
     if (inactiveIds.size > 0) {
