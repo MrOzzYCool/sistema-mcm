@@ -30,6 +30,23 @@ export async function POST(req: NextRequest) {
     const lastDay = new Date(year, month + 1, 0).getDate();
     const lastDayStr = `${year}-${String(month + 1).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
 
+    // Guarda: solo facturar el ÚLTIMO DÍA DEL MES.
+    // El cron corre a diario (23:50), así que salimos temprano si hoy no es el
+    // último día. Se permite un bypass manual para pruebas con ?force=true.
+    const today = now.getDate();
+    const force = req.nextUrl.searchParams.get("force") === "true";
+
+    if (today !== lastDay && !force) {
+      console.log(`[CRON] Hoy (${today}) no es el último día del mes (${lastDay}). Saltando generación.`);
+      return NextResponse.json({
+        success: true,
+        skipped_reason: "No es el último día del mes",
+        today,
+        lastDay,
+        generated: 0,
+      });
+    }
+
     console.log(`[CRON] Generando boletas para cuotas pendientes del ${firstDay} al ${lastDayStr}`);
 
     // 3. Buscar cuotas pendientes del mes que NO tengan boleta pregenerada
