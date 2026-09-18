@@ -53,8 +53,11 @@ export async function POST(req: NextRequest) {
     // último día. Se permite un bypass manual para pruebas con ?force=true.
     const today = now.getDate();
     const force = req.nextUrl.searchParams.get("force") === "true";
+    const dryRun = req.nextUrl.searchParams.get("dry_run") === "true";
 
-    if (today !== lastDay && !force) {
+    // dry_run también permite continuar cualquier día (para poder simular),
+    // igual que force, pero sin emitir comprobantes ni tocar la BD.
+    if (today !== lastDay && !force && !dryRun) {
       console.log(`[CRON] Hoy (${today}) no es el último día del mes (${lastDay}). Saltando generación.`);
       return NextResponse.json({
         success: true,
@@ -72,6 +75,7 @@ export async function POST(req: NextRequest) {
       .from("installments")
       .select(`
         id, concepto, amount, amount_original, due_date, plan_id,
+        comprobante_serie, comprobante_numero,
         payment_plans!inner(alumno_id)
       `)
       .gte("due_date", `${firstDay}T00:00:00`)
@@ -125,7 +129,63 @@ export async function POST(req: NextRequest) {
 
     // 5. Los códigos de producto Nubefact se resuelven con resolverCodigoNubefact (module scope)
 
-    // 6. Generar boletas una por una
+    // 6. Modo simulación (dry_run): aplicar TODOS los filtros pero sin emitir ni tocar la BD.
+    if (dryRun) {
+      const aFacturar: { concepto: string; nombre: string; amount: number; codigo_nubefact: number }[] = [];
+      const omitidas: { concepto: string; nombre: string; razon: string }[] = [];
+
+      for (const inst of installments) {
+        const plan = inst.payment_plans as unknown as { alumno_id?: string } | null;
+        const alumnoId = plan?.alumno_id ?? "";
+        const alumnoData = profileMap.get(alumnoId);
+        const concepto = inst.concepto ?? "";
+        const nombre = alumnoData?.nombre ?? "";
+
+        // Alumno inactivo o sin datos
+        if (!alumnoData || !alumnoData.dni) {
+          if (inactiveIds.has(alumnoId)) {
+            omitidas.push({ concepto, nombre, razon: "Alumno inactivo/retirado" });
+            continue;
+          }
+          omitidas.push({ concepto, nombre, razon: "Sin DNI" });
+          continue;
+        }
+
+        // Protección anti-duplicado: ya tiene comprobante emitido
+        if (
+          (inst.comprobante_serie != null && String(inst.comprobante_serie).trim() !== "") ||
+          (inst.comprobante_numero != null && String(inst.comprobante_numero).trim() !== "")
+        ) {
+          omitidas.push({ concepto, nombre, razon: "Ya tiene comprobante" });
+          continue;
+        }
+
+        const amount = Number(inst.amount ?? 0);
+        if (amount <= 0) {
+          omitidas.push({ concepto, nombre, razon: "Monto 0" });
+          continue;
+        }
+
+        aFacturar.push({
+          concepto,
+          nombre,
+          amount,
+          codigo_nubefact: resolverCodigoNubefact(inst.concepto),
+        });
+      }
+
+      console.log(`[CRON][DRY_RUN] ${aFacturar.length} cuotas a facturar, ${omitidas.length} omitidas`);
+
+      return NextResponse.json({
+        success: true,
+        dry_run: true,
+        a_facturar: aFacturar,
+        omitidas,
+        total_a_facturar: aFacturar.length,
+      });
+    }
+
+    // 7. Generar boletas una por una
     const { generarBoleta } = await import("@/lib/nubefactService");
 
     let generated = 0;
@@ -145,6 +205,18 @@ export async function POST(req: NextRequest) {
         }
         console.warn(`[CRON] Alumno ${alumnoId} sin DNI, saltando cuota ${inst.id}`);
         results.push({ id: inst.id, concepto: inst.concepto, status: "skipped", error: "Sin DNI" });
+        continue;
+      }
+
+      // Protección anti-duplicado: si la cuota ya tiene comprobante emitido,
+      // no re-emitir (salvaguarda por si se registró manualmente sin marcar
+      // boleta_pregenerada).
+      if (
+        (inst.comprobante_serie != null && String(inst.comprobante_serie).trim() !== "") ||
+        (inst.comprobante_numero != null && String(inst.comprobante_numero).trim() !== "")
+      ) {
+        console.warn(`[CRON] Cuota ${inst.id} ya tiene comprobante, saltando para evitar duplicado`);
+        results.push({ id: inst.id, concepto: inst.concepto, status: "skipped", error: "Ya tiene comprobante" });
         continue;
       }
 
