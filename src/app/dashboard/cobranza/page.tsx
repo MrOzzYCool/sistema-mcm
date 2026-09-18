@@ -5,6 +5,7 @@ import { supabase } from "@/lib/supabase";
 import RouteGuard from "@/components/RouteGuard";
 import {
   Loader2, Wallet, Search, RefreshCw, CalendarClock, GraduationCap, CheckCircle2,
+  ChevronDown, AlertTriangle,
 } from "lucide-react";
 import clsx from "clsx";
 
@@ -13,6 +14,7 @@ interface CuotaPendiente {
   amount: number;
   due_date: string | null;
   status: string;
+  vencida: boolean;
 }
 
 interface AlumnoDeuda {
@@ -23,11 +25,13 @@ interface AlumnoDeuda {
   ciclo_actual: number | null;
   cuotas: CuotaPendiente[];
   total_adeudado: number;
+  total_vencido: number;
 }
 
 interface Resumen {
   total_alumnos: number;
   total_adeudado: number;
+  total_vencido: number;
 }
 
 interface AlumnoOption {
@@ -86,9 +90,14 @@ function CobranzaContent() {
   const [tab, setTab] = useState<Tab>("deudas");
 
   const [alumnos, setAlumnos] = useState<AlumnoDeuda[]>([]);
-  const [resumen, setResumen] = useState<Resumen>({ total_alumnos: 0, total_adeudado: 0 });
+  const [resumen, setResumen] = useState<Resumen>({ total_alumnos: 0, total_adeudado: 0, total_vencido: 0 });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+
+  // Estado de expansión por alumno (acordeón). Por defecto todos colapsados.
+  const [expandido, setExpandido] = useState<Record<string, boolean>>({});
+  const toggleExpandido = (id: string) =>
+    setExpandido((prev) => ({ ...prev, [id]: !prev[id] }));
 
   // Filtros
   const [ciclo, setCiclo] = useState("");
@@ -115,7 +124,8 @@ function CobranzaContent() {
       }
       const data: { alumnos: AlumnoDeuda[]; resumen: Resumen } = await res.json();
       setAlumnos(data.alumnos ?? []);
-      setResumen(data.resumen ?? { total_alumnos: 0, total_adeudado: 0 });
+      setResumen(data.resumen ?? { total_alumnos: 0, total_adeudado: 0, total_vencido: 0 });
+      setExpandido({}); // colapsar todo al recargar
 
       // Alimentar opciones de carrera cuando no hay filtro de carrera aplicado
       if (!carreraId) {
@@ -134,7 +144,7 @@ function CobranzaContent() {
     } catch (e) {
       setError(e instanceof Error ? e.message : "Error al cargar");
       setAlumnos([]);
-      setResumen({ total_alumnos: 0, total_adeudado: 0 });
+      setResumen({ total_alumnos: 0, total_adeudado: 0, total_vencido: 0 });
     } finally {
       setLoading(false);
     }
@@ -153,17 +163,39 @@ function CobranzaContent() {
     return [...set].sort((a, b) => a - b);
   }, [alumnos]);
 
+  // Agrupar alumnos por ciclo (ascendente). Dentro de cada ciclo, mayor vencido primero.
+  const gruposPorCiclo = useMemo(() => {
+    const map = new Map<number, AlumnoDeuda[]>();
+    for (const a of alumnos) {
+      const key = a.ciclo_actual ?? -1; // -1 = sin ciclo, se muestra al final
+      if (!map.has(key)) map.set(key, []);
+      map.get(key)!.push(a);
+    }
+    return [...map.entries()]
+      .sort(([x], [y]) => {
+        if (x === -1) return 1;
+        if (y === -1) return -1;
+        return x - y;
+      })
+      .map(([ciclo, lista]) => ({
+        ciclo,
+        alumnos: [...lista].sort((a, b) => b.total_vencido - a.total_vencido),
+        total_vencido: lista.reduce((acc, a) => acc + a.total_vencido, 0),
+      }));
+  }, [alumnos]);
+
   return (
-    <div className="space-y-5">
+    <div className="max-w-5xl mx-auto px-4 py-2 space-y-5">
       {/* Encabezado */}
       <div>
         <h1 className="text-2xl font-bold text-mcm-text flex items-center gap-2">
           <Wallet size={24} className="text-[#C62828]" />
-          Cobranza — Alumnos con deuda pendiente
+          Cobranza — Alumnos con deuda vencida
         </h1>
         <p className="text-sm text-mcm-muted mt-1">
-          Consulta las cuotas pendientes de los alumnos de carrera. Esta vista es solo de lectura:
-          te ayuda a identificar quién debe y cuánto, con detalle por concepto y fecha de vencimiento.
+          Consulta las cuotas vencidas de los alumnos de carrera. Esta vista es solo de lectura:
+          te ayuda a identificar quién tiene deuda vencida y cuánto, agrupado por ciclo y con detalle
+          por concepto y fecha de vencimiento.
         </p>
       </div>
 
@@ -194,12 +226,12 @@ function CobranzaContent() {
           {/* Resumen */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="card p-4">
-              <p className="text-xs text-mcm-muted">Alumnos con deuda</p>
+              <p className="text-xs text-mcm-muted">Alumnos con deuda vencida</p>
               <p className="text-2xl font-bold text-mcm-text mt-1">{resumen.total_alumnos}</p>
             </div>
             <div className="card p-4">
-              <p className="text-xs text-mcm-muted">Total adeudado</p>
-              <p className="text-2xl font-bold text-[#C62828] mt-1">{soles(resumen.total_adeudado)}</p>
+              <p className="text-xs text-mcm-muted">Total vencido</p>
+              <p className="text-2xl font-bold text-[#C62828] mt-1">{soles(resumen.total_vencido)}</p>
             </div>
           </div>
 
@@ -253,64 +285,120 @@ function CobranzaContent() {
               <div className="w-14 h-14 rounded-full bg-green-50 flex items-center justify-center mx-auto mb-3">
                 <Search className="w-7 h-7 text-green-600" />
               </div>
-              <p className="text-mcm-text font-semibold">No hay alumnos con deuda pendiente</p>
+              <p className="text-mcm-text font-semibold">No hay alumnos con deuda vencida</p>
               <p className="text-mcm-muted text-sm mt-1">
-                Con los filtros aplicados no se encontraron cuotas por cobrar.
+                Con los filtros aplicados no se encontraron cuotas vencidas por cobrar.
               </p>
             </div>
           ) : (
-            <div className="space-y-3">
-              {alumnos.map((a) => (
-                <div key={a.alumno_id} className="card p-4">
-                  <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
-                    <div className="min-w-0">
-                      <p className="font-semibold text-mcm-text truncate">{a.nombre}</p>
-                      <p className="text-xs text-mcm-muted mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-1">
-                        <span className="inline-flex items-center gap-1">
-                          <GraduationCap size={13} /> {a.carrera}
-                        </span>
-                        <span className="inline-flex items-center gap-1">
-                          <CalendarClock size={13} /> Ciclo {a.ciclo_actual ?? "—"}
-                        </span>
-                      </p>
-                    </div>
-                    <div className="text-right shrink-0">
-                      <p className="text-xs text-mcm-muted">Total adeudado</p>
-                      <p className="text-xl font-bold text-[#C62828]">{soles(a.total_adeudado)}</p>
-                    </div>
+            <div className="space-y-6">
+              {gruposPorCiclo.map((grupo) => (
+                <section key={grupo.ciclo}>
+                  {/* Encabezado de ciclo */}
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 mb-2 px-1">
+                    <h2 className="text-sm font-bold text-mcm-text flex items-center gap-1.5">
+                      <CalendarClock size={15} className="text-[#C62828]" />
+                      {grupo.ciclo === -1 ? "Sin ciclo asignado" : `Ciclo ${grupo.ciclo}`}
+                      <span className="font-normal text-mcm-muted">
+                        — {grupo.alumnos.length} alumno{grupo.alumnos.length === 1 ? "" : "s"} con deuda vencida
+                      </span>
+                    </h2>
+                    <p className="text-xs text-mcm-muted">
+                      Total vencido <span className="font-semibold text-[#C62828]">{soles(grupo.total_vencido)}</span>
+                    </p>
                   </div>
 
-                  {/* Detalle de cuotas */}
-                  <div className="mt-3 border-t border-mcm-border pt-3 overflow-x-auto">
-                    <table className="w-full text-sm">
-                      <thead>
-                        <tr className="text-left text-xs text-mcm-muted">
-                          <th className="py-1.5 pr-4 font-semibold">Concepto</th>
-                          <th className="py-1.5 pr-4 font-semibold">Vencimiento</th>
-                          <th className="py-1.5 pr-4 font-semibold">Estado</th>
-                          <th className="py-1.5 text-right font-semibold">Monto</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {a.cuotas.map((c, i) => {
-                          const badge = statusBadge(c.status);
-                          return (
-                            <tr key={`${a.alumno_id}-${i}`} className="border-t border-mcm-border/60">
-                              <td className="py-2 pr-4 text-mcm-text">{c.concepto}</td>
-                              <td className="py-2 pr-4 text-mcm-muted">{formatFecha(c.due_date)}</td>
-                              <td className="py-2 pr-4">
-                                <span className={clsx("inline-block px-2 py-0.5 rounded-full text-xs font-medium", badge.className)}>
-                                  {badge.label}
-                                </span>
-                              </td>
-                              <td className="py-2 text-right font-medium text-mcm-text">{soles(c.amount)}</td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
+                  {/* Lista de alumnos (acordeón) */}
+                  <div className="space-y-2">
+                    {grupo.alumnos.map((a) => {
+                      const abierto = !!expandido[a.alumno_id];
+                      // Vencidas primero, luego futuras
+                      const cuotasOrdenadas = [...a.cuotas].sort(
+                        (x, y) => Number(y.vencida) - Number(x.vencida)
+                      );
+                      return (
+                        <div key={a.alumno_id} className="card overflow-hidden">
+                          {/* Cabecera colapsable */}
+                          <button
+                            type="button"
+                            onClick={() => toggleExpandido(a.alumno_id)}
+                            aria-expanded={abierto}
+                            className="w-full flex items-center justify-between gap-3 p-4 text-left hover:bg-slate-50 transition-colors"
+                          >
+                            <div className="flex items-center gap-3 min-w-0">
+                              <ChevronDown
+                                size={18}
+                                className={clsx(
+                                  "shrink-0 text-mcm-muted transition-transform",
+                                  abierto && "rotate-180"
+                                )}
+                              />
+                              <div className="min-w-0">
+                                <p className="font-semibold text-mcm-text truncate">{a.nombre}</p>
+                                <p className="text-xs text-mcm-muted mt-0.5 inline-flex items-center gap-1">
+                                  <GraduationCap size={13} /> {a.carrera}
+                                </p>
+                              </div>
+                            </div>
+                            <div className="text-right shrink-0">
+                              <p className="text-xs text-mcm-muted">Total vencido</p>
+                              <p className="text-xl font-bold text-[#C62828]">{soles(a.total_vencido)}</p>
+                            </div>
+                          </button>
+
+                          {/* Detalle de cuotas */}
+                          {abierto && (
+                            <div className="border-t border-mcm-border px-4 py-3 overflow-x-auto">
+                              <table className="w-full text-sm">
+                                <thead>
+                                  <tr className="text-left text-xs text-mcm-muted">
+                                    <th className="py-1.5 pr-4 font-semibold">Concepto</th>
+                                    <th className="py-1.5 pr-4 font-semibold">Vencimiento</th>
+                                    <th className="py-1.5 pr-4 font-semibold">Estado</th>
+                                    <th className="py-1.5 text-right font-semibold">Monto</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {cuotasOrdenadas.map((c, i) => {
+                                    const badge = statusBadge(c.status);
+                                    return (
+                                      <tr
+                                        key={`${a.alumno_id}-${i}`}
+                                        className={clsx(
+                                          "border-t border-mcm-border/60",
+                                          c.vencida ? "bg-red-50/60" : "text-mcm-muted"
+                                        )}
+                                      >
+                                        <td className={clsx("py-2 pr-4", c.vencida ? "text-mcm-text font-medium" : "")}>
+                                          {c.concepto}
+                                        </td>
+                                        <td className="py-2 pr-4">{formatFecha(c.due_date)}</td>
+                                        <td className="py-2 pr-4">
+                                          {c.vencida ? (
+                                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-red-100 text-red-700">
+                                              <AlertTriangle size={12} /> Vencido
+                                            </span>
+                                          ) : (
+                                            <span className={clsx("inline-block px-2 py-0.5 rounded-full text-xs font-medium", badge.className)}>
+                                              {badge.label}
+                                            </span>
+                                          )}
+                                        </td>
+                                        <td className={clsx("py-2 text-right font-medium", c.vencida ? "text-[#C62828]" : "")}>
+                                          {soles(c.amount)}
+                                        </td>
+                                      </tr>
+                                    );
+                                  })}
+                                </tbody>
+                              </table>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
-                </div>
+                </section>
               ))}
             </div>
           )}
@@ -323,10 +411,15 @@ function CobranzaContent() {
 }
 
 function ExamenesTab() {
+  // Datos base
+  const [carreras, setCarreras] = useState<{ id: string; nombre: string }[]>([]);
   const [alumnos, setAlumnos] = useState<AlumnoOption[]>([]);
-  const [loadingAlumnos, setLoadingAlumnos] = useState(true);
-  const [alumnosError, setAlumnosError] = useState("");
+  const [loadingBase, setLoadingBase] = useState(true);
+  const [baseError, setBaseError] = useState("");
 
+  // Selección en cascada
+  const [carreraId, setCarreraId] = useState("");
+  const [ciclo, setCiclo] = useState("");
   const [alumnoId, setAlumnoId] = useState("");
   const [cursos, setCursos] = useState<CursoOption[]>([]);
   const [loadingCursos, setLoadingCursos] = useState(false);
@@ -337,31 +430,59 @@ function ExamenesTab() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
+  const clearMsgs = () => { setError(""); setSuccess(""); };
+
   const alumnoSel = useMemo(
     () => alumnos.find((a) => a.id === alumnoId) ?? null,
     [alumnos, alumnoId]
   );
 
-  // Cargar alumnos de carrera regular
+  // Ciclos disponibles para la carrera seleccionada (derivados de alumnos reales)
+  const ciclosOptions = useMemo(() => {
+    if (!carreraId) return [];
+    const set = new Set<number>();
+    for (const a of alumnos) {
+      if (a.carrera_id === carreraId && a.ciclo_actual != null) set.add(a.ciclo_actual);
+    }
+    return [...set].sort((a, b) => a - b);
+  }, [alumnos, carreraId]);
+
+  // Alumnos de la carrera + ciclo seleccionados
+  const alumnosFiltrados = useMemo(() => {
+    if (!carreraId || !ciclo) return [];
+    const cicloNum = Number(ciclo);
+    return alumnos
+      .filter((a) => a.carrera_id === carreraId && a.ciclo_actual === cicloNum)
+      .sort((a, b) => a.nombre.localeCompare(b.nombre));
+  }, [alumnos, carreraId, ciclo]);
+
+  // Cargar carreras + alumnos (una sola vez)
   useEffect(() => {
     (async () => {
-      setLoadingAlumnos(true);
-      setAlumnosError("");
+      setLoadingBase(true);
+      setBaseError("");
       try {
         const token = await getToken();
-        const res = await fetch("/api/admin/examenes", {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        if (!res.ok) {
-          const data = await res.json().catch(() => ({}));
-          throw new Error(data.error ?? "No se pudieron cargar los alumnos");
+        const [carrerasRes, alumnosRes] = await Promise.all([
+          fetch("/api/admin/examenes?carreras=1", { headers: { Authorization: `Bearer ${token}` } }),
+          fetch("/api/admin/examenes", { headers: { Authorization: `Bearer ${token}` } }),
+        ]);
+        if (!carrerasRes.ok) {
+          const d = await carrerasRes.json().catch(() => ({}));
+          throw new Error(d.error ?? "No se pudieron cargar las carreras");
         }
-        const data: { alumnos: AlumnoOption[] } = await res.json();
-        setAlumnos(data.alumnos ?? []);
+        if (!alumnosRes.ok) {
+          const d = await alumnosRes.json().catch(() => ({}));
+          throw new Error(d.error ?? "No se pudieron cargar los alumnos");
+        }
+        const carrerasData: { carreras: { id: string; nombre: string }[] } = await carrerasRes.json();
+        const alumnosData: { alumnos: AlumnoOption[] } = await alumnosRes.json();
+        setCarreras(carrerasData.carreras ?? []);
+        setAlumnos(alumnosData.alumnos ?? []);
       } catch (e) {
-        setAlumnosError(e instanceof Error ? e.message : "Error al cargar alumnos");
+        setBaseError(e instanceof Error ? e.message : "Error al cargar datos");
       } finally {
-        setLoadingAlumnos(false);
+        setLoadingBase(false);
       }
     })();
   }, []);
@@ -393,10 +514,27 @@ function ExamenesTab() {
     })();
   }, [alumnoSel?.carrera_id]);
 
+  // Handlers de cascada: al cambiar un nivel, resetear los siguientes
+  const handleCarreraChange = (id: string) => {
+    setCarreraId(id);
+    setCiclo("");
+    setAlumnoId("");
+    setCursoId("");
+    setTipoExamen("");
+    clearMsgs();
+  };
+  const handleCicloChange = (c: string) => {
+    setCiclo(c);
+    setAlumnoId("");
+    setCursoId("");
+    setTipoExamen("");
+    clearMsgs();
+  };
   const handleAlumnoChange = (id: string) => {
     setAlumnoId(id);
-    setError("");
-    setSuccess("");
+    setCursoId("");
+    setTipoExamen("");
+    clearMsgs();
   };
 
   const puedeEnviar = alumnoId && cursoId && tipoExamen && !submitting;
@@ -404,8 +542,7 @@ function ExamenesTab() {
   const handleSubmit = async () => {
     if (!alumnoId || !cursoId || !tipoExamen) return;
     setSubmitting(true);
-    setError("");
-    setSuccess("");
+    clearMsgs();
     try {
       const curso = cursos.find((c) => c.id === cursoId);
       const token = await getToken();
@@ -427,7 +564,7 @@ function ExamenesTab() {
         throw new Error(data.error ?? "No se pudo habilitar el examen");
       }
       setSuccess(data.message ?? "Examen habilitado correctamente.");
-      // Limpiar el formulario (mantener el alumno seleccionado para varios cargos rápidos)
+      // Limpiar solo curso/tipo (mantener carrera/ciclo/alumno para cargos rápidos)
       setCursoId("");
       setTipoExamen("");
     } catch (e) {
@@ -438,46 +575,88 @@ function ExamenesTab() {
   };
 
   return (
-    <div className="card p-5 space-y-5 max-w-2xl">
+    <div className="card p-5 sm:p-6 space-y-5 max-w-2xl mx-auto">
       <div>
         <h2 className="text-lg font-semibold text-mcm-text flex items-center gap-2">
           <GraduationCap size={18} className="text-[#C62828]" />
           Habilitar examen de pago
         </h2>
         <p className="text-sm text-mcm-muted mt-1">
-          Selecciona al alumno, el curso y el tipo de examen. Se generará un cargo que el alumno
+          Elige carrera, ciclo, alumno, curso y tipo de examen. Se generará un cargo que el alumno
           verá en su estado de cuenta para pagarlo como cualquier otra cuota.
         </p>
       </div>
 
-      {alumnosError ? (
-        <div className="rounded-lg bg-red-50 text-red-700 text-sm px-3 py-2">{alumnosError}</div>
+      {baseError ? (
+        <div className="rounded-lg bg-red-50 text-red-700 text-sm px-3 py-2">{baseError}</div>
       ) : null}
 
-      {/* Alumno */}
+      {/* 1. Carrera */}
       <div>
-        <label className="block text-xs font-semibold text-mcm-muted mb-1">Alumno</label>
+        <label className="block text-xs font-semibold text-mcm-muted mb-1">1. Carrera</label>
         <select
-          value={alumnoId}
-          onChange={(e) => handleAlumnoChange(e.target.value)}
-          disabled={loadingAlumnos}
+          value={carreraId}
+          onChange={(e) => handleCarreraChange(e.target.value)}
+          disabled={loadingBase}
           className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#C62828] focus:outline-none disabled:bg-slate-50"
         >
-          <option value="">{loadingAlumnos ? "Cargando alumnos..." : "Selecciona un alumno"}</option>
-          {alumnos.map((a) => (
-            <option key={a.id} value={a.id}>
-              {a.nombre} — {a.carrera} (Ciclo {a.ciclo_actual ?? "—"})
-            </option>
+          <option value="">{loadingBase ? "Cargando carreras..." : "Selecciona una carrera"}</option>
+          {carreras.map((c) => (
+            <option key={c.id} value={c.id}>{c.nombre}</option>
           ))}
         </select>
       </div>
 
-      {/* Curso */}
+      {/* 2. Ciclo */}
       <div>
-        <label className="block text-xs font-semibold text-mcm-muted mb-1">Curso</label>
+        <label className="block text-xs font-semibold text-mcm-muted mb-1">2. Ciclo</label>
+        <select
+          value={ciclo}
+          onChange={(e) => handleCicloChange(e.target.value)}
+          disabled={!carreraId}
+          className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#C62828] focus:outline-none disabled:bg-slate-50"
+        >
+          <option value="">
+            {!carreraId
+              ? "Primero selecciona una carrera"
+              : ciclosOptions.length === 0
+                ? "No hay ciclos con alumnos"
+                : "Selecciona un ciclo"}
+          </option>
+          {ciclosOptions.map((c) => (
+            <option key={c} value={c}>Ciclo {c}</option>
+          ))}
+        </select>
+      </div>
+
+      {/* 3. Alumno */}
+      <div>
+        <label className="block text-xs font-semibold text-mcm-muted mb-1">3. Alumno</label>
+        <select
+          value={alumnoId}
+          onChange={(e) => handleAlumnoChange(e.target.value)}
+          disabled={!carreraId || !ciclo}
+          className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#C62828] focus:outline-none disabled:bg-slate-50"
+        >
+          <option value="">
+            {!carreraId || !ciclo
+              ? "Primero selecciona carrera y ciclo"
+              : alumnosFiltrados.length === 0
+                ? "No hay alumnos en este ciclo"
+                : "Selecciona un alumno"}
+          </option>
+          {alumnosFiltrados.map((a) => (
+            <option key={a.id} value={a.id}>{a.nombre}</option>
+          ))}
+        </select>
+      </div>
+
+      {/* 4. Curso */}
+      <div>
+        <label className="block text-xs font-semibold text-mcm-muted mb-1">4. Curso</label>
         <select
           value={cursoId}
-          onChange={(e) => { setCursoId(e.target.value); setError(""); setSuccess(""); }}
+          onChange={(e) => { setCursoId(e.target.value); clearMsgs(); }}
           disabled={!alumnoId || loadingCursos}
           className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#C62828] focus:outline-none disabled:bg-slate-50"
         >
@@ -498,15 +677,16 @@ function ExamenesTab() {
         </select>
       </div>
 
-      {/* Tipo de examen */}
+      {/* 5. Tipo de examen */}
       <div>
-        <label className="block text-xs font-semibold text-mcm-muted mb-1">Tipo de examen</label>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+        <label className="block text-xs font-semibold text-mcm-muted mb-1">5. Tipo de examen</label>
+        <div className={clsx("grid grid-cols-1 sm:grid-cols-3 gap-2", !cursoId && "opacity-50 pointer-events-none")}>
           {TIPOS_EXAMEN.map((t) => (
             <button
               key={t.id}
               type="button"
-              onClick={() => { setTipoExamen(t.id); setError(""); setSuccess(""); }}
+              disabled={!cursoId}
+              onClick={() => { setTipoExamen(t.id); clearMsgs(); }}
               className={clsx(
                 "border rounded-lg px-3 py-3 text-left transition-colors",
                 tipoExamen === t.id

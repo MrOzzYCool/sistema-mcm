@@ -51,6 +51,7 @@ function calcularDueDate(): string {
  * Variantes:
  * - Sin parámetros → lista alumnos de CARRERA regular activos
  *   (excluye tipo_programa="actualizacion"): { id, nombre, carrera_id, carrera, ciclo_actual }.
+ * - ?carreras=1 → carreras regulares: { id, nombre }.
  * - ?cursos_carrera_id=<uuid> → cursos de la malla de esa carrera: { id, nombre_curso }.
  */
 export async function GET(req: NextRequest) {
@@ -58,8 +59,24 @@ export async function GET(req: NextRequest) {
   if (!user) return NextResponse.json({ error: "No autorizado" }, { status: 403 });
 
   const cursosCarreraId = req.nextUrl.searchParams.get("cursos_carrera_id");
+  const soloCarreras = req.nextUrl.searchParams.get("carreras");
 
   try {
+    // ── Variante: carreras regulares { id, nombre } ───────────────────────────
+    if (soloCarreras) {
+      const { data: carreras, error: carrerasError } = await supabaseAdmin
+        .from("carreras")
+        .select("id, nombre_carrera, tipo_programa")
+        .neq("tipo_programa", "actualizacion");
+      if (carrerasError) throw carrerasError;
+
+      const lista = (carreras ?? [])
+        .map((c) => ({ id: c.id, nombre: c.nombre_carrera ?? "—" }))
+        .sort((a, b) => a.nombre.localeCompare(b.nombre));
+
+      return NextResponse.json({ carreras: lista });
+    }
+
     // ── Variante: cursos de la malla de una carrera ───────────────────────────
     if (cursosCarreraId) {
       const { data: malla, error: mallaError } = await supabaseAdmin

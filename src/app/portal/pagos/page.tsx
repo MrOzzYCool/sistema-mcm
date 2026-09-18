@@ -156,7 +156,6 @@ export default function PagosAlumnoPage() {
                       )}
                       <td className={clsx("py-3.5 px-4 text-xs", isOverdue ? "text-red-600 font-bold" : "text-mcm-muted")}>
                         {new Date(inst.due_date + "T00:00:00").toLocaleDateString("es-PE", { day: "2-digit", month: "short", year: "numeric" })}
-                        {isOverdue && <span className="ml-1 badge-red text-xs">Vencido</span>}
                       </td>
                       <td className="py-3.5 px-4">
                         {inst.status === "paid" ? (

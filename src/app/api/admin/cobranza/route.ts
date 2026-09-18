@@ -25,6 +25,7 @@ interface CuotaPendiente {
   amount: number;
   due_date: string | null;
   status: string;
+  vencida: boolean;
 }
 
 interface AlumnoDeuda {
@@ -35,6 +36,23 @@ interface AlumnoDeuda {
   ciclo_actual: number | null;
   cuotas: CuotaPendiente[];
   total_adeudado: number;
+  total_vencido: number;
+}
+
+/** Fecha de hoy a medianoche (zona local del servidor), para comparar due_date. */
+function hoyMedianoche(): Date {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+
+/** Una cuota está vencida si tiene due_date y este es anterior a hoy. */
+function esVencida(dueDate: string | null, hoy: Date): boolean {
+  if (!dueDate) return false;
+  const d = new Date(dueDate.length <= 10 ? dueDate + "T00:00:00" : dueDate);
+  if (Number.isNaN(d.getTime())) return false;
+  d.setHours(0, 0, 0, 0);
+  return d < hoy;
 }
 
 /**
@@ -42,6 +60,8 @@ interface AlumnoDeuda {
  *
  * Retorna alumnos de CARRERA regular (excluyendo tipo_programa="actualizacion")
  * con cuotas pendientes (status ∉ {paid, exonerado}), agrupadas por alumno.
+ * Solo se incluyen alumnos con al menos una cuota VENCIDA (due_date < hoy).
+ * Cada cuota indica si está `vencida`; por alumno se calcula `total_vencido`.
  *
  * Query params (opcionales):
  * - ciclo (número): filtra por inscripciones.ciclo_actual
@@ -75,7 +95,7 @@ export async function GET(req: NextRequest) {
     }
 
     if (carreraIdsPermitidos.length === 0) {
-      return NextResponse.json({ alumnos: [], resumen: { total_alumnos: 0, total_adeudado: 0 } });
+      return NextResponse.json({ alumnos: [], resumen: { total_alumnos: 0, total_adeudado: 0, total_vencido: 0 } });
     }
 
     // ── 2. Inscripciones activas de esas carreras ─────────────────────────────
@@ -101,7 +121,7 @@ export async function GET(req: NextRequest) {
     }
     const alumnoIds = Object.keys(inscMap);
     if (alumnoIds.length === 0) {
-      return NextResponse.json({ alumnos: [], resumen: { total_alumnos: 0, total_adeudado: 0 } });
+      return NextResponse.json({ alumnos: [], resumen: { total_alumnos: 0, total_adeudado: 0, total_vencido: 0 } });
     }
 
     // ── 3. Payment plans de esos alumnos ──────────────────────────────────────
@@ -117,7 +137,7 @@ export async function GET(req: NextRequest) {
     }
     const planIds = Object.keys(planAlumnoMap);
     if (planIds.length === 0) {
-      return NextResponse.json({ alumnos: [], resumen: { total_alumnos: 0, total_adeudado: 0 } });
+      return NextResponse.json({ alumnos: [], resumen: { total_alumnos: 0, total_adeudado: 0, total_vencido: 0 } });
     }
 
     // ── 4. Cuotas pendientes (status ∉ paid/exonerado) ────────────────────────
@@ -129,7 +149,7 @@ export async function GET(req: NextRequest) {
     if (cuotasError) throw cuotasError;
 
     if (!cuotas || cuotas.length === 0) {
-      return NextResponse.json({ alumnos: [], resumen: { total_alumnos: 0, total_adeudado: 0 } });
+      return NextResponse.json({ alumnos: [], resumen: { total_alumnos: 0, total_adeudado: 0, total_vencido: 0 } });
     }
 
     // ── 5. Resolver nombres de alumnos por lote ───────────────────────────────
@@ -140,7 +160,8 @@ export async function GET(req: NextRequest) {
       alumnoNombreMap[p.id] = p.nombre_completo ?? "—";
     }
 
-    // ── 6. Agrupar cuotas por alumno ──────────────────────────────────────────
+    // ── 6. Agrupar cuotas por alumno (marcando cuáles están vencidas) ─────────
+    const hoy = hoyMedianoche();
     const deudaMap: Record<string, AlumnoDeuda> = {};
     for (const c of cuotas) {
       const alumnoId = planAlumnoMap[c.plan_id];
@@ -157,26 +178,32 @@ export async function GET(req: NextRequest) {
           ciclo_actual: insc.ciclo_actual,
           cuotas: [],
           total_adeudado: 0,
+          total_vencido: 0,
         };
       }
 
       const amount = Number(c.amount ?? 0);
+      const dueDate = (c.due_date as string) ?? null;
+      const vencida = esVencida(dueDate, hoy);
       deudaMap[alumnoId].cuotas.push({
         concepto: c.concepto ?? "Cuota",
         amount,
-        due_date: (c.due_date as string) ?? null,
+        due_date: dueDate,
         status: c.status ?? "pending",
+        vencida,
       });
       deudaMap[alumnoId].total_adeudado += amount;
+      if (vencida) deudaMap[alumnoId].total_vencido += amount;
     }
 
-    // ── 7. Construir respuesta (omitir alumnos sin cuotas pendientes) ─────────
-    const alumnos = Object.values(deudaMap).filter((a) => a.cuotas.length > 0);
+    // ── 7. Construir respuesta (SOLO alumnos con al menos una cuota vencida) ──
+    const alumnos = Object.values(deudaMap).filter((a) => a.total_vencido > 0);
     alumnos.sort((a, b) => a.nombre.localeCompare(b.nombre));
 
     const resumen = {
       total_alumnos: alumnos.length,
       total_adeudado: alumnos.reduce((acc, a) => acc + a.total_adeudado, 0),
+      total_vencido: alumnos.reduce((acc, a) => acc + a.total_vencido, 0),
     };
 
     return NextResponse.json({ alumnos, resumen });
@@ -186,3 +213,4 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Error interno", detail: msg }, { status: 500 });
   }
 }
+
