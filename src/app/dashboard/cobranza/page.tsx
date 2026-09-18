@@ -456,6 +456,13 @@ function ExamenesTab() {
       .sort((a, b) => a.nombre.localeCompare(b.nombre));
   }, [alumnos, carreraId, ciclo]);
 
+  // Cursos del ciclo seleccionado (la malla trae los 6 ciclos; mostramos solo el actual)
+  const cursosFiltrados = useMemo(() => {
+    if (!ciclo) return [];
+    const cicloNum = Number(ciclo);
+    return cursos.filter((c) => Number(c.ciclo_perteneciente) === cicloNum);
+  }, [cursos, ciclo]);
+
   // Cargar carreras + alumnos (una sola vez)
   useEffect(() => {
     (async () => {
@@ -665,11 +672,11 @@ function ExamenesTab() {
               ? "Primero selecciona un alumno"
               : loadingCursos
                 ? "Cargando cursos..."
-                : cursos.length === 0
-                  ? "No hay cursos en la malla"
+                : cursosFiltrados.length === 0
+                  ? "No hay cursos para este ciclo"
                   : "Selecciona un curso"}
           </option>
-          {cursos.map((c) => (
+          {cursosFiltrados.map((c) => (
             <option key={c.id} value={c.id}>
               {c.nombre_curso}{c.ciclo_perteneciente != null ? ` (Ciclo ${c.ciclo_perteneciente})` : ""}
             </option>
