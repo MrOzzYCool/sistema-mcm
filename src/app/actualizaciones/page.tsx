@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { ACTUALIZACIONES_CATALOGO } from "@/lib/mock-data";
 import { uploadSolicitudFiles } from "@/lib/solicitudes-service";
 import { EmailField, EmailConfirmField } from "@/components/EmailConfirmField";
@@ -47,9 +47,17 @@ const INIT: FormState = {
 
 // ─── Página ────────────────────────────────────────────────────────────────────
 
+type ProgramaActivo = {
+  programa_id: string;
+  programa_label: string;
+  grupo_id?: string;
+};
+
 export default function ActualizacionesPage() {
   const [form, setForm]                         = useState<FormState>(INIT);
   const [esExalumna, setEsExalumna]             = useState(false);
+  const [programasActivos, setProgramasActivos] = useState<ProgramaActivo[]>([]);
+  const [cargandoProgramas, setCargandoProgramas] = useState(true);
   const [voucherFiles, setVoucherFiles]         = useState<File[]>([]);
   const [dniAnversoFile, setDniAnversoFile]     = useState<File | null>(null);
   const [dniReversoFile, setDniReversoFile]     = useState<File | null>(null);
@@ -60,12 +68,34 @@ export default function ActualizacionesPage() {
   const dniAnversoRef = useRef<HTMLInputElement>(null);
   const dniReversoRef = useRef<HTMLInputElement>(null);
 
+  // Cargar los programas que tienen un grupo (tanda) activo al montar.
+  useEffect(() => {
+    let cancelado = false;
+    (async () => {
+      try {
+        const res = await fetch("/api/actualizaciones/programas-activos");
+        if (!res.ok) throw new Error("No se pudieron cargar los programas");
+        const json = await res.json();
+        if (!cancelado) setProgramasActivos(json.programas ?? []);
+      } catch {
+        if (!cancelado) setProgramasActivos([]);
+      } finally {
+        if (!cancelado) setCargandoProgramas(false);
+      }
+    })();
+    return () => { cancelado = true; };
+  }, []);
+
+  const hayProgramasActivos = programasActivos.length > 0;
+
+  // El item del catálogo se sigue resolviendo por id (mantiene costo/label/Nubefact).
   const actualizacion    = ACTUALIZACIONES_CATALOGO.find((a) => a.id === form.actualizacionId);
   const DESCUENTO_EXALUMNA = 100;
   const montoFinal       = actualizacion ? (esExalumna ? actualizacion.costo - DESCUENTO_EXALUMNA : actualizacion.costo) : 0;
   const emailNoCoincide  = form.emailConfirm.length > 0 && form.email !== form.emailConfirm;
 
   const puedeEnviar =
+    hayProgramasActivos &&
     !!actualizacion &&
     voucherFiles.length > 0 && !!dniAnversoFile && !!dniReversoFile &&
     !!form.email && !!form.emailConfirm && !emailNoCoincide &&
@@ -110,6 +140,7 @@ export default function ActualizacionesPage() {
               celular:          form.celular.trim(),
               anio_egreso:      "—",
               tipo_tramite:     actualizacion.label,
+              programa_id:      form.actualizacionId,
               costo_tramite:    actualizacion.costo,
               monto_pagado:     montoFinal,
               voucher_url:      vu,
@@ -271,14 +302,29 @@ export default function ActualizacionesPage() {
             <fieldset>
               <legend className="text-xs font-semibold text-mcm-muted uppercase tracking-wide mb-3">Actualización a realizar</legend>
               <div className="space-y-3">
+                {!cargandoProgramas && !hayProgramasActivos && (
+                  <div className="flex items-start gap-2 bg-amber-50 border border-amber-200 text-amber-800 rounded-lg p-3 text-sm">
+                    <Info size={15} className="mt-0.5 shrink-0" />
+                    <span>No hay programas disponibles para inscripción en este momento.</span>
+                  </div>
+                )}
                 <select value={form.actualizacionId}
                   onChange={(e) => set("actualizacionId", e.target.value)}
                   required
-                  className="w-full border border-mcm-border rounded-lg px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#C62828]">
-                  <option value="">Selecciona una actualización...</option>
-                  {ACTUALIZACIONES_CATALOGO.map((a) => (
-                    <option key={a.id} value={a.id}>{a.label}</option>
-                  ))}
+                  disabled={cargandoProgramas || !hayProgramasActivos}
+                  className="w-full border border-mcm-border rounded-lg px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#C62828] disabled:bg-slate-100 disabled:cursor-not-allowed">
+                  <option value="">
+                    {cargandoProgramas ? "Cargando programas..." : "Selecciona una actualización..."}
+                  </option>
+                  {programasActivos.map((p) => {
+                    // Cruzar con el catálogo para mostrar el label oficial (respaldo: label del grupo)
+                    const cat = ACTUALIZACIONES_CATALOGO.find((a) => a.id === p.programa_id);
+                    return (
+                      <option key={p.programa_id} value={p.programa_id}>
+                        {cat?.label ?? p.programa_label}
+                      </option>
+                    );
+                  })}
                 </select>
 
                 {actualizacion && (

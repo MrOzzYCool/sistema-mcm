@@ -46,5 +46,19 @@ export interface SolicitudDB {
   razon_social?: string | null;
   direccion_fiscal?: string | null;
   tipo_formulario?: "tramite" | "actualizacion";
+  grupo_actualizacion_id?: string | null;
+  created_at?: string;
+}
+
+// ─── Tipos de la tabla 'grupos_actualizacion' ────────────────────────────────
+
+export interface GrupoActualizacionDB {
+  id?: string;
+  programa_id: string; // 'ac1' | 'ac2' | ...
+  programa_label: string;
+  fecha_inicio: string; // ISO date
+  fecha_cierre_inscripcion?: string | null;
+  estado: "activo" | "cerrado";
+  created_by?: string | null;
   created_at?: string;
 }

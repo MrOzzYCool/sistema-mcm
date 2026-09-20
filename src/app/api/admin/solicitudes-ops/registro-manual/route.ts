@@ -41,6 +41,7 @@ export async function POST(req: NextRequest) {
       tipo_tramite, monto_pagado,
       tipo_comprobante, ruc, razon_social, direccion_fiscal,
       pdf_boleta_url, voucher_url, dni_anverso_url, dni_reverso_url,
+      grupo_actualizacion_id,
     } = body;
 
     // Validaciones básicas
@@ -63,6 +64,7 @@ export async function POST(req: NextRequest) {
       tipo_comprobante: tipo_comprobante ?? "boleta",
       tipo_formulario:  "actualizacion",
       estado:           "aprobado",
+      grupo_actualizacion_id: grupo_actualizacion_id ?? null,
       pdf_boleta_url:   (pdf_boleta_url ?? "").trim() || null,
       anio_egreso:      "—",
       // Campos opcionales de factura

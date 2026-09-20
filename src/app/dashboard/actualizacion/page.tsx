@@ -2,13 +2,16 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { getSolicitudes, actualizarEstado } from "@/lib/solicitudes-service";
-import { SolicitudDB } from "@/lib/supabase";
+import { getGrupos, aperturarGrupo, cerrarGrupo } from "@/lib/grupos-actualizacion-service";
+import { estaVencido } from "@/lib/grupos-actualizacion/logic";
+import { SolicitudDB, GrupoActualizacionDB } from "@/lib/supabase";
 import { useAuth } from "@/lib/auth-context";
 import RouteGuard from "@/components/RouteGuard";
 import { ACTUALIZACIONES_CATALOGO } from "@/lib/mock-data";
 import {
   CheckCircle, XCircle, AlertTriangle, Eye, X,
   ExternalLink, RefreshCw, Loader2, BarChart2, Plus, Upload, Pencil,
+  Layers, Lock,
 } from "lucide-react";
 import clsx from "clsx";
 
@@ -26,6 +29,17 @@ const ESTADO_LABEL: Record<NonNullable<Estado>, string> = {
   observado: "Observado", rechazado: "Rechazado",
 };
 
+// Formatea una fecha ISO (YYYY-MM-DD) a formato local corto, evitando desfases de zona.
+function formatearFecha(fecha?: string | null): string {
+  if (!fecha) return "—";
+  // Interpretar como fecha local (sin componente horario) para evitar corrimiento de día.
+  const [y, m, d] = fecha.slice(0, 10).split("-").map(Number);
+  if (!y || !m || !d) return fecha;
+  return new Date(y, m - 1, d).toLocaleDateString("es-PE", {
+    day: "2-digit", month: "short", year: "numeric",
+  });
+}
+
 // ─── Contenido principal ──────────────────────────────────────────────────────
 
 function ActualizacionContent() {
@@ -38,6 +52,8 @@ function ActualizacionContent() {
   // Pestaña activa: id de ACTUALIZACIONES_CATALOGO
   const [tabActiva, setTabActiva] = useState<string>(ACTUALIZACIONES_CATALOGO[0].id);
   const [showRegistroManual, setShowRegistroManual] = useState(false);
+  const [showGrupos, setShowGrupos] = useState(false);
+  const [grupos, setGrupos] = useState<GrupoActualizacionDB[]>([]);
 
   const esSuperAdmin = user?.role === "super_admin";
 
@@ -54,7 +70,16 @@ function ActualizacionContent() {
     }
   }, []);
 
-  useEffect(() => { cargar(); }, [cargar, refreshKey]);
+  const cargarGrupos = useCallback(async () => {
+    try {
+      const data = await getGrupos();
+      setGrupos(data);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Error cargando grupos");
+    }
+  }, []);
+
+  useEffect(() => { cargar(); cargarGrupos(); }, [cargar, cargarGrupos, refreshKey]);
   useEffect(() => {
     function onFocus() { cargar(); }
     window.addEventListener("focus", onFocus);
@@ -71,6 +96,10 @@ function ActualizacionContent() {
           <p className="text-mcm-muted text-sm mt-0.5">Gestión de solicitudes de actualización</p>
         </div>
         <div className="flex items-center gap-2">
+          <button onClick={() => setShowGrupos(true)}
+            className="btn-secondary flex items-center gap-2 text-sm">
+            <Layers size={14} /> Gestionar grupos
+          </button>
           {esSuperAdmin && (
             <button onClick={() => setShowRegistroManual(true)}
               className="btn-primary flex items-center gap-2 text-sm">
@@ -116,6 +145,7 @@ function ActualizacionContent() {
           tabActiva={tabActiva} setTabActiva={setTabActiva}
           setTodas={setTodas} setError={setError}
           esSuperAdmin={esSuperAdmin}
+          grupos={grupos}
         />
       ) : (
         <ReportesView todas={todas} loading={loading} />
@@ -124,8 +154,18 @@ function ActualizacionContent() {
       {/* Modal Registro Manual */}
       {showRegistroManual && (
         <RegistroManualModal
+          grupos={grupos}
           onClose={() => setShowRegistroManual(false)}
           onSuccess={() => { setShowRegistroManual(false); setRefreshKey((k) => k + 1); }}
+        />
+      )}
+
+      {/* Modal Gestión de Grupos */}
+      {showGrupos && (
+        <GruposModal
+          grupos={grupos}
+          onClose={() => setShowGrupos(false)}
+          onChanged={() => { cargarGrupos(); }}
         />
       )}
     </div>
@@ -134,7 +174,7 @@ function ActualizacionContent() {
 
 // ─── Vista Solicitudes ────────────────────────────────────────────────────────
 
-function SolicitudesView({ todas, loading, tabActiva, setTabActiva, setTodas, setError, esSuperAdmin }: {
+function SolicitudesView({ todas, loading, tabActiva, setTabActiva, setTodas, setError, esSuperAdmin, grupos }: {
   todas: SolicitudDB[];
   loading: boolean;
   tabActiva: string;
@@ -142,8 +182,11 @@ function SolicitudesView({ todas, loading, tabActiva, setTabActiva, setTodas, se
   setTodas: React.Dispatch<React.SetStateAction<SolicitudDB[]>>;
   setError: (e: string) => void;
   esSuperAdmin: boolean;
+  grupos: GrupoActualizacionDB[];
 }) {
   const [filtro, setFiltro]     = useState<Estado | "todos">("todos");
+  // Filtro por grupo: "todos" | "sin-agrupar" | <grupo_id>
+  const [filtroGrupo, setFiltroGrupo] = useState<string>("todos");
   const [lightbox, setLightbox] = useState<{ url: string; titulo: string } | null>(null);
   const [modalObs, setModalObs] = useState<SolicitudDB | null>(null);
   const [obsFields, setObsFields] = useState({ voucher: "", dni_anverso: "", dni_reverso: "" });
@@ -159,13 +202,24 @@ function SolicitudesView({ todas, loading, tabActiva, setTabActiva, setTodas, se
   const porTab    = isCertTab
     ? todas.filter((s) => s.tipo_tramite?.toUpperCase().startsWith(certLabel))
     : todas.filter((s) => s.tipo_tramite === actCat?.label);
-  const lista     = filtro === "todos" ? porTab : porTab.filter((s) => s.estado === filtro);
+
+  // Grupos del programa de la pestaña activa (activos y cerrados). Los certificados no tienen grupos.
+  const gruposDelTab = isCertTab ? [] : grupos.filter((g) => g.programa_id === tabActiva);
+
+  // Filtro por grupo (Req 6.2, 6.4): "todos" | "sin-agrupar" | <grupo_id>
+  const porGrupo = filtroGrupo === "todos"
+    ? porTab
+    : filtroGrupo === "sin-agrupar"
+      ? porTab.filter((s) => !s.grupo_actualizacion_id)
+      : porTab.filter((s) => s.grupo_actualizacion_id === filtroGrupo);
+
+  const lista     = filtro === "todos" ? porGrupo : porGrupo.filter((s) => s.estado === filtro);
 
   const kpis = {
-    todos:     porTab.length,
-    pendiente: porTab.filter((s) => s.estado === "pendiente").length,
-    aprobado:  porTab.filter((s) => s.estado === "aprobado").length,
-    observado: porTab.filter((s) => s.estado === "observado").length,
+    todos:     porGrupo.length,
+    pendiente: porGrupo.filter((s) => s.estado === "pendiente").length,
+    aprobado:  porGrupo.filter((s) => s.estado === "aprobado").length,
+    observado: porGrupo.filter((s) => s.estado === "observado").length,
   };
 
   async function handleAprobar(id: string) {
@@ -230,7 +284,7 @@ function SolicitudesView({ todas, loading, tabActiva, setTabActiva, setTodas, se
         {ACTUALIZACIONES_CATALOGO.map((a) => {
           const count = todas.filter((s) => s.tipo_tramite === a.label).length;
           return (
-            <button key={a.id} onClick={() => { setTabActiva(a.id); setFiltro("todos"); }}
+            <button key={a.id} onClick={() => { setTabActiva(a.id); setFiltro("todos"); setFiltroGrupo("todos"); }}
               className={clsx(
                 "px-4 py-2.5 rounded-xl text-xs font-semibold border-2 transition-all",
                 tabActiva === a.id
@@ -252,7 +306,7 @@ function SolicitudesView({ todas, loading, tabActiva, setTabActiva, setTodas, se
         ].map((c) => {
           const count = todas.filter((s) => s.tipo_tramite?.toUpperCase().startsWith(c.id === "cert-digital" ? "CERTIFICADO DIGITAL" : "CERTIFICADO FÍSICO")).length;
           return (
-            <button key={c.id} onClick={() => { setTabActiva(c.id); setFiltro("todos"); }}
+            <button key={c.id} onClick={() => { setTabActiva(c.id); setFiltro("todos"); setFiltroGrupo("todos"); }}
               className={clsx(
                 "px-4 py-2.5 rounded-xl text-xs font-semibold border-2 transition-all",
                 tabActiva === c.id
@@ -268,6 +322,26 @@ function SolicitudesView({ todas, loading, tabActiva, setTabActiva, setTodas, se
           );
         })}
       </div>
+
+      {/* Filtro por grupo (tanda) — solo para pestañas de programa */}
+      {!isCertTab && (
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="text-xs font-semibold text-mcm-muted flex items-center gap-1">
+            <Layers size={13} /> Grupo:
+          </span>
+          <select value={filtroGrupo} onChange={(e) => setFiltroGrupo(e.target.value)}
+            className="border border-mcm-border rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#C62828]">
+            <option value="todos">Todos</option>
+            <option value="sin-agrupar">Sin agrupar</option>
+            {gruposDelTab.map((g) => (
+              <option key={g.id} value={g.id}>
+                {g.estado === "activo" ? "🟢" : "🔒"} {formatearFecha(g.fecha_inicio)}
+                {g.estado === "cerrado" ? " (cerrado)" : ""}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
 
       {/* KPIs / filtros de estado */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -570,18 +644,22 @@ function ReporteKpi({ label, value, color, large }: {
 type RegistroForm = {
   nombres: string; apellidos: string; dni: string;
   email: string; celular: string;
-  actualizacionId: string;
+  grupoId: string;
   tipoComprobante: "boleta" | "factura" | "";
   ruc: string; razonSocial: string; direccionFiscal: string;
 };
 
 const REGISTRO_INIT: RegistroForm = {
   nombres: "", apellidos: "", dni: "", email: "", celular: "",
-  actualizacionId: "", tipoComprobante: "",
+  grupoId: "", tipoComprobante: "",
   ruc: "", razonSocial: "", direccionFiscal: "",
 };
 
-function RegistroManualModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: () => void }) {
+function RegistroManualModal({ grupos, onClose, onSuccess }: {
+  grupos: GrupoActualizacionDB[];
+  onClose: () => void;
+  onSuccess: () => void;
+}) {
   const [form, setForm] = useState<RegistroForm>(REGISTRO_INIT);
   const [pdfFile, setPdfFile] = useState<File | null>(null);
   const [voucherFile, setVoucherFile] = useState<File | null>(null);
@@ -594,11 +672,17 @@ function RegistroManualModal({ onClose, onSuccess }: { onClose: () => void; onSu
   const dniAnversoInputRef = useRef<HTMLInputElement>(null);
   const dniReversoInputRef = useRef<HTMLInputElement>(null);
 
-  const actualizacion = ACTUALIZACIONES_CATALOGO.find((a) => a.id === form.actualizacionId);
+  // Solo se puede registrar en grupos ACTIVOS.
+  const gruposActivos = grupos.filter((g) => g.estado === "activo");
+  const grupoSel = grupos.find((g) => g.id === form.grupoId);
+  // El programa (y su costo) se derivan del grupo seleccionado, cruzando con el catálogo.
+  const actualizacion = grupoSel
+    ? ACTUALIZACIONES_CATALOGO.find((a) => a.id === grupoSel.programa_id)
+    : undefined;
 
   const puedeGuardar =
     !!form.nombres.trim() && !!form.apellidos.trim() &&
-    form.dni.length === 8 && !!actualizacion && !!form.tipoComprobante &&
+    form.dni.length === 8 && !!form.grupoId && !!grupoSel && !!form.tipoComprobante &&
     (form.tipoComprobante === "boleta" || form.ruc.length === 11);
 
   function set(k: keyof RegistroForm, v: string) {
@@ -607,7 +691,7 @@ function RegistroManualModal({ onClose, onSuccess }: { onClose: () => void; onSu
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!puedeGuardar || !actualizacion) return;
+    if (!puedeGuardar || !grupoSel) return;
     setSaving(true);
     setError("");
 
@@ -681,8 +765,10 @@ function RegistroManualModal({ onClose, onSuccess }: { onClose: () => void; onSu
           dni:              form.dni.trim(),
           email:            form.email.trim().toLowerCase(),
           celular:          form.celular.trim(),
-          tipo_tramite:     actualizacion.label,
-          monto_pagado:     actualizacion.costo,
+          tipo_tramite:     grupoSel.programa_label,
+          programa_id:      grupoSel.programa_id,
+          grupo_actualizacion_id: grupoSel.id,
+          monto_pagado:     actualizacion?.costo ?? 0,
           tipo_comprobante: form.tipoComprobante,
           pdf_boleta_url:   pdfUrl,
           voucher_url:      voucherUrl,
@@ -748,16 +834,27 @@ function RegistroManualModal({ onClose, onSuccess }: { onClose: () => void; onSu
           </div>
           <InputField label="Email" value={form.email} onChange={(v) => set("email", v)} placeholder="alumna@ejemplo.com" />
 
-          {/* Actualización */}
+          {/* Grupo (tanda) — determina el programa de la inscripción */}
           <div>
-            <label className="block text-xs font-medium text-mcm-text mb-1">Actualización *</label>
-            <select value={form.actualizacionId} onChange={(e) => set("actualizacionId", e.target.value)} required
+            <label className="block text-xs font-medium text-mcm-text mb-1">Grupo (tanda) *</label>
+            <select value={form.grupoId} onChange={(e) => set("grupoId", e.target.value)} required
               className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#a93526]">
-              <option value="">Selecciona...</option>
-              {ACTUALIZACIONES_CATALOGO.map((a) => (
-                <option key={a.id} value={a.id}>{a.label} — S/ {a.costo}</option>
-              ))}
+              <option value="">Selecciona un grupo activo...</option>
+              {gruposActivos.map((g) => {
+                const cat = ACTUALIZACIONES_CATALOGO.find((a) => a.id === g.programa_id);
+                return (
+                  <option key={g.id} value={g.id}>
+                    {g.programa_label} — inicia {formatearFecha(g.fecha_inicio)}
+                    {cat ? ` (S/ ${cat.costo})` : ""}
+                  </option>
+                );
+              })}
             </select>
+            {gruposActivos.length === 0 && (
+              <p className="text-xs text-amber-700 mt-1 flex items-center gap-1">
+                <AlertTriangle size={11} /> No hay grupos activos. Apertura uno en &quot;Gestionar grupos&quot;.
+              </p>
+            )}
           </div>
 
           {/* Tipo comprobante */}
@@ -1194,6 +1291,163 @@ function DocUploadField({ label, currentUrl, file, inputRef, onFileChange }: {
       )}
       <input ref={inputRef} type="file" accept="image/*,.pdf" className="hidden"
         onChange={(e) => { if (e.target.files?.[0]) onFileChange(e.target.files[0]); }} />
+    </div>
+  );
+}
+
+// ─── Modal Gestión de Grupos (tandas) ─────────────────────────────────────────
+
+function GruposModal({ grupos, onClose, onChanged }: {
+  grupos: GrupoActualizacionDB[];
+  onClose: () => void;
+  onChanged: () => void;
+}) {
+  const [programaId, setProgramaId]   = useState<string>(ACTUALIZACIONES_CATALOGO[0].id);
+  const [fechaInicio, setFechaInicio] = useState<string>("");
+  const [fechaCierre, setFechaCierre] = useState<string>("");
+  const [saving, setSaving]           = useState(false);
+  const [cerrandoId, setCerrandoId]   = useState<string | null>(null);
+  const [error, setError]             = useState("");
+
+  const hoy = new Date();
+
+  const puedeAperturar = !!programaId && !!fechaInicio;
+
+  async function handleAperturar(e: React.FormEvent) {
+    e.preventDefault();
+    if (!puedeAperturar) return;
+    setSaving(true);
+    setError("");
+    try {
+      await aperturarGrupo({
+        programa_id: programaId,
+        fecha_inicio: fechaInicio,
+        fecha_cierre_inscripcion: fechaCierre || null,
+      });
+      setFechaInicio("");
+      setFechaCierre("");
+      onChanged();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Error al aperturar el grupo");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleCerrar(id: string) {
+    setCerrandoId(id);
+    setError("");
+    try {
+      await cerrarGrupo(id);
+      onChanged();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Error al cerrar el grupo");
+    } finally {
+      setCerrandoId(null);
+    }
+  }
+
+  // Ordenar: activos primero, luego por fecha de inicio descendente
+  const gruposOrdenados = [...grupos].sort((a, b) => {
+    if (a.estado !== b.estado) return a.estado === "activo" ? -1 : 1;
+    return (b.fecha_inicio ?? "").localeCompare(a.fecha_inicio ?? "");
+  });
+
+  return (
+    <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4 overflow-y-auto">
+      <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-2xl my-8">
+        <div className="flex items-center justify-between mb-5">
+          <div>
+            <h3 className="font-bold text-mcm-text text-lg flex items-center gap-2">
+              <Layers size={18} /> Grupos de actualización (tandas)
+            </h3>
+            <p className="text-mcm-muted text-xs mt-0.5">
+              Apertura y cierra las tandas de inscripción por programa.
+            </p>
+          </div>
+          <button onClick={onClose} className="text-mcm-muted hover:text-mcm-text"><X size={20} /></button>
+        </div>
+
+        {error && (
+          <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg p-3 mb-4 text-sm">{error}</div>
+        )}
+
+        {/* Aperturar un grupo */}
+        <form onSubmit={handleAperturar} className="bg-slate-50 border border-mcm-border rounded-xl p-4 mb-5 space-y-3">
+          <p className="text-xs font-semibold text-mcm-muted uppercase tracking-wide">Aperturar nuevo grupo</p>
+          <div>
+            <label className="block text-xs font-medium text-mcm-text mb-1">Programa *</label>
+            <select value={programaId} onChange={(e) => setProgramaId(e.target.value)}
+              className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#C62828]">
+              {ACTUALIZACIONES_CATALOGO.map((a) => (
+                <option key={a.id} value={a.id}>{a.label}</option>
+              ))}
+            </select>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-mcm-text mb-1">Fecha de inicio *</label>
+              <input type="date" value={fechaInicio} onChange={(e) => setFechaInicio(e.target.value)} required
+                className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#C62828]" />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-mcm-text mb-1">Cierre de inscripción</label>
+              <input type="date" value={fechaCierre} onChange={(e) => setFechaCierre(e.target.value)}
+                className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#C62828]" />
+            </div>
+          </div>
+          <button type="submit" disabled={!puedeAperturar || saving}
+            className="btn-primary text-sm flex items-center gap-2 disabled:opacity-50">
+            {saving ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
+            {saving ? "Aperturando..." : "Aperturar grupo"}
+          </button>
+        </form>
+
+        {/* Listado de grupos */}
+        <div className="space-y-2">
+          <p className="text-xs font-semibold text-mcm-muted uppercase tracking-wide mb-1">Grupos existentes</p>
+          {gruposOrdenados.length === 0 && (
+            <p className="text-sm text-mcm-muted py-6 text-center">Aún no hay grupos creados.</p>
+          )}
+          {gruposOrdenados.map((g) => {
+            const vencido = estaVencido(g, hoy);
+            return (
+              <div key={g.id} className="flex items-center gap-3 border border-mcm-border rounded-xl px-4 py-3">
+                <div className="flex-1 min-w-0">
+                  <p className="font-semibold text-mcm-text text-sm truncate">{g.programa_label}</p>
+                  <p className="text-xs text-mcm-muted">
+                    Inicio: {formatearFecha(g.fecha_inicio)}
+                    {" · "}Cierre: {formatearFecha(g.fecha_cierre_inscripcion)}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  {g.estado === "activo" ? (
+                    <span className="badge-green text-xs">Activo</span>
+                  ) : (
+                    <span className="badge-red text-xs">Cerrado</span>
+                  )}
+                  {vencido && (
+                    <span className="inline-flex items-center gap-1 text-xs font-medium text-amber-700 bg-amber-50 border border-amber-200 rounded-full px-2 py-0.5">
+                      <AlertTriangle size={11} /> Vencido
+                    </span>
+                  )}
+                  {g.estado === "activo" && (
+                    <button onClick={() => handleCerrar(g.id!)} disabled={cerrandoId === g.id}
+                      className="flex items-center gap-1 text-xs text-red-600 hover:text-red-800 font-medium disabled:opacity-50">
+                      {cerrandoId === g.id ? <Loader2 size={12} className="animate-spin" /> : <Lock size={12} />}
+                      Cerrar
+                    </button>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        <div className="flex justify-end mt-6">
+          <button onClick={onClose} className="btn-secondary text-sm">Cerrar</button>
+        </div>
+      </div>
     </div>
   );
 }
