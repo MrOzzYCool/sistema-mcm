@@ -36,8 +36,10 @@ export async function getGrupos(programaId?: string): Promise<GrupoActualizacion
  */
 export async function aperturarGrupo(datos: {
   programa_id: string;
-  fecha_inicio: string;
+  fecha_inicio_inscripcion?: string | null;
   fecha_cierre_inscripcion?: string | null;
+  fecha_inicio_actualizacion?: string | null;
+  fecha_fin_actualizacion?: string | null;
 }): Promise<GrupoActualizacionDB> {
   const token = await getToken();
 

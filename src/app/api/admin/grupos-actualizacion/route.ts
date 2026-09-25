@@ -47,14 +47,34 @@ export async function GET(req: NextRequest) {
 }
 
 /**
+ * Fecha de hoy en formato YYYY-MM-DD usando componentes locales
+ * (evita el desfase de zona horaria de toISOString()).
+ */
+function hoyLocalYMD(): string {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+/**
  * POST /api/admin/grupos-actualizacion
- * Body: { programa_id, fecha_inicio, fecha_cierre_inscripcion }
+ * Body (las 4 fechas son opcionales):
+ *   { programa_id, fecha_inicio_inscripcion?, fecha_cierre_inscripcion?,
+ *     fecha_inicio_actualizacion?, fecha_fin_actualizacion? }
  */
 export async function POST(req: NextRequest) {
   const admin = await verifyAccess(req);
   if (!admin) return NextResponse.json({ error: "No autorizado" }, { status: 403 });
 
-  const { programa_id, fecha_inicio, fecha_cierre_inscripcion } = await req.json();
+  const {
+    programa_id,
+    fecha_inicio_inscripcion,
+    fecha_cierre_inscripcion,
+    fecha_inicio_actualizacion,
+    fecha_fin_actualizacion,
+  } = await req.json();
 
   const catalogoIds = ACTUALIZACIONES_CATALOGO.map((p) => p.id as string);
 
@@ -68,7 +88,7 @@ export async function POST(req: NextRequest) {
   if (fetchError) return NextResponse.json({ error: fetchError.message }, { status: 500 });
 
   const validation = validarApertura(
-    { programa_id, fecha_inicio },
+    { programa_id },
     existentes ?? [],
     catalogoIds
   );
@@ -79,13 +99,18 @@ export async function POST(req: NextRequest) {
   const programa = ACTUALIZACIONES_CATALOGO.find((p) => p.id === programa_id);
   const programa_label = programa?.label ?? "";
 
+  // Si no se especifica el inicio de inscripción, se toma la fecha de apertura (hoy).
+  const inicioInscripcion = fecha_inicio_inscripcion || hoyLocalYMD();
+
   const { data, error } = await supabaseAdmin
     .from("grupos_actualizacion")
     .insert({
       programa_id,
       programa_label,
-      fecha_inicio,
+      fecha_inicio_inscripcion: inicioInscripcion,
       fecha_cierre_inscripcion: fecha_cierre_inscripcion || null,
+      fecha_inicio_actualizacion: fecha_inicio_actualizacion || null,
+      fecha_fin_actualizacion: fecha_fin_actualizacion || null,
       estado: "activo",
       created_by: admin.id,
     })
@@ -106,7 +131,15 @@ export async function POST(req: NextRequest) {
   await supabaseAdmin.from("historial_auditoria").insert({
     accion: "aperturar_grupo_actualizacion",
     admin_id: admin.id, admin_email: admin.email,
-    detalle: { grupo_id: data?.id, programa_id, programa_label, fecha_inicio, fecha_cierre_inscripcion: fecha_cierre_inscripcion || null },
+    detalle: {
+      grupo_id: data?.id,
+      programa_id,
+      programa_label,
+      fecha_inicio_inscripcion: inicioInscripcion,
+      fecha_cierre_inscripcion: fecha_cierre_inscripcion || null,
+      fecha_inicio_actualizacion: fecha_inicio_actualizacion || null,
+      fecha_fin_actualizacion: fecha_fin_actualizacion || null,
+    },
   });
 
   return NextResponse.json({ success: true, grupo: data }, { status: 201 });

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { enviarConfirmacionRecepcion } from "@/lib/emailService";
 import { ACTUALIZACIONES_CATALOGO } from "@/lib/mock-data";
-import { resolverGrupoActivo } from "@/lib/grupos-actualizacion/logic";
+import { resolverGrupoActivo, inscripcionCerradaPorFecha } from "@/lib/grupos-actualizacion/logic";
 
 export async function POST(req: NextRequest) {
   try {
@@ -24,10 +24,10 @@ export async function POST(req: NextRequest) {
         programaId = catItem?.id;
       }
 
-      // Consultar el grupo activo de ese programa
+      // Consultar el grupo activo de ese programa (incluir fecha de cierre)
       const { data: grupos, error: gruposError } = await supabaseAdmin
         .from("grupos_actualizacion")
-        .select("id, programa_id, estado")
+        .select("id, programa_id, estado, fecha_cierre_inscripcion")
         .eq("programa_id", programaId ?? "")
         .eq("estado", "activo");
 
@@ -42,6 +42,17 @@ export async function POST(req: NextRequest) {
           { status: 400 }
         );
       }
+
+      // Bloqueo por fecha: aunque el grupo siga 'activo', si su fecha de cierre
+      // de inscripción ya pasó no se admiten nuevas inscripciones.
+      const grupoActivo = (grupos ?? []).find((g) => g.id === grupoId);
+      if (grupoActivo && inscripcionCerradaPorFecha(grupoActivo, new Date())) {
+        return NextResponse.json(
+          { error: "Las inscripciones para esta tanda ya cerraron" },
+          { status: 400 }
+        );
+      }
+
       grupo_actualizacion_id = grupoId;
     }
 

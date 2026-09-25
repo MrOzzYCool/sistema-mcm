@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { getSolicitudes, actualizarEstado } from "@/lib/solicitudes-service";
 import { getGrupos, aperturarGrupo, cerrarGrupo } from "@/lib/grupos-actualizacion-service";
-import { estaVencido } from "@/lib/grupos-actualizacion/logic";
+import { estaVencido, inscripcionCerradaPorFecha } from "@/lib/grupos-actualizacion/logic";
 import { SolicitudDB, GrupoActualizacionDB } from "@/lib/supabase";
 import { useAuth } from "@/lib/auth-context";
 import RouteGuard from "@/components/RouteGuard";
@@ -335,7 +335,7 @@ function SolicitudesView({ todas, loading, tabActiva, setTabActiva, setTodas, se
             <option value="sin-agrupar">Sin agrupar</option>
             {gruposDelTab.map((g) => (
               <option key={g.id} value={g.id}>
-                {g.estado === "activo" ? "🟢" : "🔒"} {formatearFecha(g.fecha_inicio)}
+                {g.estado === "activo" ? "🟢" : "🔒"} {formatearFecha(g.fecha_inicio_actualizacion ?? g.fecha_inicio ?? g.fecha_inicio_inscripcion)}
                 {g.estado === "cerrado" ? " (cerrado)" : ""}
               </option>
             ))}
@@ -844,7 +844,7 @@ function RegistroManualModal({ grupos, onClose, onSuccess }: {
                 const cat = ACTUALIZACIONES_CATALOGO.find((a) => a.id === g.programa_id);
                 return (
                   <option key={g.id} value={g.id}>
-                    {g.programa_label} — inicia {formatearFecha(g.fecha_inicio)}
+                    {g.programa_label} — inicia {formatearFecha(g.fecha_inicio_actualizacion ?? g.fecha_inicio ?? g.fecha_inicio_inscripcion)}
                     {cat ? ` (S/ ${cat.costo})` : ""}
                   </option>
                 );
@@ -1303,15 +1303,18 @@ function GruposModal({ grupos, onClose, onChanged }: {
   onChanged: () => void;
 }) {
   const [programaId, setProgramaId]   = useState<string>(ACTUALIZACIONES_CATALOGO[0].id);
-  const [fechaInicio, setFechaInicio] = useState<string>("");
+  const [fechaInicioInscripcion, setFechaInicioInscripcion] = useState<string>("");
   const [fechaCierre, setFechaCierre] = useState<string>("");
+  const [fechaInicioActualizacion, setFechaInicioActualizacion] = useState<string>("");
+  const [fechaFinActualizacion, setFechaFinActualizacion] = useState<string>("");
   const [saving, setSaving]           = useState(false);
   const [cerrandoId, setCerrandoId]   = useState<string | null>(null);
   const [error, setError]             = useState("");
 
   const hoy = new Date();
 
-  const puedeAperturar = !!programaId && !!fechaInicio;
+  // La apertura solo requiere el programa; todas las fechas son opcionales.
+  const puedeAperturar = !!programaId;
 
   async function handleAperturar(e: React.FormEvent) {
     e.preventDefault();
@@ -1321,11 +1324,15 @@ function GruposModal({ grupos, onClose, onChanged }: {
     try {
       await aperturarGrupo({
         programa_id: programaId,
-        fecha_inicio: fechaInicio,
+        fecha_inicio_inscripcion: fechaInicioInscripcion || null,
         fecha_cierre_inscripcion: fechaCierre || null,
+        fecha_inicio_actualizacion: fechaInicioActualizacion || null,
+        fecha_fin_actualizacion: fechaFinActualizacion || null,
       });
-      setFechaInicio("");
+      setFechaInicioInscripcion("");
       setFechaCierre("");
+      setFechaInicioActualizacion("");
+      setFechaFinActualizacion("");
       onChanged();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error al aperturar el grupo");
@@ -1347,10 +1354,12 @@ function GruposModal({ grupos, onClose, onChanged }: {
     }
   }
 
-  // Ordenar: activos primero, luego por fecha de inicio descendente
+  // Ordenar: activos primero, luego por inicio de actualización (o respaldo) descendente
+  const inicioParaOrden = (g: GrupoActualizacionDB) =>
+    g.fecha_inicio_actualizacion ?? g.fecha_inicio ?? g.fecha_inicio_inscripcion ?? "";
   const gruposOrdenados = [...grupos].sort((a, b) => {
     if (a.estado !== b.estado) return a.estado === "activo" ? -1 : 1;
-    return (b.fecha_inicio ?? "").localeCompare(a.fecha_inicio ?? "");
+    return inicioParaOrden(b).localeCompare(inicioParaOrden(a));
   });
 
   return (
@@ -1386,13 +1395,23 @@ function GruposModal({ grupos, onClose, onChanged }: {
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-medium text-mcm-text mb-1">Fecha de inicio *</label>
-              <input type="date" value={fechaInicio} onChange={(e) => setFechaInicio(e.target.value)} required
+              <label className="block text-xs font-medium text-mcm-text mb-1">Inicio de inscripción (opcional, por defecto hoy)</label>
+              <input type="date" value={fechaInicioInscripcion} onChange={(e) => setFechaInicioInscripcion(e.target.value)}
                 className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#C62828]" />
             </div>
             <div>
-              <label className="block text-xs font-medium text-mcm-text mb-1">Cierre de inscripción</label>
+              <label className="block text-xs font-medium text-mcm-text mb-1">Cierre de inscripción (opcional)</label>
               <input type="date" value={fechaCierre} onChange={(e) => setFechaCierre(e.target.value)}
+                className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#C62828]" />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-mcm-text mb-1">Inicio de la actualización (opcional)</label>
+              <input type="date" value={fechaInicioActualizacion} onChange={(e) => setFechaInicioActualizacion(e.target.value)}
+                className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#C62828]" />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-mcm-text mb-1">Fin de la actualización (opcional)</label>
+              <input type="date" value={fechaFinActualizacion} onChange={(e) => setFechaFinActualizacion(e.target.value)}
                 className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#C62828]" />
             </div>
           </div>
@@ -1411,16 +1430,22 @@ function GruposModal({ grupos, onClose, onChanged }: {
           )}
           {gruposOrdenados.map((g) => {
             const vencido = estaVencido(g, hoy);
+            const inscripcionCerrada = inscripcionCerradaPorFecha(g, hoy);
+            const inicioActualizacion = g.fecha_inicio_actualizacion ?? g.fecha_inicio;
             return (
               <div key={g.id} className="flex items-center gap-3 border border-mcm-border rounded-xl px-4 py-3">
                 <div className="flex-1 min-w-0">
                   <p className="font-semibold text-mcm-text text-sm truncate">{g.programa_label}</p>
                   <p className="text-xs text-mcm-muted">
-                    Inicio: {formatearFecha(g.fecha_inicio)}
-                    {" · "}Cierre: {formatearFecha(g.fecha_cierre_inscripcion)}
+                    Inscripción: {formatearFecha(g.fecha_inicio_inscripcion)}
+                    {" → "}{formatearFecha(g.fecha_cierre_inscripcion)}
+                  </p>
+                  <p className="text-xs text-mcm-muted">
+                    Actualización: {formatearFecha(inicioActualizacion)}
+                    {" → "}{formatearFecha(g.fecha_fin_actualizacion)}
                   </p>
                 </div>
-                <div className="flex items-center gap-2 shrink-0">
+                <div className="flex items-center gap-2 shrink-0 flex-wrap justify-end">
                   {g.estado === "activo" ? (
                     <span className="badge-green text-xs">Activo</span>
                   ) : (
@@ -1429,6 +1454,11 @@ function GruposModal({ grupos, onClose, onChanged }: {
                   {vencido && (
                     <span className="inline-flex items-center gap-1 text-xs font-medium text-amber-700 bg-amber-50 border border-amber-200 rounded-full px-2 py-0.5">
                       <AlertTriangle size={11} /> Vencido
+                    </span>
+                  )}
+                  {g.estado === "activo" && inscripcionCerrada && (
+                    <span className="inline-flex items-center gap-1 text-xs font-medium text-slate-700 bg-slate-100 border border-slate-300 rounded-full px-2 py-0.5">
+                      <Lock size={11} /> Inscripción cerrada
                     </span>
                   )}
                   {g.estado === "activo" && (

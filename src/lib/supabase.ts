@@ -56,8 +56,13 @@ export interface GrupoActualizacionDB {
   id?: string;
   programa_id: string; // 'ac1' | 'ac2' | ...
   programa_label: string;
-  fecha_inicio: string; // ISO date
-  fecha_cierre_inscripcion?: string | null;
+  // Columna vieja: ya no es obligatoria (nullable en BD). Se conserva como
+  // respaldo/orden; las 4 fechas conceptuales nuevas tienen prioridad.
+  fecha_inicio?: string | null; // ISO date
+  fecha_inicio_inscripcion?: string | null; // ISO date — inicio de inscripción
+  fecha_cierre_inscripcion?: string | null; // ISO date — cierre de inscripción
+  fecha_inicio_actualizacion?: string | null; // ISO date — inicio del dictado
+  fecha_fin_actualizacion?: string | null; // ISO date — fin del dictado
   estado: "activo" | "cerrado";
   created_by?: string | null;
   created_at?: string;
