@@ -187,7 +187,7 @@ function SolicitudesView({ todas, loading, tabActiva, setTabActiva, setTodas, se
   const [filtro, setFiltro]     = useState<Estado | "todos">("todos");
   // Filtro por grupo: "todos" | "sin-agrupar" | <grupo_id>
   const [filtroGrupo, setFiltroGrupo] = useState<string>("todos");
-  const [lightbox, setLightbox] = useState<{ url: string; titulo: string } | null>(null);
+  const [lightbox, setLightbox] = useState<{ urls: string[]; titulo: string } | null>(null);
   const [modalObs, setModalObs] = useState<SolicitudDB | null>(null);
   const [obsFields, setObsFields] = useState({ voucher: "", dni_anverso: "", dni_reverso: "" });
   const [saving, setSaving]     = useState<string | null>(null);
@@ -399,19 +399,19 @@ function SolicitudesView({ todas, loading, tabActiva, setTabActiva, setTodas, se
                     <td className="py-4 px-4">
                       <div className="flex flex-col gap-1.5">
                         {s.voucher_url && s.voucher_url !== "registro-manual" && (
-                          <button onClick={() => setLightbox({ url: s.voucher_url, titulo: "Voucher" })}
+                          <button onClick={() => setLightbox({ urls: s.voucher_url.split(",").map((u) => u.trim()).filter(Boolean), titulo: "Voucher" })}
                             className="flex items-center gap-1 text-xs text-[#C62828] hover:underline font-medium">
                             <Eye size={12} /> Voucher
                           </button>
                         )}
                         {s.dni_anverso_url && s.dni_anverso_url !== "registro-manual" && (
-                          <button onClick={() => setLightbox({ url: s.dni_anverso_url, titulo: "DNI ▲" })}
+                          <button onClick={() => setLightbox({ urls: [s.dni_anverso_url], titulo: "DNI ▲" })}
                             className="flex items-center gap-1 text-xs text-mcm-muted hover:text-mcm-text font-medium">
                             <Eye size={12} /> DNI ▲
                           </button>
                         )}
                         {s.dni_reverso_url && s.dni_reverso_url !== "registro-manual" && (
-                          <button onClick={() => setLightbox({ url: s.dni_reverso_url, titulo: "DNI ▼" })}
+                          <button onClick={() => setLightbox({ urls: [s.dni_reverso_url], titulo: "DNI ▼" })}
                             className="flex items-center gap-1 text-xs text-mcm-muted hover:text-mcm-text font-medium">
                             <Eye size={12} /> DNI ▼
                           </button>
@@ -488,20 +488,46 @@ function SolicitudesView({ todas, loading, tabActiva, setTabActiva, setTodas, se
         <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4" onClick={() => setLightbox(null)}>
           <div className="relative max-w-2xl w-full" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between bg-white rounded-t-2xl px-5 py-3">
-              <p className="font-semibold text-mcm-text">{lightbox.titulo}</p>
-              <div className="flex items-center gap-3">
-                <a href={lightbox.url} target="_blank" rel="noreferrer"
-                  className="text-xs text-[#C62828] hover:underline flex items-center gap-1">
-                  <ExternalLink size={12} /> Abrir
-                </a>
-                <button onClick={() => setLightbox(null)} className="text-mcm-muted hover:text-mcm-text">
-                  <X size={20} />
-                </button>
-              </div>
+              <p className="font-semibold text-mcm-text">
+                {lightbox.titulo}
+                {lightbox.urls.length > 1 && (
+                  <span className="ml-2 text-xs text-mcm-muted font-normal">({lightbox.urls.length} archivos)</span>
+                )}
+              </p>
+              <button onClick={() => setLightbox(null)} className="text-mcm-muted hover:text-mcm-text">
+                <X size={20} />
+              </button>
             </div>
-            <div className="bg-slate-100 rounded-b-2xl overflow-hidden flex items-center justify-center min-h-64">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={lightbox.url} alt={lightbox.titulo} className="max-w-full max-h-[70vh] object-contain" />
+            <div className="bg-slate-100 rounded-b-2xl overflow-y-auto max-h-[80vh] p-3 space-y-3">
+              {lightbox.urls.map((url, idx) => {
+                if (!url) return null;
+                const isPdf = url.split("?")[0].toLowerCase().endsWith(".pdf");
+                return (
+                  <div key={idx} className="bg-white rounded-xl overflow-hidden">
+                    <div className="flex items-center justify-between px-4 py-2 border-b border-slate-100">
+                      <span className="text-xs text-mcm-muted">
+                        {lightbox.urls.length > 1 ? `Comprobante ${idx + 1}` : "Comprobante"}
+                      </span>
+                      <a href={url} target="_blank" rel="noreferrer"
+                        className="text-xs text-[#C62828] hover:underline flex items-center gap-1">
+                        <ExternalLink size={12} /> Abrir
+                      </a>
+                    </div>
+                    {isPdf ? (
+                      <div className="flex flex-col items-center gap-2 p-3">
+                        <embed src={url} type="application/pdf" className="w-full h-[70vh] rounded-lg" />
+                        <a href={url} target="_blank" rel="noreferrer"
+                          className="text-xs text-[#C62828] hover:underline flex items-center gap-1">
+                          <ExternalLink size={12} /> Abrir PDF
+                        </a>
+                      </div>
+                    ) : (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={url} alt={`${lightbox.titulo} ${idx + 1}`} className="max-w-full max-h-[70vh] object-contain" />
+                    )}
+                  </div>
+                );
+              })}
             </div>
           </div>
         </div>
