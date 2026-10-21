@@ -14,7 +14,13 @@ export async function POST(req: NextRequest) {
     // Para inscripciones de actualización, vincular al grupo (tanda) activo del programa.
     // Otros tipos de formulario mantienen el comportamiento previo sin cambios.
     let grupo_actualizacion_id: string | null = null;
-    if (body.tipo_formulario === "actualizacion") {
+    // Los certificados de actualización NO tienen tandas: se identifican porque su
+    // tipo_tramite empieza con "CERTIFICADO". Se insertan como una solicitud normal
+    // (sin grupo_actualizacion_id) y se excluyen de la lógica de tanda activa.
+    const esCertificado =
+      typeof body.tipo_tramite === "string" &&
+      body.tipo_tramite.trim().toUpperCase().startsWith("CERTIFICADO");
+    if (body.tipo_formulario === "actualizacion" && !esCertificado) {
       // Determinar el programa_id: del body si viene; si no, resolverlo por label
       let programaId: string | undefined = body.programa_id;
       if (!programaId) {
