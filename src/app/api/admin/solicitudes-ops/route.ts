@@ -106,3 +106,65 @@ export async function DELETE(req: NextRequest) {
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ success: true });
 }
+
+/**
+ * POST /api/admin/solicitudes-ops
+ * Body: { action: "anular", id, motivo }
+ * Anula un trámite aprobado (cambio de estado a "anulado" + auditoría).
+ */
+export async function POST(req: NextRequest) {
+  const admin = await verifyAdmin(req);
+  if (!admin) return NextResponse.json({ error: "No autorizado" }, { status: 403 });
+
+  const body = await req.json();
+  const { action, id, motivo } = body;
+
+  if (action !== "anular") {
+    return NextResponse.json({ error: "Acción no soportada" }, { status: 400 });
+  }
+  if (!id) {
+    return NextResponse.json({ error: "id requerido" }, { status: 400 });
+  }
+
+  const motivoTrim = typeof motivo === "string" ? motivo.trim() : "";
+  if (motivoTrim.length < 3) {
+    return NextResponse.json(
+      { error: "El motivo es obligatorio (mínimo 3 caracteres)." },
+      { status: 400 }
+    );
+  }
+
+  // Leer la solicitud ANTES de actualizar para validar la precondición
+  const { data: sol } = await supabaseAdmin
+    .from("solicitudes")
+    .select("id, estado")
+    .eq("id", id)
+    .maybeSingle();
+
+  if (!sol) {
+    return NextResponse.json({ error: "El trámite no existe" }, { status: 404 });
+  }
+  if (sol.estado !== "aprobado") {
+    return NextResponse.json(
+      { error: "Solo se pueden anular trámites en estado aprobado." },
+      { status: 400 }
+    );
+  }
+
+  const anuladoAt = new Date().toISOString();
+
+  const { error } = await supabaseAdmin
+    .from("solicitudes")
+    .update({
+      estado: "anulado",
+      motivo_anulacion: motivoTrim,
+      anulado_por: admin.email ?? admin.id,
+      anulado_at: anuladoAt,
+    })
+    .eq("id", id)
+    .eq("estado", "aprobado"); // guarda de concurrencia: solo si sigue aprobado
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  return NextResponse.json({ success: true, estado: "anulado", anulado_at: anuladoAt });
+}

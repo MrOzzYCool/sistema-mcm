@@ -204,3 +204,21 @@ export async function borrarTodasLasSolicitudes(): Promise<void> {
     throw new Error(json.error ?? `Error ${res.status}`);
   }
 }
+
+// ─── Anular trámite de actualización ──────────────────────────────────────────
+
+export async function anularSolicitud(id: string, motivo: string): Promise<void> {
+  const { data: { session } } = await supabase.auth.getSession();
+  const token = session?.access_token ?? "";
+
+  const res = await fetch("/api/admin/solicitudes-ops", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ action: "anular", id, motivo }),
+  });
+
+  if (!res.ok) {
+    const json = await res.json().catch(() => ({}));
+    throw new Error(json.error ?? "No se pudo anular el trámite");
+  }
+}

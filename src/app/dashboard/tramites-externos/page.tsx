@@ -15,10 +15,12 @@ const ESTADO_BADGE: Record<NonNullable<Estado>, string> = {
   aprobado:   "badge-green",
   observado:  "badge-blue",
   rechazado:  "badge-red",
+  anulado:    "badge-gray",
 };
 const ESTADO_LABEL: Record<NonNullable<Estado>, string> = {
   pendiente: "Pendiente", aprobado: "Aprobado",
   observado: "Observado", rechazado: "Rechazado",
+  anulado:   "Anulado",
 };
 
 export default function TramitesExternosAdminPage() {

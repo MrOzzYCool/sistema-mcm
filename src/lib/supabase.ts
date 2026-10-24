@@ -31,8 +31,12 @@ export interface SolicitudDB {
   voucher_url: string;
   dni_anverso_url: string;
   dni_reverso_url: string;
-  estado: "pendiente" | "aprobado" | "observado" | "rechazado";
+  estado: "pendiente" | "aprobado" | "observado" | "rechazado" | "anulado";
   observacion?: string;
+  // Auditoría de anulación de trámites de actualización
+  motivo_anulacion?: string | null;
+  anulado_por?: string | null;
+  anulado_at?: string | null;
   // Nuevos campos
   token_subsanacion?: string;
   observaciones?: Record<string, string> | null;

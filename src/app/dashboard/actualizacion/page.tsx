@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { getSolicitudes, actualizarEstado } from "@/lib/solicitudes-service";
+import { getSolicitudes, actualizarEstado, anularSolicitud } from "@/lib/solicitudes-service";
 import { getGrupos, aperturarGrupo, cerrarGrupo } from "@/lib/grupos-actualizacion-service";
 import { estaVencido, inscripcionCerradaPorFecha } from "@/lib/grupos-actualizacion/logic";
 import { SolicitudDB, GrupoActualizacionDB } from "@/lib/supabase";
@@ -11,7 +11,7 @@ import { ACTUALIZACIONES_CATALOGO } from "@/lib/mock-data";
 import {
   CheckCircle, XCircle, AlertTriangle, Eye, X,
   ExternalLink, RefreshCw, Loader2, BarChart2, Plus, Upload, Pencil,
-  Layers, Lock,
+  Layers, Lock, Ban,
 } from "lucide-react";
 import clsx from "clsx";
 
@@ -23,10 +23,12 @@ type Vista  = "solicitudes" | "reportes";
 const ESTADO_BADGE: Record<NonNullable<Estado>, string> = {
   pendiente: "badge-yellow", aprobado: "badge-green",
   observado: "badge-blue",  rechazado: "badge-red",
+  anulado:   "badge-gray",
 };
 const ESTADO_LABEL: Record<NonNullable<Estado>, string> = {
   pendiente: "Pendiente", aprobado: "Aprobado",
   observado: "Observado", rechazado: "Rechazado",
+  anulado:   "Anulado",
 };
 
 // Formatea una fecha ISO (YYYY-MM-DD) a formato local corto, evitando desfases de zona.
@@ -193,6 +195,7 @@ function SolicitudesView({ todas, loading, tabActiva, setTabActiva, setTodas, se
   const [saving, setSaving]     = useState<string | null>(null);
   const [editDocsSol, setEditDocsSol] = useState<SolicitudDB | null>(null);
   const [editMontoSol, setEditMontoSol] = useState<SolicitudDB | null>(null);
+  const [anularSol, setAnularSol] = useState<SolicitudDB | null>(null);
 
   // Filtrar por pestaña activa
   const actCat    = ACTUALIZACIONES_CATALOGO.find((a) => a.id === tabActiva);
@@ -423,6 +426,9 @@ function SolicitudesView({ todas, loading, tabActiva, setTabActiva, setTodas, se
                     </td>
                     <td className="py-4 px-4">
                       <span className={ESTADO_BADGE[s.estado ?? "pendiente"]}>{ESTADO_LABEL[s.estado ?? "pendiente"]}</span>
+                      {s.estado === "anulado" && s.motivo_anulacion && (
+                        <span className="text-[10px] text-mcm-muted block mt-0.5">Motivo: {s.motivo_anulacion}</span>
+                      )}
                       {s.estado === "aprobado" && s.pdf_boleta_url && (
                         <a href={s.pdf_boleta_url} target="_blank" rel="noreferrer"
                           className="flex items-center gap-1 text-xs text-[#C62828] hover:underline font-medium mt-1">
@@ -463,6 +469,12 @@ function SolicitudesView({ todas, loading, tabActiva, setTabActiva, setTodas, se
                             <button onClick={() => setEditMontoSol(s)}
                               className="flex items-center gap-1 text-xs text-orange-600 hover:text-orange-800 font-medium whitespace-nowrap">
                               <Pencil size={12} /> Editar monto
+                            </button>
+                          )}
+                          {s.estado === "aprobado" && (
+                            <button onClick={() => setAnularSol(s)}
+                              className="flex items-center gap-1 text-xs text-red-600 hover:text-red-800 font-medium whitespace-nowrap">
+                              <Ban size={12} /> Anular
                             </button>
                           )}
                         </div>
@@ -596,6 +608,18 @@ function SolicitudesView({ todas, loading, tabActiva, setTabActiva, setTodas, se
           onSuccess={(id, nuevoMonto) => {
             setTodas((prev) => prev.map((s) => s.id === id ? { ...s, monto_pagado: nuevoMonto } : s));
             setEditMontoSol(null);
+          }}
+        />
+      )}
+
+      {/* Modal anular trámite */}
+      {anularSol && (
+        <AnularModal
+          solicitud={anularSol}
+          onClose={() => setAnularSol(null)}
+          onSuccess={(id, motivo) => {
+            setTodas((prev) => prev.map((s) => s.id === id ? { ...s, estado: "anulado", motivo_anulacion: motivo } : s));
+            setAnularSol(null);
           }}
         />
       )}
@@ -1131,6 +1155,67 @@ function EditMontoModal({ solicitud, onClose, onSuccess }: {
             className="flex-1 text-sm text-white font-semibold px-4 py-2.5 rounded-lg bg-[#C62828] hover:bg-[#B71C1C] transition-colors disabled:opacity-50 flex items-center justify-center gap-2">
             {saving && <Loader2 size={14} className="animate-spin" />}
             {saving ? "Guardando..." : "Guardar"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Modal Anular Trámite ─────────────────────────────────────────────────────
+
+function AnularModal({ solicitud, onClose, onSuccess }: {
+  solicitud: SolicitudDB;
+  onClose: () => void;
+  onSuccess: (id: string, motivo: string) => void;
+}) {
+  const [motivo, setMotivo] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+
+  async function handleConfirm() {
+    setSaving(true);
+    setError("");
+    try {
+      await anularSolicitud(solicitud.id!, motivo.trim());
+      onSuccess(solicitud.id!, motivo.trim());
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Error");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-sm">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="font-bold text-mcm-text text-lg">Anular trámite</h3>
+          <button onClick={onClose} className="text-mcm-muted hover:text-mcm-text"><X size={20} /></button>
+        </div>
+        <p className="text-mcm-muted text-xs mb-4">{solicitud.nombres} {solicitud.apellidos}</p>
+
+        <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-4 text-xs text-red-700">
+          La anulación es definitiva: saca el trámite de Contabilidad y no se puede revertir desde el sistema.
+        </div>
+
+        {error && (
+          <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg p-2 mb-3 text-xs">{error}</div>
+        )}
+
+        <div>
+          <label className="block text-xs font-medium text-mcm-text mb-1">Motivo de la anulación</label>
+          <textarea value={motivo} onChange={(e) => setMotivo(e.target.value)} rows={3}
+            placeholder="Motivo de la anulación (ej. duplicado)"
+            className="w-full border border-mcm-border rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#C62828] resize-none" />
+        </div>
+
+        <div className="flex gap-3 mt-5">
+          <button onClick={onClose} className="btn-secondary flex-1 text-sm">Cancelar</button>
+          <button onClick={handleConfirm} disabled={motivo.trim().length < 3 || saving}
+            className="flex-1 text-sm text-white font-semibold px-4 py-2.5 rounded-lg bg-[#C62828] hover:bg-[#B71C1C] transition-colors disabled:opacity-50 flex items-center justify-center gap-2">
+            {saving && <Loader2 size={14} className="animate-spin" />}
+            {saving ? "Anulando..." : "Confirmar anulación"}
           </button>
         </div>
       </div>
