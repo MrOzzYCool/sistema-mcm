@@ -1,6 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { supabase } from "@/lib/supabase";
+import {
+  UPDATE_PAGO_COMPLETO_ACTION,
+  validarCamposComprobante,
+  validarMonto,
+  validarFecha,
+  resolverArchivos,
+  planificarEscrituras,
+  construirAuditoria,
+  type EditarPagoInput,
+  type EstadoPago,
+} from "@/lib/editar-pago";
 
 const ADMIN_EMAIL = "admin@margaritacabrera.edu.pe";
 
@@ -357,6 +368,202 @@ export async function POST(req: NextRequest) {
     } catch (err) {
       return NextResponse.json({ error: err instanceof Error ? err.message : "Error" }, { status: 500 });
     }
+  }
+
+  if (action === UPDATE_PAGO_COMPLETO_ACTION) {
+    // ─── Tarea 4.1: validación de campos + lectura de estado ────────────────
+    const {
+      installment_id,
+      tipo_comprobante,
+      comprobante_serie,
+      comprobante_numero,
+      amount,
+      fecha_pago,
+      nota_contabilidad,
+      comprobante_url,
+      voucher_url,
+      swap_archivos,
+    } = body;
+
+    // Armar el input tipado de la lógica pura.
+    const input: EditarPagoInput = {
+      action: UPDATE_PAGO_COMPLETO_ACTION,
+      installment_id,
+      tipo_comprobante,
+      comprobante_serie,
+      comprobante_numero,
+      amount: Number(amount),
+      fecha_pago,
+      nota_contabilidad: nota_contabilidad ?? null,
+      comprobante_url,
+      voucher_url,
+      swap_archivos: swap_archivos === true,
+    };
+
+    // Validaciones de campos con las funciones puras (400 sin tocar datos).
+    const errorCampos = validarCamposComprobante(input);
+    if (errorCampos !== null) {
+      return NextResponse.json({ error: errorCampos }, { status: 400 });
+    }
+    const errorMonto = validarMonto(input.amount);
+    if (errorMonto !== null) {
+      return NextResponse.json({ error: errorMonto }, { status: 400 });
+    }
+    const errorFecha = validarFecha(fecha_pago, new Date());
+    if (errorFecha !== null) {
+      return NextResponse.json({ error: errorFecha }, { status: 400 });
+    }
+
+    // Leer la Cuota con join a payment_plans para resolver alumno_id
+    // (mismo patrón que la acción "manual-comprobante").
+    const { data: instRow } = await supabaseAdmin
+      .from("installments")
+      .select("id, status, comprobante_url, payment_plans!inner(alumno_id)")
+      .eq("id", installment_id)
+      .maybeSingle();
+
+    if (!instRow) {
+      return NextResponse.json({ error: "Cuota no encontrada" }, { status: 404 });
+    }
+    if (instRow.status !== "paid") {
+      return NextResponse.json(
+        { error: "Solo se pueden editar pagos ya registrados." },
+        { status: 400 },
+      );
+    }
+
+    const alumnoId =
+      (instRow.payment_plans as unknown as { alumno_id: string } | null)?.alumno_id ?? null;
+
+    // Leer el Voucher_Registro asociado (el más reciente si hay varios).
+    const { data: voucherRow } = await supabaseAdmin
+      .from("payment_vouchers")
+      .select("id, voucher_url")
+      .eq("installment_id", installment_id)
+      .order("reviewed_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    const estado: EstadoPago = {
+      installmentId: installment_id,
+      status: instRow.status,
+      alumnoId,
+      boletaActual: instRow.comprobante_url ?? null,
+      voucherId: voucherRow?.id ?? null,
+      voucherActual: voucherRow?.voucher_url ?? null,
+    };
+
+    // ─── Tarea 4.2: resolución + persistencia + reversión + auditoría ───────
+    const resultado = resolverArchivos({
+      boletaActual: estado.boletaActual,
+      voucherActual: estado.voucherActual,
+      comprobanteUrl: input.comprobante_url,
+      voucherUrl: input.voucher_url,
+      swap: input.swap_archivos === true,
+    });
+
+    if (resultado.errores.length > 0) {
+      return NextResponse.json({ error: resultado.errores[0] }, { status: 400 });
+    }
+
+    const plan = planificarEscrituras(estado, input, {
+      now: new Date(),
+      adminId: admin.id,
+      reviewedAt: new Date().toISOString(),
+    });
+
+    if (plan.length === 0) {
+      return NextResponse.json({ error: "No hay cambios para aplicar." }, { status: 400 });
+    }
+
+    // Ejecutar las escrituras en orden con reversión best-effort del swap.
+    // 1) update de installments (nada que revertir si falla).
+    const cmdInstallments = plan.find(
+      (c) => c.tabla === "installments" && c.operacion === "update",
+    );
+    if (cmdInstallments && cmdInstallments.tabla === "installments") {
+      const { error: instErr } = await supabaseAdmin
+        .from("installments")
+        .update(cmdInstallments.datos)
+        .eq("id", cmdInstallments.match.id);
+      if (instErr) {
+        return NextResponse.json({ error: "No se pudo guardar el pago." }, { status: 500 });
+      }
+    }
+
+    // 2) update/insert de payment_vouchers.
+    const cmdVoucher = plan.find((c) => c.tabla === "payment_vouchers");
+    if (cmdVoucher && cmdVoucher.tabla === "payment_vouchers") {
+      let voucherErr: { message: string } | null = null;
+      if (cmdVoucher.operacion === "update") {
+        const { error } = await supabaseAdmin
+          .from("payment_vouchers")
+          .update(cmdVoucher.datos)
+          .eq("id", cmdVoucher.match.id);
+        voucherErr = error;
+      } else {
+        const { error } = await supabaseAdmin
+          .from("payment_vouchers")
+          .insert(cmdVoucher.datos);
+        voucherErr = error;
+      }
+
+      if (voucherErr) {
+        // Reversión best-effort de la primera escritura: restaurar comprobante_url.
+        const { error: revertErr } = await supabaseAdmin
+          .from("installments")
+          .update({ comprobante_url: estado.boletaActual })
+          .eq("id", estado.installmentId);
+
+        if (revertErr) {
+          console.error(
+            "[update-pago-completo] Fallo al revertir installments tras error de voucher",
+            { installment_id: estado.installmentId, revertErr: revertErr.message },
+          );
+          return NextResponse.json(
+            {
+              error:
+                "El guardado no se completó y el registro quedó en estado inconsistente. Requiere intervención manual.",
+            },
+            { status: 500 },
+          );
+        }
+
+        return NextResponse.json(
+          { error: "El guardado no se completó. Revise el registro." },
+          { status: 500 },
+        );
+      }
+    }
+
+    // Auditoría (no aborta el éxito si falla).
+    const flags = {
+      swap: swap_archivos === true,
+      boletaReemplazada: resultado.boletaReemplazada,
+      voucherReemplazada: resultado.voucherReemplazada,
+    };
+    const reg = construirAuditoria(input, flags, {
+      id: admin.id,
+      // verifyAdmin garantiza un email no vacío e igual a ADMIN_EMAIL.
+      email: admin.email ?? ADMIN_EMAIL,
+    });
+    const { error: auditErr } = await supabaseAdmin
+      .from("historial_auditoria")
+      .insert(reg);
+    if (auditErr) {
+      console.error("[update-pago-completo] Fallo al registrar auditoría", {
+        installment_id: estado.installmentId,
+        auditErr: auditErr.message,
+      });
+    }
+
+    return NextResponse.json({
+      success: true,
+      message: "Pago actualizado.",
+      swap: flags.swap,
+      boleta_reemplazada: flags.boletaReemplazada,
+      voucher_reemplazado: flags.voucherReemplazada,
+    });
   }
 
   return NextResponse.json({ error: "Acción no reconocida" }, { status: 400 });

@@ -6,7 +6,7 @@ import { supabase } from "@/lib/supabase";
 import RouteGuard from "@/components/RouteGuard";
 import {
   Loader2, ArrowLeft, CreditCard, CheckCircle, Pencil, Plus,
-  AlertCircle, X, Save, Paperclip, ChevronDown, StickyNote,
+  AlertCircle, X, Save, Paperclip, ChevronDown, StickyNote, FilePenLine,
 } from "lucide-react";
 import clsx from "clsx";
 
@@ -15,7 +15,7 @@ interface Installment {
   amount: number; amount_original: number;
   due_date: string; status: string; fecha_pago: string | null; observacion: string | null;
   comprobante_url?: string | null; comprobante_serie?: string | null; comprobante_numero?: string | null;
-  nota_contabilidad?: string | null;
+  tipo_comprobante?: string | null; nota_contabilidad?: string | null;
 }
 interface Plan {
   id: string; ciclo: number; year: number; status: string;
@@ -73,6 +73,18 @@ function PagosAlumnoContent() {
   const [notaModal, setNotaModal] = useState<{ show: boolean; installmentId: string; concepto: string }>({ show: false, installmentId: "", concepto: "" });
   const [notaValue, setNotaValue] = useState("");
   const [notaSaving, setNotaSaving] = useState(false);
+
+  // Editar registro completo modal
+  const [editRegistroModal, setEditRegistroModal] = useState<{ show: boolean; installmentId: string; concepto: string }>({ show: false, installmentId: "", concepto: "" });
+  const [editForm, setEditForm] = useState({ tipo: "boleta", serie: "", numero: "", amount: "", fecha: "", nota: "", swap: false });
+  const [editBoletaActual, setEditBoletaActual] = useState("");
+  const [editVoucherActual, setEditVoucherActual] = useState("");
+  const [editBoletaFiles, setEditBoletaFiles] = useState<File[]>([]);
+  const [editVoucherFiles, setEditVoucherFiles] = useState<File[]>([]);
+  const [editSaving, setEditSaving] = useState(false);
+  const [editError, setEditError] = useState("");
+  const editBoletaFileRef = useRef<HTMLInputElement>(null);
+  const editVoucherFileRef = useRef<HTMLInputElement>(null);
 
   async function getToken() {
     const { data } = await supabase.auth.getSession();
@@ -358,6 +370,102 @@ function PagosAlumnoContent() {
     finally { setNotaSaving(false); }
   }
 
+  function openEditRegistro(inst: Installment) {
+    let f = hoyLocal();
+    if (inst.fecha_pago) {
+      const d = new Date(inst.fecha_pago);
+      f = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+    }
+    setEditForm({
+      tipo: inst.tipo_comprobante ?? "boleta",
+      serie: inst.comprobante_serie ?? "",
+      numero: inst.comprobante_numero ?? "",
+      amount: String(inst.amount),
+      fecha: f,
+      nota: inst.nota_contabilidad ?? "",
+      swap: false,
+    });
+    setEditBoletaActual(inst.comprobante_url ?? "");
+    // El GET de planes (installments(*)) no incluye el voucher_url (vive en payment_vouchers).
+    // El visor del voucher actual es informativo; el intercambio en backend usa el voucher real
+    // de la BD, así que el modal no necesita conocerlo para funcionar.
+    setEditVoucherActual("");
+    setEditBoletaFiles([]);
+    setEditVoucherFiles([]);
+    setEditError("");
+    setEditRegistroModal({ show: true, installmentId: inst.id, concepto: inst.concepto });
+  }
+
+  function handleEditBoletaSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    const selected = Array.from(e.target.files ?? []);
+    if (selected.length > 0) setEditBoletaFiles(prev => [...prev, ...selected]);
+    if (editBoletaFileRef.current) editBoletaFileRef.current.value = "";
+  }
+
+  function handleEditVoucherSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    const selected = Array.from(e.target.files ?? []);
+    if (selected.length > 0) setEditVoucherFiles(prev => [...prev, ...selected]);
+    if (editVoucherFileRef.current) editVoucherFileRef.current.value = "";
+  }
+
+  async function uploadEditFiles(files: File[], prefix: string): Promise<string[]> {
+    const urls: string[] = [];
+    for (let index = 0; index < files.length; index++) {
+      const file = files[index];
+      const ext = file.name.split(".").pop() ?? "jpg";
+      const path = `${prefix}/${editRegistroModal.installmentId}_${Date.now()}_${index}.${ext}`;
+      const { error: upErr } = await supabase.storage.from("vouchers").upload(path, file);
+      if (upErr) throw new Error(upErr.message);
+      const { data: urlData } = supabase.storage.from("vouchers").getPublicUrl(path);
+      urls.push(urlData.publicUrl);
+    }
+    return urls;
+  }
+
+  async function handleSaveEditRegistro() {
+    if (!editRegistroModal.installmentId) return;
+    setEditSaving(true); setEditError("");
+    try {
+      let comprobanteUrl: string | undefined;
+      let voucherUrl: string | undefined;
+
+      if (!editForm.swap) {
+        if (editBoletaFiles.length > 0) {
+          comprobanteUrl = (await uploadEditFiles(editBoletaFiles, "comprobantes")).join(",");
+        }
+        if (editVoucherFiles.length > 0) {
+          voucherUrl = (await uploadEditFiles(editVoucherFiles, "vouchers-manual")).join(",");
+        }
+      }
+
+      const res = await fetch("/api/admin/payments", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${await getToken()}` },
+        body: JSON.stringify({
+          action: "update-pago-completo",
+          installment_id: editRegistroModal.installmentId,
+          tipo_comprobante: editForm.tipo,
+          comprobante_serie: editForm.serie,
+          comprobante_numero: editForm.numero,
+          amount: Number(editForm.amount),
+          fecha_pago: new Date(`${editForm.fecha}T12:00:00`).toISOString(),
+          nota_contabilidad: editForm.nota.trim() || null,
+          comprobante_url: comprobanteUrl,
+          voucher_url: voucherUrl,
+          swap_archivos: editForm.swap,
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok) { setEditError(json.error ?? "Error al actualizar el pago"); return; }
+      setSuccess(json.message ?? "Pago actualizado.");
+      setEditRegistroModal({ show: false, installmentId: "", concepto: "" });
+      setEditBoletaFiles([]);
+      setEditVoucherFiles([]);
+      loadPlans();
+    } catch (err) { setEditError(err instanceof Error ? err.message : "Error"); }
+    finally { setEditSaving(false); }
+  }
+
   if (!alumnoId) {
     return <div className="p-6 card text-center py-12"><AlertCircle size={40} className="mx-auto text-red-400 mb-3" /><p className="text-mcm-text font-bold">Falta alumno_id</p><button onClick={() => router.back()} className="btn-secondary text-sm mt-4">Volver</button></div>;
   }
@@ -466,6 +574,7 @@ function PagosAlumnoContent() {
                                 Ver comprobante
                               </a>
                               <button onClick={() => openFechaModal(inst)} title="Editar fecha de emisión" className="text-mcm-muted hover:text-blue-600"><Pencil size={14} /></button>
+                              <button onClick={() => openEditRegistro(inst)} title="Editar registro completo" className="text-mcm-muted hover:text-purple-600"><FilePenLine size={14} /></button>
                             </>
                           )}
                           {inst.status === "paid" && !inst.comprobante_url && (
@@ -816,6 +925,158 @@ function PagosAlumnoContent() {
                 className="btn-primary flex-1 text-sm disabled:opacity-50 flex items-center justify-center gap-2">
                 {notaSaving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
                 {notaSaving ? "Guardando..." : "Guardar"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Editar registro completo modal */}
+      {editRegistroModal.show && (
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-bold text-mcm-text text-lg">Editar Registro Completo</h3>
+              <button onClick={() => setEditRegistroModal({ show: false, installmentId: "", concepto: "" })}><X size={20} className="text-mcm-muted" /></button>
+            </div>
+            <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 mb-4 text-sm text-blue-800">
+              Concepto: <strong>{editRegistroModal.concepto}</strong>
+            </div>
+
+            {editError && (
+              <div className="bg-red-50 border border-red-200 text-red-700 rounded-xl p-3 text-sm flex items-center gap-2 mb-4">
+                <AlertCircle size={16} />{editError}
+              </div>
+            )}
+
+            <div className="space-y-3">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm font-medium text-mcm-text mb-1">Tipo</label>
+                  <select value={editForm.tipo} onChange={e => setEditForm({...editForm, tipo: e.target.value})}
+                    className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#C62828]">
+                    <option value="boleta">Boleta</option>
+                    <option value="factura">Factura</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-mcm-text mb-1">Monto (S/)</label>
+                  <input type="number" step="0.01" min="0" value={editForm.amount}
+                    onChange={e => setEditForm({...editForm, amount: e.target.value})}
+                    className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#C62828]" />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm font-medium text-mcm-text mb-1">Serie</label>
+                  <input value={editForm.serie} onChange={e => setEditForm({...editForm, serie: e.target.value.toUpperCase()})}
+                    placeholder="BBB2" className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#C62828]" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-mcm-text mb-1">Número</label>
+                  <input value={editForm.numero} onChange={e => setEditForm({...editForm, numero: e.target.value})}
+                    placeholder="4557" className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#C62828]" />
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-mcm-text mb-1">Fecha de emisión</label>
+                <input type="date" value={editForm.fecha} onChange={e => setEditForm({...editForm, fecha: e.target.value})}
+                  className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#C62828]" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-mcm-text mb-1">Nota para contabilidad</label>
+                <textarea value={editForm.nota} onChange={e => setEditForm({...editForm, nota: e.target.value})}
+                  rows={2}
+                  className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#C62828]" />
+              </div>
+
+              {/* Visor de archivos actuales */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm font-medium text-mcm-text mb-1">Boleta actual</label>
+                  {editBoletaActual.split(",").filter(Boolean).length === 0 ? (
+                    <p className="text-xs text-mcm-muted">Sin archivo</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {editBoletaActual.split(",").filter(Boolean).map((url, i) => (
+                        url.toLowerCase().endsWith(".pdf") ? (
+                          <embed key={`eb-${i}`} src={url} type="application/pdf" className="w-full h-40 rounded border border-mcm-border" />
+                        ) : (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img key={`eb-${i}`} src={url} alt="Boleta actual" className="w-full h-40 object-contain rounded border border-mcm-border" />
+                        )
+                      ))}
+                    </div>
+                  )}
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-mcm-text mb-1">Voucher actual</label>
+                  {editVoucherActual.split(",").filter(Boolean).length === 0 ? (
+                    <p className="text-xs text-mcm-muted">No disponible en esta vista.</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {editVoucherActual.split(",").filter(Boolean).map((url, i) => (
+                        url.toLowerCase().endsWith(".pdf") ? (
+                          <embed key={`ev-${i}`} src={url} type="application/pdf" className="w-full h-40 rounded border border-mcm-border" />
+                        ) : (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img key={`ev-${i}`} src={url} alt="Voucher actual" className="w-full h-40 object-contain rounded border border-mcm-border" />
+                        )
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Toggle intercambio */}
+              <div className="border-t border-mcm-border pt-3">
+                <label className="flex items-center gap-2 text-sm cursor-pointer">
+                  <input type="checkbox" checked={editForm.swap}
+                    onChange={e => setEditForm({...editForm, swap: e.target.checked})}
+                    className="accent-[#C62828]" />
+                  <span className="font-medium text-mcm-text">Intercambiar archivos cruzados</span>
+                </label>
+                {editForm.swap && (
+                  <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg p-2 mt-2">
+                    Se intercambiará la boleta por el voucher y viceversa. Los reemplazos de archivo quedan deshabilitados.
+                  </p>
+                )}
+              </div>
+
+              {/* Reemplazo de archivos */}
+              <div className={clsx("grid grid-cols-2 gap-3", editForm.swap && "opacity-40")}>
+                <div>
+                  <label className="block text-sm font-medium text-mcm-text mb-1">Reemplazar boleta</label>
+                  <button type="button" disabled={editForm.swap} onClick={() => editBoletaFileRef.current?.click()}
+                    className="btn-secondary text-xs flex items-center gap-1 disabled:cursor-not-allowed">
+                    <Paperclip size={12} /> {editBoletaFiles.length > 0 ? `${editBoletaFiles.length} archivo(s)` : "Seleccionar archivo(s)"}
+                  </button>
+                  <input ref={editBoletaFileRef} type="file" accept="image/*,.pdf" multiple disabled={editForm.swap} className="hidden" onChange={handleEditBoletaSelect} />
+                  {editBoletaFiles.length > 0 && !editForm.swap && (
+                    <button type="button" onClick={() => setEditBoletaFiles([])} className="text-red-500 text-xs mt-1 block">Quitar</button>
+                  )}
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-mcm-text mb-1">Reemplazar voucher</label>
+                  <button type="button" disabled={editForm.swap} onClick={() => editVoucherFileRef.current?.click()}
+                    className="btn-secondary text-xs flex items-center gap-1 disabled:cursor-not-allowed">
+                    <Paperclip size={12} /> {editVoucherFiles.length > 0 ? `${editVoucherFiles.length} archivo(s)` : "Seleccionar archivo(s)"}
+                  </button>
+                  <input ref={editVoucherFileRef} type="file" accept="image/*,.pdf" multiple disabled={editForm.swap} className="hidden" onChange={handleEditVoucherSelect} />
+                  {editVoucherFiles.length > 0 && !editForm.swap && (
+                    <button type="button" onClick={() => setEditVoucherFiles([])} className="text-red-500 text-xs mt-1 block">Quitar</button>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div className="flex gap-3 mt-5">
+              <button onClick={() => setEditRegistroModal({ show: false, installmentId: "", concepto: "" })} className="btn-secondary flex-1 text-sm">Cancelar</button>
+              <button onClick={handleSaveEditRegistro}
+                disabled={editSaving || !editForm.serie || !editForm.numero || !editForm.fecha || !editForm.amount}
+                className="btn-primary flex-1 text-sm disabled:opacity-50 flex items-center justify-center gap-2">
+                {editSaving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+                {editSaving ? "Guardando..." : "Guardar"}
               </button>
             </div>
           </div>
