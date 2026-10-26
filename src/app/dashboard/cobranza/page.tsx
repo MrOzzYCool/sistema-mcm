@@ -105,6 +105,8 @@ function CobranzaContent() {
 
   // Opciones de filtro conocidas (acumuladas de las respuestas sin filtrar)
   const [carrerasOptions, setCarrerasOptions] = useState<{ id: string; nombre: string }[]>([]);
+  // Ciclos conocidos (persisten aunque se filtre por un ciclo, para poder cambiar sin resetear)
+  const [ciclosOptions, setCiclosOptions] = useState<number[]>([]);
 
   const cargar = useCallback(async () => {
     setLoading(true);
@@ -141,6 +143,17 @@ function CobranzaContent() {
           );
         }
       }
+
+      // Alimentar opciones de ciclo cuando no hay filtro de ciclo aplicado
+      if (!ciclo) {
+        const setCiclos = new Set<number>();
+        for (const a of data.alumnos ?? []) {
+          if (a.ciclo_actual != null) setCiclos.add(a.ciclo_actual);
+        }
+        if (setCiclos.size > 0) {
+          setCiclosOptions([...setCiclos].sort((x, y) => x - y));
+        }
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Error al cargar");
       setAlumnos([]);
@@ -153,15 +166,6 @@ function CobranzaContent() {
   useEffect(() => {
     if (tab === "deudas") cargar();
   }, [tab, cargar]);
-
-  // Opciones de ciclo derivadas de los datos actuales
-  const ciclosOptions = useMemo(() => {
-    const set = new Set<number>();
-    for (const a of alumnos) {
-      if (a.ciclo_actual != null) set.add(a.ciclo_actual);
-    }
-    return [...set].sort((a, b) => a - b);
-  }, [alumnos]);
 
   // Agrupar alumnos por ciclo (ascendente). Dentro de cada ciclo, mayor vencido primero.
   const gruposPorCiclo = useMemo(() => {
