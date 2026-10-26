@@ -316,10 +316,16 @@ function CobranzaContent() {
                   <div className="space-y-2">
                     {grupo.alumnos.map((a) => {
                       const abierto = !!expandido[a.alumno_id];
-                      // Vencidas primero, luego futuras
-                      const cuotasOrdenadas = [...a.cuotas].sort(
-                        (x, y) => Number(y.vencida) - Number(x.vencida)
-                      );
+                      // Orden cronológico por fecha de vencimiento (más antigua primero); sin fecha al final
+                      const cuotasOrdenadas = [...a.cuotas].sort((x, y) => {
+                        const tx = x.due_date
+                          ? new Date(x.due_date.length <= 10 ? x.due_date + "T00:00:00" : x.due_date).getTime()
+                          : Infinity;
+                        const ty = y.due_date
+                          ? new Date(y.due_date.length <= 10 ? y.due_date + "T00:00:00" : y.due_date).getTime()
+                          : Infinity;
+                        return tx - ty;
+                      });
                       return (
                         <div key={a.alumno_id} className="card overflow-hidden">
                           {/* Cabecera colapsable */}
