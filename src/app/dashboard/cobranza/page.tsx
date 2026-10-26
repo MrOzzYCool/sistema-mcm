@@ -81,6 +81,15 @@ function statusBadge(status: string): { label: string; className: string } {
   }
 }
 
+// Prioridad de orden por concepto: matrícula primero, luego cuotas por número.
+function prioridadConcepto(concepto: string): number {
+  const c = (concepto ?? "").toLowerCase();
+  if (c.includes("matr")) return 0; // matrícula / matricula
+  const m = c.match(/(\d+)/); // primer número que aparezca (01, 1, 02, ...)
+  if (m) return 1 + parseInt(m[1], 10); // cuota 01 -> 2, cuota 02 -> 3, ...
+  return 9999; // conceptos sin número al final
+}
+
 async function getToken() {
   const { data } = await supabase.auth.getSession();
   return data.session?.access_token ?? "";
@@ -324,7 +333,8 @@ function CobranzaContent() {
                         const ty = y.due_date
                           ? new Date(y.due_date.length <= 10 ? y.due_date + "T00:00:00" : y.due_date).getTime()
                           : Infinity;
-                        return tx - ty;
+                        if (tx !== ty) return tx - ty;
+                        return prioridadConcepto(x.concepto) - prioridadConcepto(y.concepto);
                       });
                       return (
                         <div key={a.alumno_id} className="card overflow-hidden">
