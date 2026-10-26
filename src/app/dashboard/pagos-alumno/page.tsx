@@ -6,7 +6,7 @@ import { supabase } from "@/lib/supabase";
 import RouteGuard from "@/components/RouteGuard";
 import {
   Loader2, ArrowLeft, CreditCard, CheckCircle, Pencil, Plus,
-  AlertCircle, X, Save, Paperclip, ChevronDown, StickyNote, FilePenLine,
+  AlertCircle, X, Save, Paperclip, ChevronDown, StickyNote, FilePenLine, Eye,
 } from "lucide-react";
 import clsx from "clsx";
 
@@ -29,6 +29,8 @@ function hoyLocal() {
   const day = String(d.getDate()).padStart(2, "0");
   return `${y}-${m}-${day}`;
 }
+
+const SERIE_POR_TIPO: Record<string, string> = { boleta: "BBB2", factura: "FFF2" };
 
 function PagosAlumnoContent() {
   const searchParams = useSearchParams();
@@ -63,6 +65,14 @@ function PagosAlumnoContent() {
   const [manualSaving, setManualSaving] = useState(false);
   const manualFileRef = useRef<HTMLInputElement>(null);
   const voucherFileRef = useRef<HTMLInputElement>(null);
+
+  // Preview popup (ojito)
+  const [previewUrl, setPreviewUrl] = useState<{ url: string; isPdf: boolean } | null>(null);
+  function abrirPreviewFile(file: File) {
+    const url = URL.createObjectURL(file);
+    const isPdf = file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf");
+    setPreviewUrl({ url, isPdf });
+  }
 
   // Editar fecha de emisión (fecha_pago) modal
   const [fechaModal, setFechaModal] = useState<{ show: boolean; installmentId: string; concepto: string }>({ show: false, installmentId: "", concepto: "" });
@@ -244,7 +254,7 @@ function PagosAlumnoContent() {
 
   function openManualComprobante(inst: Installment) {
     setManualModal({ show: true, installmentId: inst.id, concepto: inst.concepto });
-    setManualForm({ serie: "BBB2", numero: "", tipo: "boleta", url: "", fecha: hoyLocal() });
+    setManualForm({ serie: SERIE_POR_TIPO["boleta"], numero: "", tipo: "boleta", url: "", fecha: hoyLocal() });
     setManualFile(null);
     setVoucherFiles([]);
   }
@@ -771,8 +781,11 @@ function PagosAlumnoContent() {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-sm font-medium text-mcm-text mb-1">Serie</label>
-                  <input value={manualForm.serie} onChange={e => setManualForm({...manualForm, serie: e.target.value.toUpperCase()})}
-                    placeholder="BBB2" className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#C62828]" />
+                  <select value={manualForm.serie} onChange={e => setManualForm({...manualForm, serie: e.target.value})}
+                    className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#C62828]">
+                    <option value="BBB2">BBB2</option>
+                    <option value="FFF2">FFF2</option>
+                  </select>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-mcm-text mb-1">Número</label>
@@ -782,7 +795,7 @@ function PagosAlumnoContent() {
               </div>
               <div>
                 <label className="block text-sm font-medium text-mcm-text mb-1">Tipo</label>
-                <select value={manualForm.tipo} onChange={e => setManualForm({...manualForm, tipo: e.target.value})}
+                <select value={manualForm.tipo} onChange={e => { const t = e.target.value; setManualForm({ ...manualForm, tipo: t, serie: SERIE_POR_TIPO[t] ?? manualForm.serie }); }}
                   className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#C62828]">
                   <option value="boleta">Boleta</option>
                   <option value="factura">Factura</option>
@@ -801,6 +814,7 @@ function PagosAlumnoContent() {
                     className="btn-secondary text-xs flex items-center gap-1">
                     <Paperclip size={12} /> {manualFile ? manualFile.name : "Seleccionar archivo"}
                   </button>
+                  {manualFile && <button type="button" onClick={() => abrirPreviewFile(manualFile)} title="Vista previa" className="text-mcm-muted hover:text-[#C62828]"><Eye size={14} /></button>}
                   {manualFile && <button onClick={() => setManualFile(null)} className="text-red-500 text-xs">Quitar</button>}
                 </div>
                 <input ref={manualFileRef} type="file" accept="image/*,.pdf" className="hidden"
@@ -833,6 +847,9 @@ function PagosAlumnoContent() {
                             <div className="w-10 h-10 bg-red-50 rounded flex items-center justify-center text-red-600 text-xs font-bold">PDF</div>
                           )}
                           <span className="text-xs text-mcm-text truncate flex-1">{file.name}</span>
+                          <button type="button" onClick={() => abrirPreviewFile(file)} className="text-mcm-muted hover:text-[#C62828] shrink-0" title="Vista previa">
+                            <Eye size={14} />
+                          </button>
                           <button type="button" onClick={() => removeVoucherFile(index)} className="text-mcm-muted hover:text-red-600 shrink-0" title="Quitar">
                             <X size={14} />
                           </button>
@@ -858,6 +875,23 @@ function PagosAlumnoContent() {
                 {manualSaving ? "Guardando..." : "Adjuntar y marcar pagado"}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Preview popup (ojito) */}
+      {previewUrl && (
+        <div className="fixed inset-0 bg-black/70 z-[60] flex items-center justify-center p-4" onClick={() => { URL.revokeObjectURL(previewUrl.url); setPreviewUrl(null); }}>
+          <div className="relative bg-white rounded-2xl shadow-xl max-w-3xl w-full max-h-[90vh] overflow-auto p-3" onClick={(e) => e.stopPropagation()}>
+            <div className="flex justify-end mb-2">
+              <button onClick={() => { URL.revokeObjectURL(previewUrl.url); setPreviewUrl(null); }} className="text-mcm-muted hover:text-mcm-text"><X size={20} /></button>
+            </div>
+            {previewUrl.isPdf ? (
+              <embed src={previewUrl.url} type="application/pdf" className="w-full h-[75vh] rounded-lg" />
+            ) : (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={previewUrl.url} alt="Vista previa" className="max-w-full max-h-[80vh] mx-auto object-contain rounded-lg" />
+            )}
           </div>
         </div>
       )}
