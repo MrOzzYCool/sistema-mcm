@@ -2,7 +2,7 @@
 
 import { useAuth } from "@/lib/auth-context";
 import { supabase } from "@/lib/supabase";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import {
   MOCK_PAGOS, MOCK_TRAMITES, MOCK_AVISOS,
   calcularDeuda, formatMonto, formatFecha,
@@ -72,9 +72,10 @@ function AdminDashboard() {
   const [tramites, setTramites] = useState<TramiteReciente[]>([]);
   const [chartData, setChartData] = useState<MesData[]>([]);
   const [loading, setLoading] = useState(true);
+  const lastLoadRef = useRef<number>(0);
 
-  const cargar = useCallback(async () => {
-    setLoading(true);
+  const cargar = useCallback(async (silencioso = false) => {
+    if (!silencioso) setLoading(true);
     try {
       // Alumnos totales
       const { count: alumnos } = await supabase
@@ -126,18 +127,21 @@ function AdminDashboard() {
         meses.push({ mes: label.charAt(0).toUpperCase() + label.slice(1), ingresos: total });
       }
       setChartData(meses);
+      lastLoadRef.current = Date.now();
 
     } catch (err) {
       console.error("Error cargando dashboard admin:", err);
     } finally {
-      setLoading(false);
+      if (!silencioso) setLoading(false);
     }
   }, []);
 
   useEffect(() => { cargar(); }, [cargar]);
 
   useEffect(() => {
-    const handler = () => { if (document.visibilityState === "visible") cargar(); };
+    const handler = () => {
+      if (document.visibilityState === "visible" && Date.now() - lastLoadRef.current > 30000) cargar(true);
+    };
     document.addEventListener("visibilitychange", handler);
     return () => document.removeEventListener("visibilitychange", handler);
   }, [cargar]);

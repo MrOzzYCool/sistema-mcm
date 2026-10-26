@@ -3,7 +3,7 @@
 import RouteGuard from "@/components/RouteGuard";
 import { getSolicitudes } from "@/lib/solicitudes-service";
 import { SolicitudDB } from "@/lib/supabase";
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import {
   BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer, Legend,
@@ -58,29 +58,35 @@ function ReportesContent() {
   const [error, setError]             = useState("");
   const [refreshKey, setRefreshKey]   = useState(0);
   const [lastUpdate, setLastUpdate]   = useState<Date | null>(null);
+  const lastLoadRef = useRef<number>(0);
 
-  const cargar = useCallback(async () => {
-    setLoading(true);
-    setError("");
+  const cargar = useCallback(async (silencioso = false) => {
+    if (!silencioso) setLoading(true);
+    if (!silencioso) setError("");
     try {
       const data = await getSolicitudes("tramite");
       setSolicitudes(data);
       setLastUpdate(new Date());
+      lastLoadRef.current = Date.now();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Error cargando datos");
+      if (!silencioso) setError(e instanceof Error ? e.message : "Error cargando datos");
     } finally {
-      setLoading(false);
+      if (!silencioso) setLoading(false);
     }
   }, []);
 
   // Cargar al montar y al cambiar refreshKey
   useEffect(() => { cargar(); }, [cargar, refreshKey]);
 
-  // Recargar al volver a la pestaña
+  // Recargar silenciosamente al volver a la pestaña (con guarda de 30s)
   useEffect(() => {
-    function onFocus() { cargar(); }
-    window.addEventListener("focus", onFocus);
-    return () => window.removeEventListener("focus", onFocus);
+    function onVisible() {
+      if (document.visibilityState === "visible" && Date.now() - lastLoadRef.current > 30000) {
+        cargar(true);
+      }
+    }
+    document.addEventListener("visibilitychange", onVisible);
+    return () => document.removeEventListener("visibilitychange", onVisible);
   }, [cargar]);
 
   // ── KPIs calculados desde Supabase ──────────────────────────────────────────

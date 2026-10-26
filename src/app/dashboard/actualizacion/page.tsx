@@ -56,19 +56,21 @@ function ActualizacionContent() {
   const [showRegistroManual, setShowRegistroManual] = useState(false);
   const [showGrupos, setShowGrupos] = useState(false);
   const [grupos, setGrupos] = useState<GrupoActualizacionDB[]>([]);
+  const lastLoadRef = useRef<number>(0);
 
   const esSuperAdmin = user?.role === "super_admin";
 
-  const cargar = useCallback(async () => {
-    setLoading(true);
+  const cargar = useCallback(async (silencioso = false) => {
+    if (!silencioso) setLoading(true);
     setError("");
     try {
       const data = await getSolicitudes("actualizacion");
       setTodas(data);
+      lastLoadRef.current = Date.now();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Error cargando datos");
+      if (!silencioso) setError(e instanceof Error ? e.message : "Error cargando datos");
     } finally {
-      setLoading(false);
+      if (!silencioso) setLoading(false);
     }
   }, []);
 
@@ -83,10 +85,15 @@ function ActualizacionContent() {
 
   useEffect(() => { cargar(); cargarGrupos(); }, [cargar, cargarGrupos, refreshKey]);
   useEffect(() => {
-    function onFocus() { cargar(); }
-    window.addEventListener("focus", onFocus);
-    return () => window.removeEventListener("focus", onFocus);
-  }, [cargar]);
+    function onVisible() {
+      if (document.visibilityState === "visible" && Date.now() - lastLoadRef.current > 30000) {
+        cargar(true);
+        cargarGrupos();
+      }
+    }
+    document.addEventListener("visibilitychange", onVisible);
+    return () => document.removeEventListener("visibilitychange", onVisible);
+  }, [cargar, cargarGrupos]);
 
   return (
     <div className="p-6 w-full space-y-5">

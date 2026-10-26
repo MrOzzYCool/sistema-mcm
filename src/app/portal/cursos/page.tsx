@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useReducer } from "react";
+import { useEffect, useState, useReducer, useRef } from "react";
 import { getAccessToken } from "@/lib/get-token";
 import {
   BookOpen, Clock, TrendingUp, Loader2, RefreshCw, AlertCircle,
@@ -175,6 +175,7 @@ export default function CursosAlumnoPage() {
   const [state, dispatch] = useReducer(reducer, initialState);
   const [fetchId, setFetchId] = useState(0);
   const [expandedCurso, setExpandedCurso] = useState<string | null>(null);
+  const lastLoadRef = useRef<number>(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -193,6 +194,7 @@ export default function CursosAlumnoPage() {
           type: state.status === "ready" ? "BG_REFRESH_OK" : "FETCH_OK",
           inscripcion: data.inscripcion, cursos: data.cursos ?? [], historial: data.historial ?? [],
         });
+        lastLoadRef.current = Date.now();
       } catch (err) {
         if (!cancelled) dispatch({ type: "FETCH_ERROR", msg: err instanceof Error ? err.message : "Error" });
       }
@@ -203,7 +205,7 @@ export default function CursosAlumnoPage() {
 
   useEffect(() => {
     function onVisible() {
-      if (document.visibilityState === "visible" && state.status === "ready") setFetchId(n => n + 1);
+      if (document.visibilityState === "visible" && state.status === "ready" && Date.now() - lastLoadRef.current > 30000) setFetchId(n => n + 1);
     }
     document.addEventListener("visibilitychange", onVisible);
     return () => document.removeEventListener("visibilitychange", onVisible);
