@@ -1,0 +1,13 @@
+{
+  "pbtResults": {
+    "3.2 Escribir prueba de propiedad: monotonía estricta": {
+      "status": "passed",
+      "lastRunTimestamp": 1793041485766
+    },
+    "3.3 Escribir prueba de propiedad: respeto del número de inicio": {
+      "status": "passed",
+      "lastRunTimestamp": 1793041486463
+    }
+  },
+  "executionHistory": {}
+}

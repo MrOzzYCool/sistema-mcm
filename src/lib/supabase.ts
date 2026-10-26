@@ -68,6 +68,7 @@ export interface GrupoActualizacionDB {
   fecha_inicio_actualizacion?: string | null; // ISO date — inicio del dictado
   fecha_fin_actualizacion?: string | null; // ISO date — fin del dictado
   estado: "activo" | "cerrado";
+  numero_grupo?: number | null; // correlativo interno por programa
   created_by?: string | null;
   created_at?: string;
 }

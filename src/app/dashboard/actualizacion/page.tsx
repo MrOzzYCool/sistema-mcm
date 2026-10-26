@@ -42,6 +42,10 @@ function formatearFecha(fecha?: string | null): string {
   });
 }
 
+// Etiqueta del correlativo interno "Grupo N — " (solo panel admin). Vacía si no hay número.
+const etiquetaGrupo = (g: GrupoActualizacionDB) =>
+  typeof g.numero_grupo === "number" ? `Grupo ${g.numero_grupo} — ` : "";
+
 // ─── Contenido principal ──────────────────────────────────────────────────────
 
 function ActualizacionContent() {
@@ -345,7 +349,7 @@ function SolicitudesView({ todas, loading, tabActiva, setTabActiva, setTodas, se
             <option value="sin-agrupar">Sin agrupar</option>
             {gruposDelTab.map((g) => (
               <option key={g.id} value={g.id}>
-                {g.estado === "activo" ? "🟢" : "🔒"} {formatearFecha(g.fecha_inicio_actualizacion ?? g.fecha_inicio ?? g.fecha_inicio_inscripcion)}
+                {etiquetaGrupo(g)}{g.estado === "activo" ? "🟢" : "🔒"} {formatearFecha(g.fecha_inicio_actualizacion ?? g.fecha_inicio ?? g.fecha_inicio_inscripcion)}
                 {g.estado === "cerrado" ? " (cerrado)" : ""}
               </option>
             ))}
@@ -1553,6 +1557,11 @@ function GruposModal({ grupos, onClose, onChanged }: {
             return (
               <div key={g.id} className="flex items-center gap-3 border border-mcm-border rounded-xl px-4 py-3">
                 <div className="flex-1 min-w-0">
+                  {typeof g.numero_grupo === "number" && (
+                    <span className="inline-block mb-1 text-xs font-bold text-[#C62828] bg-red-50 border border-red-200 rounded-full px-2 py-0.5">
+                      Grupo {g.numero_grupo}
+                    </span>
+                  )}
                   <p className="font-semibold text-mcm-text text-sm truncate">{g.programa_label}</p>
                   <p className="text-xs text-mcm-muted">
                     Inscripción: {formatearFecha(g.fecha_inicio_inscripcion)}

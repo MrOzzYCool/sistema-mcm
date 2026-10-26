@@ -286,6 +286,7 @@ export const ACTUALIZACIONES_CATALOGO = [
     valorUnitario:  338.98,       // sin IGV
     precioUnitario: 400.00,       // con IGV
     tipoIgv:        10,           // 10 = Gravado
+    numeroInicioGrupo: 10,        // correlativo interno de inicio por programa
   },
   {
     id:             "ac2",
@@ -296,6 +297,7 @@ export const ACTUALIZACIONES_CATALOGO = [
     valorUnitario:  296.61,
     precioUnitario: 350.00,
     tipoIgv:        10,
+    numeroInicioGrupo: 30,        // correlativo interno de inicio por programa
   },
 ] as const;
 

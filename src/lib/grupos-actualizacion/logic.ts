@@ -129,3 +129,33 @@ export function programasActivos(
       fecha_fin_actualizacion: g.fecha_fin_actualizacion,
     }));
 }
+/** Número de inicio por defecto cuando un programa no define `numeroInicioGrupo`. */
+export const DEFAULT_NUMERO_INICIO_GRUPO = 1;
+
+/**
+ * Calcula el siguiente número correlativo de un grupo dentro de un programa
+ * (Req 1.3, 2.1, 2.2).
+ *
+ * Recibe el número de inicio del programa y la lista de `numero_grupo` ya
+ * asignados en ese programa (considerando grupos activos y cerrados). Los
+ * valores `null`/`undefined` o no numéricos se ignoran, para tolerar filas
+ * antiguas sin numerar de forma defensiva.
+ *
+ * @param numeroInicio  Número de inicio del programa (p.ej. 10 para ac1, 30
+ *                      para ac2). Si el programa no lo define, el llamador
+ *                      pasa `DEFAULT_NUMERO_INICIO_GRUPO`.
+ * @param numerosExistentes  Lista de `numero_grupo` existentes (activos y
+ *                      cerrados). Se ignoran `null`/no numéricos.
+ * @returns  `numeroInicio` si no hay números válidos; de lo contrario
+ *           `max(existentes) + 1`.
+ */
+export function calcularSiguienteNumeroGrupo(
+  numeroInicio: number,
+  numerosExistentes: (number | null | undefined)[]
+): number {
+  const validos = numerosExistentes.filter(
+    (n): n is number => typeof n === "number" && Number.isFinite(n)
+  );
+  if (validos.length === 0) return numeroInicio;
+  return Math.max(...validos) + 1;
+}
