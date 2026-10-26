@@ -781,11 +781,9 @@ function PagosAlumnoContent() {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-sm font-medium text-mcm-text mb-1">Serie</label>
-                  <select value={manualForm.serie} onChange={e => setManualForm({...manualForm, serie: e.target.value})}
-                    className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#C62828]">
-                    <option value="BBB2">BBB2</option>
-                    <option value="FFF2">FFF2</option>
-                  </select>
+                  <input value={manualForm.serie} readOnly
+                    title="La serie se asigna automáticamente según el tipo de comprobante"
+                    className="w-full border border-mcm-border rounded-lg px-3 py-2 text-sm bg-slate-50 text-mcm-muted cursor-not-allowed" />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-mcm-text mb-1">Número</label>
